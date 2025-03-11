@@ -25,6 +25,7 @@ import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.Channels;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.atomic.AtomicReference;
@@ -336,7 +337,7 @@ public class RemoteLaunchServer
                     final File file = new File(trimmedArg.substring(baseDirPrefix.length()), "command.out");
                     try
                     {
-                        return new PrintStream(file.getAbsolutePath(), "UTF-8");
+                        return new PrintStream(file.getAbsolutePath(), StandardCharsets.UTF_8);
                     }
                     catch (final Exception ex)
                     {
