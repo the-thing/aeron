@@ -1355,6 +1355,43 @@ final class ClientConductor implements Agent
         }
     }
 
+    void asyncRemoveCounter(final long counterRegistrationId)
+    {
+        clientLock.lock();
+        try
+        {
+            if (NULL_VALUE == counterRegistrationId || isTerminating || isClosed)
+            {
+                return;
+            }
+
+            ensureNotReentrant();
+
+            final Object resource = resourceByRegIdMap.get(counterRegistrationId);
+            if (null != resource && !(resource instanceof Counter))
+            {
+                throw new AeronException("registration id is not a Counter: " +
+                    resource.getClass().getSimpleName());
+            }
+
+            final Counter counter = (Counter)resource;
+            if (null != counter)
+            {
+                resourceByRegIdMap.remove(counterRegistrationId);
+                counter.internalClose();
+            }
+
+            if (asyncCommandIdSet.remove(counterRegistrationId) || null != counter)
+            {
+                asyncCommandIdSet.add(driverProxy.removeCounter(counterRegistrationId));
+            }
+        }
+        finally
+        {
+            clientLock.unlock();
+        }
+    }
+
     Counter getCounter(final long registrationId)
     {
         clientLock.lock();

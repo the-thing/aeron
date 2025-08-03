@@ -343,7 +343,7 @@ public final class Aeron implements AutoCloseable
     /**
      * Asynchronously remove a {@link Publication}.
      *
-     * @param registrationId to be of the publication removed.
+     * @param registrationId of the publication to be removed.
      * @see #asyncAddPublication(String, int)
      * @see #asyncAddExclusivePublication(String, int)
      */
@@ -766,6 +766,19 @@ public final class Aeron implements AutoCloseable
     public Counter getCounter(final long correlationId)
     {
         return conductor.getCounter(correlationId);
+    }
+
+    /**
+     * Asynchronously remove a {@link Counter}.
+     *
+     * @param registrationId of the counter to be removed.
+     * @see #asyncAddCounter(int, String)
+     * @see #asyncAddCounter(int, DirectBuffer, int, int, DirectBuffer, int, int)
+     * @since 1.49.0
+     */
+    public void asyncRemoveCounter(final long registrationId)
+    {
+        conductor.asyncRemoveCounter(registrationId);
     }
 
     /**

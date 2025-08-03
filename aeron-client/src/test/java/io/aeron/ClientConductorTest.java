@@ -907,6 +907,69 @@ class ClientConductorTest
         assertNotEquals(sessionId2 + 1, sessionId3);
     }
 
+    @Test
+    void asyncRemoveCounterByRegistrationIdIsANoOpIfIdIsUnknown()
+    {
+        final long subscriptionId = 666;
+
+        conductor.asyncRemoveCounter(subscriptionId);
+
+        assertFalse(conductor.asyncCommandIdSet.contains(subscriptionId));
+        verify(driverProxy, never()).removeCounter(subscriptionId);
+    }
+
+    @Test
+    void shouldThrowAeronExceptionOnAttemptToRemoveWrongResourceUsingCounterRegistrationId()
+    {
+        final long registrationId = 42;
+        conductor.resourceByRegIdMap.put(registrationId, "test resource");
+
+        final AeronException exception =
+            assertThrowsExactly(AeronException.class, () -> conductor.asyncRemoveCounter(registrationId));
+        assertEquals("ERROR - registration id is not a Counter: String", exception.getMessage());
+    }
+
+    @Test
+    void shouldRemoveCounterByRegistrationId()
+    {
+        final int typeId = 42;
+        final String label = "test";
+        final long counterRegistrationId = 777;
+        final int counterId = 10;
+        when(driverProxy.addCounter(typeId, label)).thenReturn(counterRegistrationId);
+        assertEquals(counterRegistrationId, conductor.asyncAddCounter(typeId, label));
+        conductor.onNewCounter(counterRegistrationId, counterId);
+
+
+        final Counter counter =
+            (Counter)conductor.resourceByRegIdMap.get(counterRegistrationId);
+        assertNotNull(counter);
+        assertFalse(counter.isClosed());
+
+        conductor.asyncRemoveCounter(counterRegistrationId);
+        assertFalse(conductor.asyncCommandIdSet.contains(counterRegistrationId));
+        assertNull(conductor.resourceByRegIdMap.get(counterRegistrationId));
+        verify(driverProxy, atMostOnce()).removeCounter(counterRegistrationId);
+        assertTrue(counter.isClosed());
+    }
+
+    @Test
+    void shouldRemovePendingCounterByRegistrationId()
+    {
+        final int typeId = 42;
+        final String label = "test";
+        final long counterRegistrationId = 777;
+        when(driverProxy.addCounter(typeId, label)).thenReturn(counterRegistrationId);
+        assertEquals(counterRegistrationId, conductor.asyncAddCounter(typeId, label));
+
+        assertTrue(conductor.asyncCommandIdSet.contains(counterRegistrationId));
+        assertNull(conductor.resourceByRegIdMap.get(counterRegistrationId));
+
+        conductor.asyncRemoveCounter(counterRegistrationId);
+        assertFalse(conductor.asyncCommandIdSet.contains(counterRegistrationId));
+        verify(driverProxy, atMostOnce()).removeCounter(counterRegistrationId);
+    }
+
     private void whenReceiveBroadcastOnMessage(
         final int msgTypeId, final MutableDirectBuffer buffer, final ToIntFunction<MutableDirectBuffer> filler)
     {
