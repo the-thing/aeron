@@ -63,7 +63,7 @@ public interface FlowControl extends AutoCloseable
      * @return receiver window multiple.
      */
     static int retransmitReceiverWindowMultiple(
-        UdpChannel udpChannel, int defaultRetransmitReceiverWindowMultiple)
+        final UdpChannel udpChannel, final int defaultRetransmitReceiverWindowMultiple)
     {
         final String fcValue = udpChannel.channelUri().get(CommonContext.FLOW_CONTROL_PARAM_NAME);
         if (fcValue != null)
