@@ -209,7 +209,7 @@ public final class AeronArchive implements AutoCloseable
         {
             if (State.CLOSED != state)
             {
-                state = State.CLOSED;
+                state(State.CLOSED);
                 final ErrorHandler errorHandler = context.errorHandler();
                 Exception resultEx = null;
 
@@ -456,7 +456,7 @@ public final class AeronArchive implements AutoCloseable
             final ControlResponsePoller poller = controlResponsePoller;
             if (!poller.subscription().isConnected())
             {
-                state = State.DISCONNECTED;
+                state(State.DISCONNECTED);
                 return NOT_CONNECTED_MSG;
             }
 
@@ -501,7 +501,7 @@ public final class AeronArchive implements AutoCloseable
             final ControlResponsePoller poller = controlResponsePoller;
             if (!poller.subscription().isConnected())
             {
-                state = State.DISCONNECTED;
+                state(State.DISCONNECTED);
                 if (null != context.errorHandler())
                 {
                     context.errorHandler().onError(new ArchiveException(NOT_CONNECTED_MSG));
@@ -2356,7 +2356,7 @@ public final class AeronArchive implements AutoCloseable
     {
         if (!subscription.isConnected())
         {
-            state = State.DISCONNECTED;
+            state(State.DISCONNECTED);
             throw new ArchiveException(
                 "response channel from archive is not connected, " +
                 "channel=" + subscription.channel() +
@@ -2564,9 +2564,10 @@ public final class AeronArchive implements AutoCloseable
 
     private void ensureConnected()
     {
-        if (State.CONNECTED != state)
+        final State currentState = state;
+        if (State.CONNECTED != currentState)
         {
-            if (State.CLOSED == state)
+            if (State.CLOSED == currentState)
             {
                 throw new ArchiveException("client is closed");
             }
@@ -2582,6 +2583,14 @@ public final class AeronArchive implements AutoCloseable
         if (isInCallback)
         {
             throw new AeronException("reentrant calls not permitted during callbacks");
+        }
+    }
+
+    private void state(final State newState)
+    {
+        if (State.CLOSED != state)
+        {
+            state = newState;
         }
     }
 
@@ -3674,7 +3683,7 @@ public final class AeronArchive implements AutoCloseable
                             final AeronArchive client = aeronArchive;
                             if (null != client)
                             {
-                                client.state = AeronArchive.State.DISCONNECTED;
+                                client.state(AeronArchive.State.DISCONNECTED);
                             }
                         }));
 

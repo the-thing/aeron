@@ -77,6 +77,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.IntConsumer;
@@ -1009,6 +1010,62 @@ class ArchiveTest
         {
             archiveCtx.deleteDirectory();
             driverCtx.deleteDirectory();
+        }
+    }
+
+    @Test
+    void closedArchiveClientShouldBeInStateClosed(@TempDir final Path temp)
+    {
+        try (MediaDriver driver =
+            MediaDriver.launch(new MediaDriver.Context().aeronDirectoryName(generateRandomDirName()));
+            Archive archive = Archive.launch(TestContexts.localhostArchive()
+                .archiveDir(temp.toFile())
+                .archiveId(ThreadLocalRandom.current().nextLong())
+                .aeronDirectoryName(driver.context().aeronDirectoryName()));
+            AeronArchive aeronArchive = AeronArchive.connect(TestContexts.localhostAeronArchive()
+                .aeronDirectoryName(driver.context().aeronDirectoryName())))
+        {
+            assertEquals(archive.context().archiveId(), aeronArchive.archiveId());
+
+            final Publication publication = aeronArchive.archiveProxy().publication();
+            final Subscription subscription = aeronArchive.controlResponsePoller().subscription();
+
+            aeronArchive.close();
+
+            Tests.await(publication::isClosed);
+            Tests.await(subscription::isClosed);
+            assertTrue(aeronArchive.context().aeron().isClosed());
+            assertEquals(AeronArchive.State.CLOSED, aeronArchive.state());
+        }
+    }
+
+    @Test
+    void closedArchiveClientShouldBeInStateClosedCustomAeronClient(@TempDir final Path temp)
+    {
+        try (MediaDriver driver =
+            MediaDriver.launch(new MediaDriver.Context().aeronDirectoryName(generateRandomDirName()));
+            Archive archive = Archive.launch(TestContexts.localhostArchive()
+                .archiveDir(temp.toFile())
+                .archiveId(ThreadLocalRandom.current().nextLong())
+                .aeronDirectoryName(driver.context().aeronDirectoryName()));
+            Aeron aeron = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(driver.context().aeronDirectoryName()));
+            AeronArchive aeronArchive = AeronArchive.connect(TestContexts.localhostAeronArchive()
+                .aeronDirectoryName(null)
+                .aeron(aeron)))
+        {
+            assertEquals(archive.context().archiveId(), aeronArchive.archiveId());
+
+            final Publication publication = aeronArchive.archiveProxy().publication();
+            final Subscription subscription = aeronArchive.controlResponsePoller().subscription();
+
+            aeronArchive.close();
+
+            Tests.await(publication::isClosed);
+            Tests.await(subscription::isClosed);
+            assertFalse(aeron.isClosed());
+            assertFalse(aeronArchive.context().aeron().isClosed());
+            assertEquals(AeronArchive.State.CLOSED, aeronArchive.state());
         }
     }
 
