@@ -67,6 +67,11 @@ final class ClusterControlAdapter implements AutoCloseable
         return subscription.poll(fragmentAssembler, 1);
     }
 
+    boolean isBound()
+    {
+        return null != subscription.tryResolveChannelEndpointPort();
+    }
+
     @SuppressWarnings("MethodLength")
     private void onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {

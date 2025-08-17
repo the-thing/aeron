@@ -579,17 +579,17 @@ public class ClusterToolOperator
         };
 
         try (Aeron aeron = Aeron.connect(new Aeron.Context().aeronDirectoryName(controlProperties.aeronDirectoryName));
+            ClusterControlAdapter clusterControlAdapter = new ClusterControlAdapter(
+                aeron.addSubscription(controlProperties.controlChannel, controlProperties.serviceStreamId), listener);
             ConcurrentPublication publication = aeron.addPublication(
                 controlProperties.controlChannel, controlProperties.consensusModuleStreamId);
-            ConsensusModuleProxy consensusModuleProxy = new ConsensusModuleProxy(publication);
-            ClusterControlAdapter clusterControlAdapter = new ClusterControlAdapter(aeron.addSubscription(
-                controlProperties.controlChannel, controlProperties.serviceStreamId), listener))
+            ConsensusModuleProxy consensusModuleProxy = new ConsensusModuleProxy(publication))
         {
             final long deadlineMs = System.currentTimeMillis() + timeoutMs;
             final long correlationId = aeron.nextCorrelationId();
             id.set(correlationId);
 
-            while (publication.availableWindow() <= 0)
+            while (!clusterControlAdapter.isBound() && publication.availableWindow() <= 0)
             {
                 if (System.currentTimeMillis() > deadlineMs)
                 {
