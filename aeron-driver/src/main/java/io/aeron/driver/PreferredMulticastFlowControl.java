@@ -24,7 +24,7 @@ import static java.lang.System.getProperty;
  *
  * @deprecated Use {@link TaggedMulticastFlowControl} instead
  */
-@Deprecated(forRemoval = true)
+@Deprecated
 public class PreferredMulticastFlowControl extends TaggedMulticastFlowControl
 {
     /**
