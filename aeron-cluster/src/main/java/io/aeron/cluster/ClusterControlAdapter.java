@@ -69,7 +69,7 @@ final class ClusterControlAdapter implements AutoCloseable
 
     boolean isBound()
     {
-        return null != subscription.tryResolveChannelEndpointPort();
+        return subscription.isConnected();
     }
 
     @SuppressWarnings("MethodLength")
