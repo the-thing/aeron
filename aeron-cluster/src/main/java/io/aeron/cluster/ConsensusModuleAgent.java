@@ -15,19 +15,43 @@
  */
 package io.aeron.cluster;
 
-import io.aeron.*;
+import io.aeron.Aeron;
+import io.aeron.ChannelUri;
+import io.aeron.ControlledFragmentAssembler;
+import io.aeron.Counter;
+import io.aeron.ExclusivePublication;
+import io.aeron.Image;
+import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.archive.client.RecordingSignalPoller;
 import io.aeron.archive.client.ReplicationParams;
-import io.aeron.archive.codecs.*;
+import io.aeron.archive.codecs.ControlResponseCode;
+import io.aeron.archive.codecs.ControlResponseDecoder;
+import io.aeron.archive.codecs.RecordingSignal;
+import io.aeron.archive.codecs.RecordingSignalEventDecoder;
+import io.aeron.archive.codecs.SourceLocation;
 import io.aeron.archive.status.RecordingPos;
 import io.aeron.cluster.client.AeronCluster;
 import io.aeron.cluster.client.ClusterEvent;
 import io.aeron.cluster.client.ClusterException;
+import io.aeron.cluster.codecs.AdminRequestDecoder;
+import io.aeron.cluster.codecs.AdminRequestType;
+import io.aeron.cluster.codecs.AdminResponseCode;
+import io.aeron.cluster.codecs.BackupQueryDecoder;
+import io.aeron.cluster.codecs.CloseReason;
+import io.aeron.cluster.codecs.ClusterAction;
+import io.aeron.cluster.codecs.EventCode;
+import io.aeron.cluster.codecs.HeartbeatRequestDecoder;
 import io.aeron.cluster.codecs.MessageHeaderDecoder;
-import io.aeron.cluster.codecs.*;
-import io.aeron.cluster.service.*;
+import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
+import io.aeron.cluster.codecs.StandbySnapshotDecoder;
+import io.aeron.cluster.service.Cluster;
+import io.aeron.cluster.service.ClusterClock;
+import io.aeron.cluster.service.ClusterMarkFile;
+import io.aeron.cluster.service.ClusterTerminationException;
+import io.aeron.cluster.service.RecoveryState;
+import io.aeron.cluster.service.SnapshotDurationTracker;
 import io.aeron.driver.DutyCycleTracker;
 import io.aeron.driver.media.UdpChannel;
 import io.aeron.exceptions.AeronException;
@@ -37,9 +61,22 @@ import io.aeron.security.Authenticator;
 import io.aeron.security.AuthorisationService;
 import io.aeron.status.LocalSocketAddressStatus;
 import io.aeron.status.ReadableCounter;
-import org.agrona.*;
-import org.agrona.collections.*;
-import org.agrona.concurrent.*;
+import org.agrona.CloseHelper;
+import org.agrona.DirectBuffer;
+import org.agrona.ExpandableRingBuffer;
+import org.agrona.MutableDirectBuffer;
+import org.agrona.SemanticVersion;
+import org.agrona.Strings;
+import org.agrona.collections.ArrayListUtil;
+import org.agrona.collections.Int2ObjectHashMap;
+import org.agrona.collections.Long2LongCounterMap;
+import org.agrona.collections.Long2ObjectHashMap;
+import org.agrona.collections.LongArrayQueue;
+import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentInvoker;
+import org.agrona.concurrent.AgentTerminationException;
+import org.agrona.concurrent.CountedErrorHandler;
+import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.status.CountersReader;
 
 import java.util.ArrayDeque;
@@ -53,20 +90,50 @@ import java.util.function.LongConsumer;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.ChannelUri.transformAlias;
-import static io.aeron.CommonContext.*;
+import static io.aeron.CommonContext.ALIAS_PARAM_NAME;
+import static io.aeron.CommonContext.CONTROL_MODE_RESPONSE;
+import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
+import static io.aeron.CommonContext.EOS_PARAM_NAME;
+import static io.aeron.CommonContext.INITIAL_TERM_ID_PARAM_NAME;
+import static io.aeron.CommonContext.IPC_CHANNEL;
+import static io.aeron.CommonContext.LINGER_PARAM_NAME;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_MANUAL;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_PARAM_NAME;
+import static io.aeron.CommonContext.MDC_CONTROL_PARAM_NAME;
+import static io.aeron.CommonContext.MTU_LENGTH_PARAM_NAME;
+import static io.aeron.CommonContext.REJOIN_PARAM_NAME;
+import static io.aeron.CommonContext.SESSION_ID_PARAM_NAME;
+import static io.aeron.CommonContext.SPIES_SIMULATE_CONNECTION_PARAM_NAME;
+import static io.aeron.CommonContext.SPY_PREFIX;
+import static io.aeron.CommonContext.TAGS_PARAM_NAME;
+import static io.aeron.CommonContext.TERM_ID_PARAM_NAME;
+import static io.aeron.CommonContext.TERM_OFFSET_PARAM_NAME;
+import static io.aeron.CommonContext.UDP_CHANNEL;
 import static io.aeron.archive.client.AeronArchive.NULL_LENGTH;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.archive.client.ArchiveException.UNKNOWN_REPLAY;
 import static io.aeron.archive.client.ReplayMerge.LIVE_ADD_MAX_WINDOW;
 import static io.aeron.archive.codecs.SourceLocation.LOCAL;
-import static io.aeron.cluster.ClusterSession.State.*;
+import static io.aeron.cluster.ClusterSession.State.AUTHENTICATED;
+import static io.aeron.cluster.ClusterSession.State.CHALLENGED;
+import static io.aeron.cluster.ClusterSession.State.CLOSING;
+import static io.aeron.cluster.ClusterSession.State.CONNECTED;
+import static io.aeron.cluster.ClusterSession.State.CONNECTING;
+import static io.aeron.cluster.ClusterSession.State.INIT;
+import static io.aeron.cluster.ClusterSession.State.INVALID;
+import static io.aeron.cluster.ClusterSession.State.REJECTED;
 import static io.aeron.cluster.ConsensusModule.CLUSTER_ACTION_FLAGS_DEFAULT;
 import static io.aeron.cluster.ConsensusModule.CLUSTER_ACTION_FLAGS_STANDBY_SNAPSHOT;
-import static io.aeron.cluster.ConsensusModule.Configuration.*;
+import static io.aeron.cluster.ConsensusModule.Configuration.SERVICE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.SESSION_INVALID_VERSION_MSG;
+import static io.aeron.cluster.ConsensusModule.Configuration.SESSION_LIMIT_MSG;
+import static io.aeron.cluster.ConsensusModule.Configuration.SNAPSHOT_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.clusterMemberId;
 import static io.aeron.cluster.client.AeronCluster.Configuration.PROTOCOL_SEMANTIC_VERSION;
 import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.MARK_FILE_UPDATE_INTERVAL_NS;
 import static io.aeron.exceptions.AeronException.Category.WARN;
-import static java.util.concurrent.TimeUnit.*;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 final class ConsensusModuleAgent
     implements Agent, IdleStrategy, TimerService.TimerHandler, ConsensusModuleSnapshotListener, ConsensusModuleControl
@@ -723,9 +790,11 @@ final class ConsensusModuleAgent
                 session.closing(CloseReason.CLIENT_ACTION);
                 session.disconnect(aeron, ctx.countedErrorHandler());
 
-                if (logPublisher.appendSessionClose(
-                    memberId, session, leadershipTermId, clusterClock.time(), clusterTimeUnit))
+                final long timestamp = clusterClock.time();
+                if (logPublisher.appendSessionClose(memberId, session, leadershipTermId, timestamp, clusterTimeUnit))
                 {
+                    logAppendSessionClose(
+                        memberId, session.id(), session.closeReason(), leadershipTermId, timestamp, clusterTimeUnit);
                     session.closedLogPosition(logPublisher.position());
                     uncommittedClosedSessions.addLast(session);
                     closeSession(session);
@@ -1399,9 +1468,11 @@ final class ConsensusModuleAgent
 
             if (Cluster.Role.LEADER == role && ConsensusModule.State.ACTIVE == state)
             {
-                if (logPublisher.appendSessionClose(
-                    memberId, session, leadershipTermId, clusterClock.time(), clusterTimeUnit))
+                final long timestamp = clusterClock.time();
+                if (logPublisher.appendSessionClose(memberId, session, leadershipTermId, timestamp, clusterTimeUnit))
                 {
+                    logAppendSessionClose(
+                        memberId, session.id(), session.closeReason(), leadershipTermId, timestamp, clusterTimeUnit);
                     final String msg = CloseReason.SERVICE_ACTION.name();
                     egressPublisher.sendEvent(session, leadershipTermId, memberId, EventCode.CLOSED, msg);
                     session.closedLogPosition(logPublisher.position());
@@ -2109,10 +2180,13 @@ final class ConsensusModuleAgent
     {
     }
 
-    private static void logOnAddPassiveMember(
+    private static void logAppendSessionClose(
         final int memberId,
-        final long correlationId,
-        final String memberEndpoints)
+        final long id,
+        final CloseReason closeReason,
+        final long leadershipTermId,
+        final long timestamp,
+        final TimeUnit timeUnit)
     {
     }
 
@@ -2836,11 +2910,20 @@ final class ConsensusModuleAgent
                 switch (session.state())
                 {
                     case OPEN:
+                    {
                         session.closing(CloseReason.TIMEOUT);
 
+                        final long timestamp = clusterClock.time();
                         if (logPublisher.appendSessionClose(
-                            memberId, session, leadershipTermId, clusterClock.time(), clusterTimeUnit))
+                            memberId, session, leadershipTermId, timestamp, clusterTimeUnit))
                         {
+                            logAppendSessionClose(
+                                memberId,
+                                session.id(),
+                                session.closeReason(),
+                                leadershipTermId,
+                                timestamp,
+                                clusterTimeUnit);
                             final String msg = session.closeReason().name();
                             egressPublisher.sendEvent(session, leadershipTermId, memberId, EventCode.CLOSED, msg);
                             session.closedLogPosition(logPublisher.position());
@@ -2848,12 +2931,23 @@ final class ConsensusModuleAgent
                             ctx.timedOutClientCounter().incrementRelease();
                             closeSession(session);
                         }
+                        workCount++;
                         break;
+                    }
 
                     case CLOSING:
+                    {
+                        final long timestamp = clusterClock.time();
                         if (logPublisher.appendSessionClose(
-                            memberId, session, leadershipTermId, clusterClock.time(), clusterTimeUnit))
+                            memberId, session, leadershipTermId, timestamp, clusterTimeUnit))
                         {
+                            logAppendSessionClose(
+                                memberId,
+                                session.id(),
+                                session.closeReason(),
+                                leadershipTermId,
+                                timestamp,
+                                clusterTimeUnit);
                             final String msg = session.closeReason().name();
                             egressPublisher.sendEvent(session, leadershipTermId, memberId, EventCode.CLOSED, msg);
                             session.closedLogPosition(logPublisher.position());
@@ -2863,15 +2957,18 @@ final class ConsensusModuleAgent
                                 ctx.timedOutClientCounter().incrementRelease();
                             }
                             closeSession(session);
+                            workCount++;
                         }
                         break;
+                    }
 
                     default:
+                    {
                         closeSession(session);
+                        workCount++;
                         break;
+                    }
                 }
-
-                workCount++;
             }
             else if (session.hasOpenEventPending())
             {
