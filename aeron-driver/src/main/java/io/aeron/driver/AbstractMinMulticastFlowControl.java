@@ -328,13 +328,16 @@ public abstract class AbstractMinMulticastFlowControl
         final long timeNs,
         final boolean hasMatchingTag)
     {
-        final long receiverId = error.receiverId();
-
-        for (final Receiver receiver : receivers)
+        if (hasMatchingTag)
         {
-            if (hasMatchingTag && receiverId == receiver.receiverId)
+            final long receiverId = error.receiverId();
+            for (final Receiver receiver : receivers)
             {
-                receiver.eosFlagged = true;
+                if (receiverId == receiver.receiverId)
+                {
+                    receiver.eosFlagged = true;
+                    break;
+                }
             }
         }
     }
