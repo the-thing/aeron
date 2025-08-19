@@ -348,12 +348,19 @@ class ReplaySession implements Session, AutoCloseable
         return 1;
     }
 
+    @SuppressWarnings("methodlength")
     private int replay() throws IOException
     {
         if (!publication.isConnected())
         {
             revokePublication = true;
             state(State.INACTIVE, "publication is not connected");
+            return 0;
+        }
+
+        if (startPosition == stopPosition && 0 == replayLimit)
+        {
+            state(State.INACTIVE, "empty replay");
             return 0;
         }
 

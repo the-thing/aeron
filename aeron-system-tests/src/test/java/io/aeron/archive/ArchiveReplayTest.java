@@ -17,10 +17,13 @@ package io.aeron.archive;
 
 import io.aeron.Aeron;
 import io.aeron.ChannelUri;
+import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ReplayParams;
 import io.aeron.driver.MediaDriver;
+import io.aeron.test.InterruptAfter;
+import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
 import io.aeron.test.TestContexts;
 import io.aeron.test.Tests;
@@ -31,13 +34,20 @@ import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.YieldingIdleStrategy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
+import java.util.concurrent.TimeUnit;
 
 import static io.aeron.CommonContext.IPC_CHANNEL;
+import static io.aeron.archive.client.AeronArchive.NULL_LENGTH;
+import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
+@ExtendWith(InterruptingTestCallback.class)
 public class ArchiveReplayTest
 {
     @RegisterExtension
@@ -110,6 +120,140 @@ public class ArchiveReplayTest
 
             CloseHelper.quietClose(replay);
             aeronArchive.stopReplay(replaySessionId);
+        }
+    }
+
+    @Test
+    @InterruptAfter(5)
+    @Disabled
+    void shouldExitOnEmptyRecording()
+    {
+        try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
+        {
+            long recordingId;
+            try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
+            {
+                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
+                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
+                {
+                    Tests.yield();
+                }
+            }
+
+            final Aeron aeron = aeronArchive.context().aeron();
+            final int replayStreamId = 10001;
+
+            final long replaySessionId = aeronArchive.startReplay(
+                recordingId,
+                IPC_CHANNEL,
+                replayStreamId,
+                new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+
+            final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
+            final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+
+            while (replay.images().isEmpty())
+            {
+                Tests.yield();
+            }
+
+            while (!replay.imageAtIndex(0).isEndOfStream())
+            {
+                Tests.yield();
+            }
+
+            CloseHelper.quietClose(replay);
+            aeronArchive.stopReplay(replaySessionId);
+        }
+    }
+
+    @Test
+    @InterruptAfter(5)
+    @Disabled
+    void shouldExitOnEmptyLiveRecording()
+    {
+        try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
+        {
+            try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
+            {
+                long recordingId;
+                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
+                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
+                {
+                    Tests.yield();
+                }
+
+                final Aeron aeron = aeronArchive.context().aeron();
+                final int replayStreamId = 10001;
+
+                final long replaySessionId = aeronArchive.startReplay(
+                    recordingId,
+                    IPC_CHANNEL,
+                    replayStreamId,
+                    new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+
+                final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
+                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+
+                while (replay.images().isEmpty())
+                {
+                    Tests.yield();
+                }
+
+                while (!replay.imageAtIndex(0).isEndOfStream())
+                {
+                    Tests.yield();
+                }
+
+                CloseHelper.quietClose(replay);
+                aeronArchive.stopReplay(replaySessionId);
+            }
+        }
+    }
+
+    @Test
+    @InterruptAfter(5)
+    @Disabled
+    void shouldNotExitWhenFollowingAnEmptyLiveRecording()
+    {
+        try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
+        {
+            try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
+            {
+                long recordingId;
+                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
+                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
+                {
+                    Tests.yield();
+                }
+
+                final Aeron aeron = aeronArchive.context().aeron();
+                final int replayStreamId = 10001;
+
+                final long replaySessionId = aeronArchive.startReplay(
+                    recordingId,
+                    IPC_CHANNEL,
+                    replayStreamId,
+                    new ReplayParams().position(NULL_POSITION).length(Long.MAX_VALUE));
+
+                final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
+                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+
+                while (replay.images().isEmpty())
+                {
+                    Tests.yield();
+                }
+
+                final long deadlineNs = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+                while (System.nanoTime() < deadlineNs)
+                {
+                    assertFalse(replay.imageAtIndex(0).isEndOfStream());
+                    Tests.yield();
+                }
+
+                CloseHelper.quietClose(replay);
+                aeronArchive.stopReplay(replaySessionId);
+            }
         }
     }
 }
