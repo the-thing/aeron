@@ -42,6 +42,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import static io.aeron.ErrorCode.IMAGE_REJECTED;
 import static io.aeron.driver.LossDetector.lossFound;
@@ -1089,11 +1090,15 @@ public final class PublicationImage
     private ImageConnection trackConnection(
         final int transportIndex, final InetSocketAddress srcAddress, final long nowNs)
     {
-        imageConnections = ArrayUtil.ensureCapacity(imageConnections, transportIndex + 1);
-        ImageConnection imageConnection = imageConnections[transportIndex];
-
-        if (null == imageConnection)
+        final ImageConnection imageConnection;
+        ImageConnection[] imageConnections = this.imageConnections;
+        if (transportIndex < imageConnections.length)
         {
+            imageConnection = imageConnections[transportIndex];
+        }
+        else
+        {
+            this.imageConnections = imageConnections = Arrays.copyOf(imageConnections, transportIndex + 1);
             imageConnection = new ImageConnection(nowNs, srcAddress);
             imageConnections[transportIndex] = imageConnection;
         }
