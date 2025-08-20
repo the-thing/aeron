@@ -1090,17 +1090,13 @@ public final class PublicationImage
     private ImageConnection trackConnection(
         final int transportIndex, final InetSocketAddress srcAddress, final long nowNs)
     {
-        ImageConnection imageConnection = null;
         ImageConnection[] imageConnections = this.imageConnections;
-        if (transportIndex < imageConnections.length)
-        {
-            imageConnection = imageConnections[transportIndex];
-        }
-        else
+        if (transportIndex >= imageConnections.length)
         {
             this.imageConnections = imageConnections = Arrays.copyOf(imageConnections, transportIndex + 1);
         }
 
+        ImageConnection imageConnection = imageConnections[transportIndex];
         if (null == imageConnection)
         {
             imageConnection = new ImageConnection(nowNs, srcAddress);
