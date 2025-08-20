@@ -31,6 +31,7 @@ import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.CloseHelper;
 import org.agrona.SystemUtil;
 import org.agrona.collections.MutableLong;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.YieldingIdleStrategy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -170,6 +171,53 @@ public class ArchiveReplayTest
     @Test
     @InterruptAfter(5)
     @Disabled
+    void shouldExitOnNonEmptyLiveRecording()
+    {
+        try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
+        {
+            long recordingId;
+            try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
+            {
+                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
+                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
+                {
+                    Tests.yield();
+                }
+
+                writeMessages(publication, "this is a test message", 1);
+                awaitRecordingPosition(aeronArchive, recordingId, publication.position());
+
+                final Aeron aeron = aeronArchive.context().aeron();
+                final int replayStreamId = 10001;
+
+                final long replaySessionId = aeronArchive.startReplay(
+                    recordingId,
+                    IPC_CHANNEL,
+                    replayStreamId,
+                    new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+
+                final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
+                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+
+                while (replay.images().isEmpty())
+                {
+                    Tests.yield();
+                }
+
+                while (!replay.imageAtIndex(0).isEndOfStream())
+                {
+                    Tests.yield();
+                }
+
+                CloseHelper.quietClose(replay);
+                aeronArchive.stopReplay(replaySessionId);
+            }
+        }
+    }
+
+    @Test
+    @InterruptAfter(5)
+    @Disabled
     void shouldExitOnEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -253,6 +301,29 @@ public class ArchiveReplayTest
 
                 CloseHelper.quietClose(replay);
                 aeronArchive.stopReplay(replaySessionId);
+            }
+        }
+    }
+
+    private static void awaitRecordingPosition(
+        final AeronArchive aeronArchive,
+        final long recordingId,
+        final long position)
+    {
+        while (aeronArchive.getMaxRecordedPosition(recordingId) < position)
+        {
+            Tests.yield();
+        }
+    }
+
+    private static void writeMessages(final Publication publication, final String thisIsATestMessage, final int count)
+    {
+        final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(thisIsATestMessage.getBytes());
+        for (int i = 0; i < count; i++)
+        {
+            while (publication.offer(unsafeBuffer, 0, unsafeBuffer.capacity()) < 0)
+            {
+                Tests.yield();
             }
         }
     }
