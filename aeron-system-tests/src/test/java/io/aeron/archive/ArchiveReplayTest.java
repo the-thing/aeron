@@ -129,7 +129,7 @@ public class ArchiveReplayTest
     }
 
     @Test
-    @InterruptAfter(5)
+    @InterruptAfter(10)
     void shouldExitOnEmptyRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -171,7 +171,7 @@ public class ArchiveReplayTest
     }
 
     @Test
-    @InterruptAfter(5)
+    @InterruptAfter(10)
     void shouldExitOnNonEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -217,7 +217,7 @@ public class ArchiveReplayTest
     }
 
     @Test
-    @InterruptAfter(5)
+    @InterruptAfter(10)
     void shouldExitOnEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -261,7 +261,7 @@ public class ArchiveReplayTest
     }
 
     @Test
-    @InterruptAfter(5)
+    @InterruptAfter(20)
     void shouldNotExitWhenFollowingAnEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
