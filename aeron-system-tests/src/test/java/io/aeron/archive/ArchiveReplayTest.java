@@ -22,7 +22,9 @@ import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ReplayParams;
+import io.aeron.archive.status.RecordingPos;
 import io.aeron.driver.MediaDriver;
+import io.aeron.driver.ThreadingMode;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
@@ -68,11 +70,13 @@ public class ArchiveReplayTest
             .termBufferSparseFile(true)
             .publicationTermBufferLength(termLength)
             .sharedIdleStrategy(YieldingIdleStrategy.INSTANCE)
+            .threadingMode(ThreadingMode.SHARED)
             .spiesSimulateConnection(true)
             .dirDeleteOnStart(true);
 
         final Archive.Context archiveContext = TestContexts.localhostArchive()
             .aeronDirectoryName(driverCtx.aeronDirectoryName())
+            .threadingMode(ArchiveThreadingMode.SHARED)
             .controlChannel("aeron:udp?endpoint=localhost:10001")
             .catalogCapacity(ArchiveSystemTests.CATALOG_CAPACITY)
             .fileSyncLevel(0)
@@ -91,8 +95,7 @@ public class ArchiveReplayTest
     @AfterEach
     void tearDown()
     {
-        CloseHelper.quietCloseAll(archive);
-        CloseHelper.quietCloseAll(driver);
+        CloseHelper.closeAll(archive, driver);
     }
 
     @Test
@@ -131,17 +134,15 @@ public class ArchiveReplayTest
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
         {
-            long recordingId;
+            final Aeron aeron = aeronArchive.context().aeron();
+            final long recordingId;
             try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
             {
-                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
-                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
-                {
-                    Tests.yield();
-                }
+                final int recordingCounterId = Tests.awaitRecordingCounterId(
+                    aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
+                recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
             }
 
-            final Aeron aeron = aeronArchive.context().aeron();
             final int replayStreamId = 10001;
 
             final long replaySessionId = aeronArchive.startReplay(
@@ -153,12 +154,13 @@ public class ArchiveReplayTest
             final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
             final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-            while (replay.images().isEmpty())
+            while (replay.hasNoImages())
             {
                 Tests.yield();
             }
 
-            while (!replay.imageAtIndex(0).isEndOfStream())
+            final Image image = replay.imageBySessionId((int)replaySessionId);
+            while (!image.isEndOfStream())
             {
                 Tests.yield();
             }
@@ -174,19 +176,17 @@ public class ArchiveReplayTest
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
         {
-            long recordingId;
+            final Aeron aeron = aeronArchive.context().aeron();
+            final long recordingId;
             try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
             {
-                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
-                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
-                {
-                    Tests.yield();
-                }
+                final int recordingCounterId = Tests.awaitRecordingCounterId(
+                    aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
+                recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
 
                 writeMessages(publication, "this is a test message", 1);
                 awaitRecordingPosition(aeronArchive, recordingId, publication.position());
 
-                final Aeron aeron = aeronArchive.context().aeron();
                 final int replayStreamId = 10001;
 
                 final long replaySessionId = aeronArchive.startReplay(
@@ -198,13 +198,12 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.images().isEmpty())
+                while (replay.hasNoImages())
                 {
                     Tests.yield();
                 }
 
-                final Image image = replay.imageAtIndex(0);
-
+                final Image image = replay.imageBySessionId((int)replaySessionId);
                 while (!image.isEndOfStream())
                 {
                     image.poll((buffer, offset, length, header) -> {}, 100);
@@ -244,12 +243,13 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.images().isEmpty())
+                while (replay.hasNoImages())
                 {
                     Tests.yield();
                 }
 
-                while (!replay.imageAtIndex(0).isEndOfStream())
+                final Image image = replay.imageBySessionId((int)replaySessionId);
+                while (!image.isEndOfStream())
                 {
                     Tests.yield();
                 }
@@ -266,16 +266,14 @@ public class ArchiveReplayTest
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
         {
+            final Aeron aeron = aeronArchive.context().aeron();
+            final long recordingId;
             try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
             {
-                long recordingId;
-                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
-                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
-                {
-                    Tests.yield();
-                }
+                final int recordingCounterId = Tests.awaitRecordingCounterId(
+                    aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
+                recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
 
-                final Aeron aeron = aeronArchive.context().aeron();
                 final int replayStreamId = 10001;
 
                 final long replaySessionId = aeronArchive.startReplay(
@@ -287,15 +285,16 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.images().isEmpty())
+                while (replay.hasNoImages())
                 {
                     Tests.yield();
                 }
 
+                final Image image = replay.imageBySessionId((int)replaySessionId);
                 final long deadlineNs = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadlineNs)
                 {
-                    assertFalse(replay.imageAtIndex(0).isEndOfStream());
+                    assertFalse(image.isEndOfStream());
                     Tests.yield();
                 }
 
