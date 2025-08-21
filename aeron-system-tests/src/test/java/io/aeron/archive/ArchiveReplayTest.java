@@ -156,13 +156,9 @@ public class ArchiveReplayTest
             final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
             final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-            while (replay.hasNoImages())
-            {
-                aeronArchive.checkForErrorResponse();
-                Tests.yield();
-            }
-
+            Tests.awaitConnected(replay);
             final Image image = replay.imageBySessionId((int)replaySessionId);
+
             while (!image.isEndOfStream())
             {
                 aeronArchive.checkForErrorResponse();
@@ -202,13 +198,9 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.hasNoImages())
-                {
-                    aeronArchive.checkForErrorResponse();
-                    Tests.yield();
-                }
-
+                Tests.awaitConnected(replay);
                 final Image image = replay.imageBySessionId((int)replaySessionId);
+
                 while (!image.isEndOfStream())
                 {
                     image.poll((buffer, offset, length, header) -> {}, 100);
@@ -246,13 +238,9 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.hasNoImages())
-                {
-                    aeronArchive.checkForErrorResponse();
-                    Tests.yield();
-                }
-
+                Tests.awaitConnected(replay);
                 final Image image = replay.imageBySessionId((int)replaySessionId);
+
                 while (!image.isEndOfStream())
                 {
                     aeronArchive.checkForErrorResponse();
@@ -290,13 +278,9 @@ public class ArchiveReplayTest
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
 
-                while (replay.hasNoImages())
-                {
-                    aeronArchive.checkForErrorResponse();
-                    Tests.yield();
-                }
-
+                Tests.awaitConnected(replay);
                 final Image image = replay.imageBySessionId((int)replaySessionId);
+
                 final long deadlineNs = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadlineNs)
                 {
