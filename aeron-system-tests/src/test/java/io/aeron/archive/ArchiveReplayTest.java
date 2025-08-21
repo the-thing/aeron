@@ -17,6 +17,7 @@ package io.aeron.archive;
 
 import io.aeron.Aeron;
 import io.aeron.ChannelUri;
+import io.aeron.Image;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
@@ -35,7 +36,6 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.YieldingIdleStrategy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -44,8 +44,9 @@ import java.io.File;
 import java.util.concurrent.TimeUnit;
 
 import static io.aeron.CommonContext.IPC_CHANNEL;
-import static io.aeron.archive.client.AeronArchive.NULL_LENGTH;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
+import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_FOLLOW;
+import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_STOP;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 @ExtendWith(InterruptingTestCallback.class)
@@ -126,7 +127,6 @@ public class ArchiveReplayTest
 
     @Test
     @InterruptAfter(5)
-    @Disabled
     void shouldExitOnEmptyRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -148,7 +148,7 @@ public class ArchiveReplayTest
                 recordingId,
                 IPC_CHANNEL,
                 replayStreamId,
-                new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+                new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
             final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
             final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
@@ -170,7 +170,6 @@ public class ArchiveReplayTest
 
     @Test
     @InterruptAfter(5)
-    @Disabled
     void shouldExitOnNonEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -194,7 +193,7 @@ public class ArchiveReplayTest
                     recordingId,
                     IPC_CHANNEL,
                     replayStreamId,
-                    new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+                    new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
@@ -204,8 +203,11 @@ public class ArchiveReplayTest
                     Tests.yield();
                 }
 
-                while (!replay.imageAtIndex(0).isEndOfStream())
+                final Image image = replay.imageAtIndex(0);
+
+                while (!image.isEndOfStream())
                 {
+                    image.poll((buffer, offset, length, header) -> {}, 100);
                     Tests.yield();
                 }
 
@@ -217,7 +219,6 @@ public class ArchiveReplayTest
 
     @Test
     @InterruptAfter(5)
-    @Disabled
     void shouldExitOnEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -238,7 +239,7 @@ public class ArchiveReplayTest
                     recordingId,
                     IPC_CHANNEL,
                     replayStreamId,
-                    new ReplayParams().position(NULL_POSITION).length(NULL_LENGTH));
+                    new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
@@ -261,7 +262,6 @@ public class ArchiveReplayTest
 
     @Test
     @InterruptAfter(5)
-    @Disabled
     void shouldNotExitWhenFollowingAnEmptyLiveRecording()
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
@@ -282,7 +282,7 @@ public class ArchiveReplayTest
                     recordingId,
                     IPC_CHANNEL,
                     replayStreamId,
-                    new ReplayParams().position(NULL_POSITION).length(Long.MAX_VALUE));
+                    new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_FOLLOW));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
                 final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);

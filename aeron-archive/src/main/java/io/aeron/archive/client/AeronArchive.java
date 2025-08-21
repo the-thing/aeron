@@ -104,6 +104,17 @@ public final class AeronArchive implements AutoCloseable
     public static final String NOT_CONNECTED_MSG = "not connected";
 
     /**
+     * When replaying a live recording, replay the whole stream and follow the live recording. This will behave the
+     * same way as providing {@link AeronArchive#NULL_LENGTH}
+     */
+    public static final long REPLAY_ALL_AND_FOLLOW = NULL_LENGTH;
+
+    /**
+     * When replaying a live recording, replay up to the current limit then stop the replay and end the stream.
+     */
+    public static final long REPLAY_ALL_AND_STOP = -2;
+
+    /**
      * Describes state of the client instance.
      */
     public enum State
@@ -1010,8 +1021,9 @@ public final class AeronArchive implements AutoCloseable
      *
      * @param recordingId    to be replayed.
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
-     * @param length         of the stream to be replayed. Use {@link Long#MAX_VALUE} to follow a live recording or
-     *                       {@link #NULL_LENGTH} to replay the whole stream of unknown length.
+     * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
+     *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
+     *                       and stop the replay.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
      * @return the id of the replay session which will be the same as the {@link Image#sessionId()} of the received
@@ -1062,8 +1074,9 @@ public final class AeronArchive implements AutoCloseable
      *
      * @param recordingId    to be replayed.
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
-     * @param length         of the stream to be replayed. Use {@link Long#MAX_VALUE} to follow a live recording or
-     *                       {@link #NULL_LENGTH} to replay the whole stream of unknown length.
+     * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
+     *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
+     *                       and stop the replay.
      * @param limitCounterId to use to bound replay.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
@@ -1221,7 +1234,9 @@ public final class AeronArchive implements AutoCloseable
      *
      * @param recordingId    to be replayed.
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
-     * @param length         of the stream to be replayed or {@link Long#MAX_VALUE} to follow a live recording.
+     * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
+     *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
+     *                       and stop the replay.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
      * @return the {@link Subscription} for consuming the replay.
@@ -1271,7 +1286,9 @@ public final class AeronArchive implements AutoCloseable
      *
      * @param recordingId             to be replayed.
      * @param position                from which the replay should begin or {@link #NULL_POSITION} if from the start.
-     * @param length                  of the stream to be replayed or {@link Long#MAX_VALUE} to follow a live recording.
+     * @param length                  of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to
+     *                                follow a live recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up
+     *                                the available limit and stop the replay.
      * @param replayChannel           to which the replay should be sent.
      * @param replayStreamId          to which the replay should be sent.
      * @param availableImageHandler   to be called when the replay image becomes available.

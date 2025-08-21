@@ -729,7 +729,20 @@ abstract class ArchiveConductor
             maxLength = stopPosition - replayPosition;
         }
 
-        final long replayLength = AeronArchive.NULL_LENGTH == length ? maxLength : min(length, maxLength);
+        final long replayLength;
+        if (AeronArchive.REPLAY_ALL_AND_FOLLOW == length)
+        {
+            replayLength = maxLength;
+        }
+        else if (AeronArchive.REPLAY_ALL_AND_STOP == length)
+        {
+            replayLength = (stopPosition - replayPosition);
+        }
+        else
+        {
+            replayLength = min(length, maxLength);
+        }
+
         if (replayLength < 0)
         {
             final String msg = "replay length must be positive: replayLength=" + replayLength + ", length=" + length +
