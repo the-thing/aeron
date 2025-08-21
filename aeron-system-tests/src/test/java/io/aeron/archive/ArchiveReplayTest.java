@@ -25,6 +25,7 @@ import io.aeron.archive.client.ReplayParams;
 import io.aeron.archive.status.RecordingPos;
 import io.aeron.driver.MediaDriver;
 import io.aeron.driver.ThreadingMode;
+import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.test.EventLogExtension;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
@@ -45,12 +46,14 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.aeron.CommonContext.IPC_CHANNEL;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_FOLLOW;
 import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_STOP;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 @ExtendWith({ InterruptingTestCallback.class, EventLogExtension.class })
 public class ArchiveReplayTest
@@ -145,6 +148,11 @@ public class ArchiveReplayTest
                 recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
             }
 
+            while (NULL_POSITION == aeronArchive.getStopPosition(recordingId))
+            {
+                Tests.yield();
+            }
+
             final int replayStreamId = 10001;
 
             final long replaySessionId = aeronArchive.startReplay(
@@ -154,14 +162,26 @@ public class ArchiveReplayTest
                 new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
             final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
-            final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+            final AtomicReference<Image> availableImage = new AtomicReference<>();
+            final AtomicReference<Image> unavailableImage = new AtomicReference<>();
+            final Subscription replay = aeron.addSubscription(
+                replayChannel, replayStreamId, availableImage::set, unavailableImage::set);
 
-            Tests.awaitConnected(replay);
-            final Image image = replay.imageBySessionId((int)replaySessionId);
+            Image image;
+            while (null == (image = availableImage.get()))
+            {
+                aeronArchive.checkForErrorResponse();
+                Tests.yield();
+            }
 
             while (!image.isEndOfStream())
             {
                 aeronArchive.checkForErrorResponse();
+                Tests.yield();
+            }
+
+            while (image != unavailableImage.get())
+            {
                 Tests.yield();
             }
 
@@ -196,15 +216,30 @@ public class ArchiveReplayTest
                     new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
-                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+                final AtomicReference<Image> availableImage = new AtomicReference<>();
+                final AtomicReference<Image> unavailableImage = new AtomicReference<>();
+                final Subscription replay = aeron.addSubscription(
+                    replayChannel, replayStreamId, availableImage::set, unavailableImage::set);
 
-                Tests.awaitConnected(replay);
-                final Image image = replay.imageBySessionId((int)replaySessionId);
+                Image image;
+                while (null == (image = availableImage.get()))
+                {
+                    aeronArchive.checkForErrorResponse();
+                    Tests.yield();
+                }
 
+                final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {};
                 while (!image.isEndOfStream())
                 {
-                    image.poll((buffer, offset, length, header) -> {}, 100);
-                    aeronArchive.checkForErrorResponse();
+                    if (0 == image.poll(fragmentHandler, 100))
+                    {
+                        aeronArchive.checkForErrorResponse();
+                        Tests.yield();
+                    }
+                }
+
+                while (image != unavailableImage.get())
+                {
                     Tests.yield();
                 }
 
@@ -236,14 +271,26 @@ public class ArchiveReplayTest
                     new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_STOP));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
-                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+                final AtomicReference<Image> availableImage = new AtomicReference<>();
+                final AtomicReference<Image> unavailableImage = new AtomicReference<>();
+                final Subscription replay = aeron.addSubscription(
+                    replayChannel, replayStreamId, availableImage::set, unavailableImage::set);
 
-                Tests.awaitConnected(replay);
-                final Image image = replay.imageBySessionId((int)replaySessionId);
+                Image image;
+                while (null == (image = availableImage.get()))
+                {
+                    aeronArchive.checkForErrorResponse();
+                    Tests.yield();
+                }
 
                 while (!image.isEndOfStream())
                 {
                     aeronArchive.checkForErrorResponse();
+                    Tests.yield();
+                }
+
+                while (image != unavailableImage.get())
+                {
                     Tests.yield();
                 }
 
@@ -276,10 +323,17 @@ public class ArchiveReplayTest
                     new ReplayParams().position(NULL_POSITION).length(REPLAY_ALL_AND_FOLLOW));
 
                 final String replayChannel = ChannelUri.addSessionId(IPC_CHANNEL, (int)replaySessionId);
-                final Subscription replay = aeron.addSubscription(replayChannel, replayStreamId);
+                final AtomicReference<Image> availableImage = new AtomicReference<>();
+                final AtomicReference<Image> unavailableImage = new AtomicReference<>();
+                final Subscription replay = aeron.addSubscription(
+                    replayChannel, replayStreamId, availableImage::set, unavailableImage::set);
 
-                Tests.awaitConnected(replay);
-                final Image image = replay.imageBySessionId((int)replaySessionId);
+                Image image;
+                while (null == (image = availableImage.get()))
+                {
+                    aeronArchive.checkForErrorResponse();
+                    Tests.yield();
+                }
 
                 final long deadlineNs = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
                 while (System.nanoTime() < deadlineNs)
@@ -288,6 +342,8 @@ public class ArchiveReplayTest
                     aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
+
+                assertNull(unavailableImage.get());
 
                 CloseHelper.quietClose(replay);
                 aeronArchive.stopReplay(replaySessionId);
