@@ -25,6 +25,7 @@ import io.aeron.archive.client.ReplayParams;
 import io.aeron.archive.status.RecordingPos;
 import io.aeron.driver.MediaDriver;
 import io.aeron.driver.ThreadingMode;
+import io.aeron.test.EventLogExtension;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
@@ -51,7 +52,7 @@ import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_FOLLOW;
 import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_STOP;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
-@ExtendWith(InterruptingTestCallback.class)
+@ExtendWith({ InterruptingTestCallback.class, EventLogExtension.class })
 public class ArchiveReplayTest
 {
     @RegisterExtension
@@ -119,6 +120,7 @@ public class ArchiveReplayTest
             {
                 if (0 == replay.poll((buffer, offset, length, header) -> replayPosition.set(header.position()), 10))
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
             }
@@ -156,12 +158,14 @@ public class ArchiveReplayTest
 
             while (replay.hasNoImages())
             {
+                aeronArchive.checkForErrorResponse();
                 Tests.yield();
             }
 
             final Image image = replay.imageBySessionId((int)replaySessionId);
             while (!image.isEndOfStream())
             {
+                aeronArchive.checkForErrorResponse();
                 Tests.yield();
             }
 
@@ -200,6 +204,7 @@ public class ArchiveReplayTest
 
                 while (replay.hasNoImages())
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
@@ -207,6 +212,7 @@ public class ArchiveReplayTest
                 while (!image.isEndOfStream())
                 {
                     image.poll((buffer, offset, length, header) -> {}, 100);
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
@@ -222,16 +228,13 @@ public class ArchiveReplayTest
     {
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
         {
+            final Aeron aeron = aeronArchive.context().aeron();
             try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
             {
-                long recordingId;
-                while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
-                    0, "aeron:ipc", publication.streamId(), publication.sessionId())))
-                {
-                    Tests.yield();
-                }
+                final int recordingCounterId = Tests.awaitRecordingCounterId(
+                    aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
+                final long recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
 
-                final Aeron aeron = aeronArchive.context().aeron();
                 final int replayStreamId = 10001;
 
                 final long replaySessionId = aeronArchive.startReplay(
@@ -245,12 +248,14 @@ public class ArchiveReplayTest
 
                 while (replay.hasNoImages())
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
                 final Image image = replay.imageBySessionId((int)replaySessionId);
                 while (!image.isEndOfStream())
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
@@ -287,6 +292,7 @@ public class ArchiveReplayTest
 
                 while (replay.hasNoImages())
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
@@ -295,6 +301,7 @@ public class ArchiveReplayTest
                 while (System.nanoTime() < deadlineNs)
                 {
                     assertFalse(image.isEndOfStream());
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
 
@@ -312,6 +319,7 @@ public class ArchiveReplayTest
         while (aeronArchive.getMaxRecordedPosition(recordingId) < position)
         {
             Tests.yield();
+            aeronArchive.checkForErrorResponse();
         }
     }
 
