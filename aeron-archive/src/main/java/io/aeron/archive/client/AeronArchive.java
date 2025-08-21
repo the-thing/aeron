@@ -1023,7 +1023,7 @@ public final class AeronArchive implements AutoCloseable
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
      * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
      *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
-     *                       and stop the replay.
+     *                       and stop the replay.  {@link Long#MAX_VALUE} can also be used to follow a live stream.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
      * @return the id of the replay session which will be the same as the {@link Image#sessionId()} of the received
@@ -1076,7 +1076,7 @@ public final class AeronArchive implements AutoCloseable
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
      * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
      *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
-     *                       and stop the replay.
+     *                       and stop the replay.  {@link Long#MAX_VALUE} can also be used to follow a live stream.
      * @param limitCounterId to use to bound replay.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
@@ -1236,7 +1236,7 @@ public final class AeronArchive implements AutoCloseable
      * @param position       from which the replay should begin or {@link #NULL_POSITION} if from the start.
      * @param length         of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to follow a live
      *                       recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up the available limit
-     *                       and stop the replay.
+     *                       and stop the replay. {@link Long#MAX_VALUE} can also be used to follow a live stream.
      * @param replayChannel  to which the replay should be sent.
      * @param replayStreamId to which the replay should be sent.
      * @return the {@link Subscription} for consuming the replay.
@@ -1288,7 +1288,8 @@ public final class AeronArchive implements AutoCloseable
      * @param position                from which the replay should begin or {@link #NULL_POSITION} if from the start.
      * @param length                  of the stream to be replayed or {@link AeronArchive#REPLAY_ALL_AND_FOLLOW} to
      *                                follow a live recording. Use {@link AeronArchive#REPLAY_ALL_AND_STOP} to read up
-     *                                the available limit and stop the replay.
+     *                                the available limit and stop the replay.  {@link Long#MAX_VALUE} can also be used
+     *                                to follow a live stream.
      * @param replayChannel           to which the replay should be sent.
      * @param replayStreamId          to which the replay should be sent.
      * @param availableImageHandler   to be called when the replay image becomes available.
