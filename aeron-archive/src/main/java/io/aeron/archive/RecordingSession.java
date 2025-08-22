@@ -48,7 +48,8 @@ class RecordingSession implements Session
     private final ControlSession controlSession;
     private final CountedErrorHandler countedErrorHandler;
     private State state = State.INIT;
-    private String errorMessage = null;
+    private String errorMessage;
+    private String abortReason;
     private int errorCode = ArchiveException.GENERIC;
 
     RecordingSession(
@@ -101,6 +102,7 @@ class RecordingSession implements Session
      */
     public void abort(final String reason)
     {
+        abortReason = reason;
         isAborted = true;
     }
 
@@ -122,7 +124,7 @@ class RecordingSession implements Session
 
         if (isAborted)
         {
-            state = State.INACTIVE;
+            state(State.INACTIVE, abortReason);
         }
 
         if (State.INIT == state)
