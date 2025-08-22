@@ -403,19 +403,9 @@ final class ClientConductor implements Agent
         final String logFileName,
         final String sourceIdentity)
     {
-        System.out.println("*** " + java.time.Instant.now() +
-            " CC.onAvailableImage: clientId=" + ctx.clientId() + " [broadcast] => " +
-            "sessionId=" + sessionId +
-            ", subscriptionRegistrationId=" + subscriptionRegistrationId);
-
         final Subscription subscription = (Subscription)resourceByRegIdMap.get(subscriptionRegistrationId);
         if (null != subscription)
         {
-            System.out.println("*** " + java.time.Instant.now() +
-                " CC.onAvailableImage: clientId=" + ctx.clientId() + " [null != subscription] => " +
-                "sessionId=" + sessionId +
-                ", subscriptionRegistrationId=" + subscriptionRegistrationId);
-
             final Image image = new Image(
                 subscription,
                 sessionId,
@@ -427,6 +417,9 @@ final class ClientConductor implements Agent
 
             subscription.addImage(image);
 
+            System.out.println("*** " + java.time.Instant.now() +
+                " CC.onAvailableImage: clientId=" + ctx.clientId() + " => " + image);
+
             final AvailableImageHandler handler = subscription.availableImageHandler();
             if (null != handler)
             {
@@ -435,9 +428,7 @@ final class ClientConductor implements Agent
                 {
                     handler.onAvailableImage(image);
                     System.out.println("*** " + java.time.Instant.now() +
-                        " CC.onAvailableImage: clientId=" + ctx.clientId() + " [handler.onAvailableImage] => " +
-                        "sessionId=" + sessionId +
-                        ", subscriptionRegistrationId=" + subscriptionRegistrationId);
+                        " CC.onAvailableImage: clientId=" + ctx.clientId() + " [handler.onAvailableImage] => " + image);
                 }
                 catch (final Exception ex)
                 {

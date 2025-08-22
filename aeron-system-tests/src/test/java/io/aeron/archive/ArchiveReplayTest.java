@@ -179,9 +179,7 @@ public class ArchiveReplayTest
                 " Replay subscription created: clientId=" + aeron.clientId() +
                 ", subscriptionRegistrationId=" + replay.registrationId());
 
-            final Supplier<String> messageSupplier =
-                () -> "*** " + Instant.now() + " no Image for subscriptionRegistrationId=" +
-                replay.registrationId();
+            final Supplier<String> messageSupplier = () -> "*** " + Instant.now() + " no Image for replay: " + replay;
             Image image;
             while (null == (image = availableImage.get()))
             {
