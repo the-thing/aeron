@@ -27,6 +27,7 @@ import org.agrona.collections.ArrayUtil;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
 
 import static io.aeron.Aeron.NULL_VALUE;
@@ -42,6 +43,14 @@ abstract class SubscriptionLhsPadding
 abstract class SubscriptionFields extends SubscriptionLhsPadding
 {
     static final Image[] EMPTY_IMAGES = new Image[0];
+    /**
+     * .
+     */
+    public static final CopyOnWriteArrayList<Long> ADDED_IMAGE_CORRELATION_ID = new CopyOnWriteArrayList<>();
+    /**
+     * .
+     */
+    public static final CopyOnWriteArrayList<Long> INVOKED_HANDLERS = new CopyOnWriteArrayList<>();
 
     final long registrationId;
     final int streamId;

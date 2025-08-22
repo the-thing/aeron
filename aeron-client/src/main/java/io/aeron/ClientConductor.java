@@ -114,6 +114,9 @@ final class ClientConductor implements Agent
 
     ClientConductor(final Aeron.Context ctx, final Aeron aeron)
     {
+        Subscription.ADDED_IMAGE_CORRELATION_ID.clear();
+        Subscription.INVOKED_HANDLERS.clear();
+
         this.ctx = ctx;
         this.aeron = aeron;
 
@@ -417,8 +420,7 @@ final class ClientConductor implements Agent
 
             subscription.addImage(image);
 
-            System.out.println("*** " + java.time.Instant.now() +
-                " CC.onAvailableImage: clientId=" + ctx.clientId() + " => " + image);
+            Subscription.ADDED_IMAGE_CORRELATION_ID.add(correlationId);
 
             final AvailableImageHandler handler = subscription.availableImageHandler();
             if (null != handler)
@@ -427,8 +429,7 @@ final class ClientConductor implements Agent
                 try
                 {
                     handler.onAvailableImage(image);
-                    System.out.println("*** " + java.time.Instant.now() +
-                        " CC.onAvailableImage: clientId=" + ctx.clientId() + " [handler.onAvailableImage] => " + image);
+                    Subscription.INVOKED_HANDLERS.add(correlationId);
                 }
                 catch (final Exception ex)
                 {
