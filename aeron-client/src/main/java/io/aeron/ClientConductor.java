@@ -1732,14 +1732,22 @@ final class ClientConductor implements Agent
         LogBuffers logBuffers = logBuffersByIdMap.get(registrationId);
         if (null == logBuffers)
         {
-            logBuffers = logBuffersFactory.map(logFileName);
-
-            if (ctx.preTouchMappedMemory())
+            try
             {
-                logBuffers.preTouch();
-            }
+                logBuffers = logBuffersFactory.map(logFileName);
 
-            logBuffersByIdMap.put(registrationId, logBuffers);
+                if (ctx.preTouchMappedMemory())
+                {
+                    logBuffers.preTouch();
+                }
+
+                logBuffersByIdMap.put(registrationId, logBuffers);
+            }
+            catch (final Exception ex)
+            {
+                throw new AeronException("[clientId=" + ctx.clientId() + ", clientName=" + ctx.clientName() +
+                    "] Failed to map log buffer with registrationId=" + registrationId + ", channel=" + channel, ex);
+            }
         }
 
         logBuffers.incRef();
