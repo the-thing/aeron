@@ -38,6 +38,7 @@ import org.agrona.SystemUtil;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.YieldingIdleStrategy;
+import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ import static io.aeron.CommonContext.IPC_CHANNEL;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_FOLLOW;
 import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_STOP;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
@@ -140,18 +142,22 @@ public class ArchiveReplayTest
         try (AeronArchive aeronArchive = AeronArchive.connect(TestContexts.ipcAeronArchive()))
         {
             final Aeron aeron = aeronArchive.context().aeron();
+            final CountersReader countersReader = aeron.countersReader();
             final long recordingId;
+            final int recordingCounterId;
             try (Publication publication = aeronArchive.addRecordedPublication("aeron:ipc", 10000))
             {
-                final int recordingCounterId = Tests.awaitRecordingCounterId(
-                    aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
-                recordingId = RecordingPos.getRecordingId(aeron.countersReader(), recordingCounterId);
+                recordingCounterId = Tests.awaitRecordingCounterId(
+                    countersReader, publication.sessionId(), aeronArchive.archiveId());
+                recordingId = RecordingPos.getRecordingId(countersReader, recordingCounterId);
             }
 
-            while (NULL_POSITION == aeronArchive.getStopPosition(recordingId))
+            while (CountersReader.RECORD_ALLOCATED == countersReader.getCounterState(recordingCounterId))
             {
                 Tests.yield();
             }
+
+            assertEquals(0, aeronArchive.getStopPosition(recordingId));
 
             final int replayStreamId = 10001;
 
