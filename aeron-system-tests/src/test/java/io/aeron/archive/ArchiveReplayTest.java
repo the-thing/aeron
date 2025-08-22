@@ -46,8 +46,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 import static io.aeron.CommonContext.IPC_CHANNEL;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
@@ -173,11 +175,18 @@ public class ArchiveReplayTest
             final Subscription replay = aeron.addSubscription(
                 replayChannel, replayStreamId, availableImage::set, unavailableImage::set);
 
+            System.out.println("*** " + java.time.Instant.now() +
+                " Replay subscription created: clientId=" + aeron.clientId() +
+                ", subscriptionRegistrationId=" + replay.registrationId());
+
+            final Supplier<String> messageSupplier =
+                () -> "*** " + Instant.now() + " no Image for subscriptionRegistrationId=" +
+                replay.registrationId();
             Image image;
             while (null == (image = availableImage.get()))
             {
                 aeronArchive.checkForErrorResponse();
-                Tests.yield();
+                Tests.yieldingIdle(messageSupplier);
             }
 
             while (!image.isEndOfStream())
