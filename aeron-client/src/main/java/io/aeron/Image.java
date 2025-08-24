@@ -52,16 +52,17 @@ public final class Image
 {
     private final long correlationId;
     private final long joinPosition;
-    private long finalPosition;
     private final int sessionId;
     private final int initialTermId;
     private final int termLengthMask;
     private final int positionBitsToShift;
+    private final int mtu;
 
+    private long finalPosition;
     private long eosPosition = Long.MAX_VALUE;
     private boolean isEos;
+    private boolean isRevoked;
     private volatile boolean isClosed;
-    private volatile boolean isRevoked;
 
     private final Position subscriberPosition;
     private final UnsafeBuffer[] termBuffers;
@@ -103,9 +104,10 @@ public final class Image
         termBuffers = logBuffers.duplicateTermBuffers();
 
         final int termLength = logBuffers.termLength();
-        this.termLengthMask = termLength - 1;
-        this.positionBitsToShift = LogBufferDescriptor.positionBitsToShift(termLength);
-        this.initialTermId = LogBufferDescriptor.initialTermId(logBuffers.metaDataBuffer());
+        termLengthMask = termLength - 1;
+        positionBitsToShift = LogBufferDescriptor.positionBitsToShift(termLength);
+        initialTermId = LogBufferDescriptor.initialTermId(logBuffers.metaDataBuffer());
+        mtu = LogBufferDescriptor.mtuLength(logBuffers.metaDataBuffer());
         header = new Header(initialTermId, positionBitsToShift, this);
     }
 
@@ -157,7 +159,7 @@ public final class Image
      */
     public int mtuLength()
     {
-        return LogBufferDescriptor.mtuLength(logBuffers.metaDataBuffer());
+        return mtu;
     }
 
     /**
