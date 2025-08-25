@@ -776,6 +776,160 @@ public final class AeronCounters
     @AeronCounter(existsInC = false)
     public static final int CLUSTER_LEADERSHIP_TERM_ID_TYPE_ID = 239;
 
+    // ===================
+    // Sequencer Counters.
+    // ===================
+
+    /**
+     * Counter id for Sequencer Index.
+     */
+    @AeronCounter
+    public static final int SEQUENCE_INDEX_COUNTER_TYPE_ID = 500;
+
+    /**
+     * Counter id for application group last message.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_GROUP_HWM_COUNTER_TYPE_ID = 501;
+
+    /**
+     * Counter id for session last message.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_SESSION_GREATEST_MESSAGE_ID_COUNTER_TYPE_ID = 502;
+
+    /**
+     * Counter id for session messages.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_SESSION_MESSAGES_COUNTER_TYPE_ID = 503;
+
+    /**
+     * Counter id for session last message timestamp.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_SESSION_GREATEST_MESSAGE_TIMESTAMP_COUNTER_TYPE_ID = 504;
+
+    /**
+     * Counter id for the next snapshot id.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_CLIENT_SNAPSHOT_ID_COUNTER_TYPE_ID = 505;
+
+    /**
+     * Counter id for sequence index.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_SEQUENCE_INDEX_COUNTER_TYPE_ID = 507;
+
+    /**
+     * Application state counter type id.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_STATE_COUNTER_TYPE_ID = 508;
+
+    /**
+     * Counter id for error count.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_ERROR_COUNT_TYPE_ID = 509;
+
+    /**
+     * Counter id for max service time.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_MAX_SERVICE_TIME_TYPE_ID = 510;
+
+    /**
+     * Counter id for the number of times the service time threshold was exceeded.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_SERVICE_TIME_THRESHOLD_EXCEEDED_COUNT_TYPE_ID = 511;
+
+    /**
+     * Counter id for the total service time during the last interval.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_INTERVAL_SERVICE_TIME_TYPE_ID = 512;
+
+    /**
+     * Counter id for the maximum individual service time during the last interval.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_INTERVAL_MAX_SERVICE_TIME_TYPE_ID = 513;
+
+    /**
+     * Counter id for the total number of invocations during the last interval.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_INTERVAL_TOTAL_INVOCATIONS_TYPE_ID = 514;
+
+    /**
+     * Counter id for the load time, in milliseconds, of a snapshot.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_SNAPSHOT_LOAD_TIME_TYPE_ID = 515;
+
+    /**
+     * Counter id for the store time, in milliseconds, of a snapshot.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_SNAPSHOT_STORE_TIME_TYPE_ID = 516;
+
+    /**
+     * Counter id for the number of 'take snapshot' failures.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_TAKE_SNAPSHOT_FAILURES_TYPE_ID = 517;
+
+    /**
+     * Counter id for the number of 'take snapshot' instances.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_TAKE_SNAPSHOT_COUNT_TYPE_ID = 518;
+
+    /**
+     * Counter id for the application service's session with the sequencer.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_APPLICATION_SESSION_ID_TYPE_ID = 519;
+
+    /**
+     * Counter id for the replay index's minimum sequence index.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_MIN_SEQUENCE_INDEX_COUNTER_TYPE_ID = 520;
+
+    /**
+     * Counter id for the replay index's minimum log position.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_MIN_SEQUENCE_LOG_POSITION_COUNTER_TYPE_ID = 521;
+
+    /**
+     * Counter id for the replay index's maximum sequence index.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_MAX_SEQUENCE_INDEX_COUNTER_TYPE_ID = 522;
+
+    /**
+     * Counter id for the replay index's maximum log position.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_MAX_SEQUENCE_LOG_POSITION_COUNTER_TYPE_ID = 523;
+
+    /**
+     * Counter id for the replay index's initial sequence index.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_INITIAL_SEQUENCE_INDEX_COUNTER_TYPE_ID = 524;
+
+    /**
+     * Counter id for the replay index's initial log position.
+     */
+    @AeronCounter
+    public static final int SEQUENCER_REPLAY_INDEX_INITIAL_SEQUENCE_LOG_POSITION_COUNTER_TYPE_ID = 525;
+
     private AeronCounters()
     {
     }
