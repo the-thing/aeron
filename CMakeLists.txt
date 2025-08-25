@@ -296,8 +296,8 @@ if (AERON_BUILD_SAMPLES)
     set(HDR_HISTOGRAM_BUILD_PROGRAMS "OFF" CACHE INTERNAL "Set build programs option")
     FetchContent_Declare(
         hdr_histogram
-        URL ${CMAKE_CURRENT_SOURCE_DIR}/cppbuild/HdrHistogram_c-0.11.8.zip
-        URL_MD5 e993a4a08ad084ea0a895e7b2502de99)
+        URL ${CMAKE_CURRENT_SOURCE_DIR}/cppbuild/HdrHistogram_c-0.11.9.zip
+        URL_MD5 dce4d27b89ea0f73cc74be505dc957e3)
 
     FetchContent_MakeAvailable(hdr_histogram)
 endif ()
