@@ -25,6 +25,13 @@ import org.agrona.concurrent.status.CountersReader;
 import java.util.Objects;
 
 import static org.agrona.BitUtil.SIZE_OF_INT;
+import static org.agrona.concurrent.status.CountersReader.LABEL_OFFSET;
+import static org.agrona.concurrent.status.CountersReader.MAX_LABEL_LENGTH;
+import static org.agrona.concurrent.status.CountersReader.METADATA_LENGTH;
+import static org.agrona.concurrent.status.CountersReader.RECORD_ALLOCATED;
+import static org.agrona.concurrent.status.CountersReader.REFERENCE_ID_OFFSET;
+import static org.agrona.concurrent.status.CountersReader.counterOffset;
+import static org.agrona.concurrent.status.CountersReader.metaDataOffset;
 
 /**
  * This class serves as a registry for all counter type IDs used by Aeron.
@@ -526,6 +533,12 @@ public final class AeronCounters
     @AeronCounter
     public static final int ARCHIVE_REPLAY_SESSION_COUNT_TYPE_ID = 112;
 
+    /**
+     * The type id of the {@link Counter} used for tracking Archive clients.
+     */
+    @AeronCounter
+    public static final int ARCHIVE_CONTROL_SESSION_TYPE_ID = 113;
+
     // Cluster counters
 
     /**
@@ -1009,37 +1022,27 @@ public final class AeronCounters
         final AtomicBuffer metaDataBuffer, final int counterId, final String value)
     {
         Objects.requireNonNull(metaDataBuffer);
-        if (counterId < 0)
-        {
-            throw new IllegalArgumentException("counter id " + counterId + " is negative");
-        }
+        validateCounterId(metaDataBuffer, counterId);
 
-        final int maxCounterId = (metaDataBuffer.capacity() / CountersReader.METADATA_LENGTH) - 1;
-        if (counterId > maxCounterId)
-        {
-            throw new IllegalArgumentException(
-                "counter id " + counterId + " out of range: 0 - maxCounterId=" + maxCounterId);
-        }
-
-        final int counterMetaDataOffset = CountersReader.metaDataOffset(counterId);
+        final int counterMetaDataOffset = metaDataOffset(counterId);
         final int state = metaDataBuffer.getIntVolatile(counterMetaDataOffset);
-        if (CountersReader.RECORD_ALLOCATED != state)
+        if (RECORD_ALLOCATED != state)
         {
             throw new IllegalArgumentException("counter id " + counterId + " is not allocated, state: " + state);
         }
 
-        final int existingLabelLength = metaDataBuffer.getInt(counterMetaDataOffset + CountersReader.LABEL_OFFSET);
-        final int remainingLabelLength = CountersReader.MAX_LABEL_LENGTH - existingLabelLength;
+        final int existingLabelLength = metaDataBuffer.getInt(counterMetaDataOffset + LABEL_OFFSET);
+        final int remainingLabelLength = MAX_LABEL_LENGTH - existingLabelLength;
 
         final int writtenLength = metaDataBuffer.putStringWithoutLengthAscii(
-            counterMetaDataOffset + CountersReader.LABEL_OFFSET + SIZE_OF_INT + existingLabelLength,
+            counterMetaDataOffset + LABEL_OFFSET + SIZE_OF_INT + existingLabelLength,
             value,
             0,
             remainingLabelLength);
         if (writtenLength > 0)
         {
             metaDataBuffer.putIntRelease(
-                counterMetaDataOffset + CountersReader.LABEL_OFFSET, existingLabelLength + writtenLength);
+                counterMetaDataOffset + LABEL_OFFSET, existingLabelLength + writtenLength);
         }
 
         return writtenLength;
@@ -1055,5 +1058,40 @@ public final class AeronCounters
     public static String formatVersionInfo(final String fullVersion, final String commitHash)
     {
         return "version=" + fullVersion + " commit=" + commitHash;
+    }
+
+    /**
+     * Set a reference id for a given counter id.
+     *
+     * @param metaDataBuffer containing the counter metadata.
+     * @param valuesBuffer   containing the counter values.
+     * @param counterId      to be set.
+     * @param referenceId    to set for the counter.
+     * @see CountersReader#getCounterReferenceId(int)
+     * @since 1.49.0
+     */
+    public static void setReferenceId(
+        final AtomicBuffer metaDataBuffer, final AtomicBuffer valuesBuffer, final int counterId, final long referenceId)
+    {
+        Objects.requireNonNull(metaDataBuffer);
+        Objects.requireNonNull(valuesBuffer);
+        validateCounterId(metaDataBuffer, counterId);
+
+        valuesBuffer.putLongRelease(counterOffset(counterId) + REFERENCE_ID_OFFSET, referenceId);
+    }
+
+    private static void validateCounterId(final AtomicBuffer metaDataBuffer, final int counterId)
+    {
+        if (counterId < 0)
+        {
+            throw new IllegalArgumentException("counter id " + counterId + " is negative");
+        }
+
+        final int maxCounterId = (metaDataBuffer.capacity() / METADATA_LENGTH) - 1;
+        if (counterId > maxCounterId)
+        {
+            throw new IllegalArgumentException(
+                "counter id " + counterId + " out of range: 0 - maxCounterId=" + maxCounterId);
+        }
     }
 }

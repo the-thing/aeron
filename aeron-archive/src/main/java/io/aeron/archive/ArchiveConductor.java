@@ -120,6 +120,7 @@ abstract class ArchiveConductor
     private final ControlSessionProxy controlSessionProxy = new ControlSessionProxy(controlResponseProxy);
     private final DutyCycleTracker dutyCycleTracker;
     private final Random random;
+    private final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer(300);
     final Archive.Context ctx;
     Recorder recorder;
     Replayer replayer;
@@ -373,12 +374,13 @@ abstract class ArchiveConductor
     }
 
     ControlSession newControlSession(
-        final long imageCorrelationId,
+        final Image image,
         final long correlationId,
         final int streamId,
         final int version,
         final String channel,
         final byte[] encodedCredentials,
+        final String clientInfo,
         final ControlSessionAdapter controlSessionAdapter)
     {
         final ChannelUri channelUri = ChannelUri.parse(channel);
@@ -401,7 +403,7 @@ abstract class ArchiveConductor
 
         if (usingResponseChannel)
         {
-            urlBuilder.responseCorrelationId(imageCorrelationId);
+            urlBuilder.responseCorrelationId(image.correlationId());
         }
 
         final String responseChannel = urlBuilder.build();
@@ -413,12 +415,24 @@ abstract class ArchiveConductor
                 ", archive is " + SemanticVersion.toString(AeronArchive.Configuration.PROTOCOL_SEMANTIC_VERSION);
         }
 
+        final long controlSessionId = nextSessionId++;
+        final long controlPublicationRegistrationId = aeron.asyncAddExclusivePublication(responseChannel, streamId);
+
+        final String imageInfo = "sourceIdentity=" + image.sourceIdentity() + " sessionId=" + image.sessionId();
+        final long sessionCounterRegistrationId = ControlSessionCounter.allocate(
+            aeron,
+            tempBuffer,
+            ctx.archiveId(),
+            controlSessionId,
+            Strings.isEmpty(clientInfo) ? imageInfo : clientInfo + " " + imageInfo);
+
         final ControlSession controlSession = new ControlSession(
-            nextSessionId++,
+            controlSessionId,
             correlationId,
             connectTimeoutMs,
             sessionLivenessCheckIntervalMs,
-            aeron.asyncAddExclusivePublication(responseChannel, streamId),
+            controlPublicationRegistrationId,
+            sessionCounterRegistrationId,
             responseChannel,
             streamId,
             invalidVersionMessage,

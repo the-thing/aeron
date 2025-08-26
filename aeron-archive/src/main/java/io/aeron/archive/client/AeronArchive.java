@@ -42,6 +42,7 @@ import org.agrona.CloseHelper;
 import org.agrona.ErrorHandler;
 import org.agrona.LangUtil;
 import org.agrona.SemanticVersion;
+import org.agrona.Strings;
 import org.agrona.concurrent.AgentInvoker;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
@@ -68,6 +69,7 @@ import static io.aeron.driver.Configuration.IDLE_MAX_SPINS;
 import static io.aeron.driver.Configuration.IDLE_MAX_YIELDS;
 import static io.aeron.driver.Configuration.IDLE_MIN_PARK_NS;
 import static org.agrona.SystemUtil.getDurationInNanos;
+import static org.agrona.SystemUtil.getProperty;
 import static org.agrona.SystemUtil.getSizeAsInt;
 
 /**
@@ -2628,7 +2630,7 @@ public final class AeronArchive implements AutoCloseable
          * Minor version of the network protocol from client to archive. If these don't match then some features may
          * not be available.
          */
-        public static final int PROTOCOL_MINOR_VERSION = 11;
+        public static final int PROTOCOL_MINOR_VERSION = 12;
 
         /**
          * Patch version of the network protocol from client to archive. If these don't match then bug fixes may not
@@ -2805,6 +2807,19 @@ public final class AeronArchive implements AutoCloseable
         public static final int CONTROL_MTU_LENGTH_DEFAULT = io.aeron.driver.Configuration.mtuLength();
 
         /**
+         * System property to name Aeron client. Default to empty string.
+         *
+         * @since 1.49.0
+         */
+        @Config(defaultType = DefaultType.STRING, defaultString = "", skipCDefaultValidation = true)
+        public static final String CLIENT_NAME_PROP_NAME = "aeron.archive.client.name";
+
+        /**
+         * Limit to the number of characters allowed in the client name.
+         */
+        public static final int MAX_CLIENT_NAME_LENGTH = 100;
+
+        /**
          * Default no operation {@link RecordingSignalConsumer} to be used when not set explicitly.
          */
         public static final RecordingSignalConsumer NO_OP_RECORDING_SIGNAL_CONSUMER =
@@ -2958,6 +2973,18 @@ public final class AeronArchive implements AutoCloseable
                 RECORDING_EVENTS_ENABLED_PROP_NAME, Boolean.toString(RECORDING_EVENTS_ENABLED_DEFAULT));
             return "true".equals(propValue);
         }
+
+        /**
+         * Get the configured client name.
+         *
+         * @return specified client name or empty string if not set.
+         * @see #CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public static String clientName()
+        {
+            return getProperty(CLIENT_NAME_PROP_NAME, "");
+        }
     }
 
     /**
@@ -2984,6 +3011,7 @@ public final class AeronArchive implements AutoCloseable
 
         private volatile boolean isConcluded;
         private long messageTimeoutNs = Configuration.messageTimeoutNs();
+        private String clientName = AeronArchive.Configuration.clientName();
         private String recordingEventsChannel = AeronArchive.Configuration.recordingEventsChannel();
         private int recordingEventsStreamId = AeronArchive.Configuration.recordingEventsStreamId();
         private String controlRequestChannel = Configuration.controlChannel();
@@ -3038,6 +3066,12 @@ public final class AeronArchive implements AutoCloseable
             if (null == controlResponseChannel)
             {
                 throw new ConfigurationException("AeronArchive.Context.controlResponseChannel must be set");
+            }
+
+            if (clientName.length() > Configuration.MAX_CLIENT_NAME_LENGTH)
+            {
+                throw new ConfigurationException(
+                    "AeronArchive.Context.clientName length must be <= " + Configuration.MAX_CLIENT_NAME_LENGTH);
             }
 
             if (null == aeron)
@@ -3380,6 +3414,32 @@ public final class AeronArchive implements AutoCloseable
         public String aeronDirectoryName()
         {
             return aeronDirectoryName;
+        }
+
+        /**
+         * Sets the name used to identify this client among other clients connected to the Archive.
+         *
+         * @param clientName to use.
+         * @return this for a fluent API.
+         * @see AeronArchive.Configuration#CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public Context clientName(final String clientName)
+        {
+            this.clientName = Strings.isEmpty(clientName) ? "" : clientName;
+            return this;
+        }
+
+        /**
+         * Returns the name of this client.
+         *
+         * @return name of this client or empty String if not configured.
+         * @see AeronArchive.Configuration#CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public String clientName()
+        {
+            return clientName;
         }
 
         /**
@@ -3799,6 +3859,8 @@ public final class AeronArchive implements AutoCloseable
                 final ExclusivePublication publication = ctx.aeron().getExclusivePublication(publicationRegistrationId);
                 if (null != publication)
                 {
+                    final String clientInfo = "name=" + ctx.clientName() + " " +
+                        AeronCounters.formatVersionInfo(AeronArchiveVersion.VERSION, AeronArchiveVersion.GIT_SHA);
                     publicationRegistrationId = Aeron.NULL_VALUE;
                     archiveProxy = new ArchiveProxy(
                         publication,
@@ -3806,7 +3868,8 @@ public final class AeronArchive implements AutoCloseable
                         ctx.aeron().context().nanoClock(),
                         ctx.messageTimeoutNs(),
                         DEFAULT_RETRY_ATTEMPTS,
-                        ctx.credentialsSupplier());
+                        ctx.credentialsSupplier(),
+                        clientInfo);
 
                     state(State.AWAIT_PUBLICATION_CONNECTED);
                 }
@@ -3831,7 +3894,8 @@ public final class AeronArchive implements AutoCloseable
                 }
 
                 correlationId = ctx.aeron().nextCorrelationId();
-                if (!archiveProxy.tryConnect(responseChannel, ctx.controlResponseStreamId(), correlationId))
+                if (!archiveProxy.tryConnect(
+                    responseChannel, ctx.controlResponseStreamId(), correlationId))
                 {
                     return null;
                 }

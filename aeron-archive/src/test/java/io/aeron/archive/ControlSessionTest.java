@@ -48,6 +48,7 @@ import static org.mockito.Mockito.when;
 class ControlSessionTest
 {
     private static final long CONTROL_PUBLICATION_ID = 777;
+    private static final long COUNTER_REGISTRATION_ID = 333;
     private static final long CONNECT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SESSION_LIVENESS_CHECK_INTERVAL_NS = TimeUnit.MILLISECONDS.toNanos(100);
     private static final int CONTROL_SESSION_ID = 42;
@@ -85,6 +86,7 @@ class ControlSessionTest
             CONNECT_TIMEOUT_MS,
             SESSION_LIVENESS_CHECK_INTERVAL_NS,
             CONTROL_PUBLICATION_ID,
+            COUNTER_REGISTRATION_ID,
             CONTROL_PUBLICATION_CHANNEL,
             CONTROL_PUBLICATION_STREAM_ID,
             null,

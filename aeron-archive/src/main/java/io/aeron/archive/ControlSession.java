@@ -16,6 +16,8 @@
 package io.aeron.archive;
 
 import io.aeron.Aeron;
+import io.aeron.AeronCounters;
+import io.aeron.Counter;
 import io.aeron.ExclusivePublication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.ArchiveEvent;
@@ -61,7 +63,8 @@ final class ControlSession implements Session
     private final long controlSessionId;
     private final long connectTimeoutMs;
     private final long sessionLivenessCheckIntervalMs;
-    private final long controlPublicationId;
+    private final long controlPublicationRegistrationId;
+    private final long sessionCounterRegistrationId;
     private final Aeron aeron;
     private final ArchiveConductor conductor;
     private final CachedEpochClock cachedEpochClock;
@@ -81,6 +84,7 @@ final class ControlSession implements Session
     private long activityDeadlineMs;
     private Session activeListing = null;
     private ExclusivePublication controlPublication;
+    private Counter sessionCounter;
     private byte[] encodedPrincipal;
 
     ControlSession(
@@ -88,7 +92,8 @@ final class ControlSession implements Session
         final long correlationId,
         final long connectTimeoutMs,
         final long sessionLivenessCheckIntervalMs,
-        final long controlPublicationId,
+        final long controlPublicationRegistrationId,
+        final long sessionCounterRegistrationId,
         final String controlPublicationChannel,
         final int controlPublicationStreamId,
         final String invalidVersionMessage,
@@ -109,7 +114,8 @@ final class ControlSession implements Session
         this.invalidVersionMessage = invalidVersionMessage;
         this.controlSessionAdapter = controlSessionAdapter;
         this.aeron = aeron;
-        this.controlPublicationId = controlPublicationId;
+        this.controlPublicationRegistrationId = controlPublicationRegistrationId;
+        this.sessionCounterRegistrationId = sessionCounterRegistrationId;
         this.conductor = conductor;
         this.cachedEpochClock = cachedEpochClock;
         this.controlResponseProxy = controlResponseProxy;
@@ -151,12 +157,21 @@ final class ControlSession implements Session
     {
         if (null == controlPublication)
         {
-            aeron.asyncRemovePublication(controlPublicationId);
+            aeron.asyncRemovePublication(controlPublicationRegistrationId);
         }
         else
         {
             controlPublication.revokeOnClose();
             CloseHelper.close(conductor.context().countedErrorHandler(), controlPublication);
+        }
+
+        if (null == sessionCounter)
+        {
+            aeron.asyncRemoveCounter(sessionCounterRegistrationId);
+        }
+        else
+        {
+            CloseHelper.close(conductor.context().countedErrorHandler(), sessionCounter);
         }
 
         final boolean sessionAborted = null != abortReason &&
@@ -200,7 +215,7 @@ final class ControlSession implements Session
         switch (state)
         {
             case INIT:
-                workCount += waitForPublication(nowMs);
+                workCount += init(nowMs);
                 break;
 
             case CONNECTING:
@@ -819,17 +834,42 @@ final class ControlSession implements Session
             this));
     }
 
-    private int waitForPublication(final long nowMs)
+    private int init(final long nowMs)
     {
         int workCount = 0;
 
-        final ExclusivePublication publication = aeron.getExclusivePublication(controlPublicationId);
-        if (null != publication)
+        if (null == controlPublication)
         {
-            controlPublication = publication;
+
+            final ExclusivePublication publication = aeron.getExclusivePublication(controlPublicationRegistrationId);
+            if (null != publication)
+            {
+                controlPublication = publication;
+                workCount++;
+            }
+        }
+
+        if (null == sessionCounter)
+        {
+            final Counter counter = aeron.getCounter(sessionCounterRegistrationId);
+            if (null != counter)
+            {
+                final Aeron.Context context = aeron.context();
+                AeronCounters.setReferenceId(
+                    context.countersMetaDataBuffer(),
+                    context.countersValuesBuffer(),
+                    counter.id(),
+                    controlPublicationRegistrationId);
+                counter.setRelease(controlSessionId);
+                sessionCounter = counter;
+                workCount++;
+            }
+        }
+
+        if (null != controlPublication && null != sessionCounter)
+        {
             activityDeadlineMs = nowMs + connectTimeoutMs;
             state(State.CONNECTING, "connecting");
-            workCount += 1;
         }
 
         return workCount;

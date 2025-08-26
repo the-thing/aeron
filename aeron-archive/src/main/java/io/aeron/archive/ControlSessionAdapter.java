@@ -103,12 +103,13 @@ class ControlSessionAdapter implements FragmentHandler
                 final Image image = (Image)header.context();
 
                 final ControlSession session = conductor.newControlSession(
-                    image.correlationId(),
+                    image,
                     decoder.correlationId(),
                     decoder.responseStreamId(),
                     decoder.version(),
                     decoder.responseChannel(),
                     ArrayUtil.EMPTY_BYTE_ARRAY,
+                    "",
                     this);
                 controlSessionByIdMap.put(session.sessionId(), new SessionInfo(image, session));
                 break;
@@ -738,17 +739,20 @@ class ControlSessionAdapter implements FragmentHandler
                 else
                 {
                     credentials = ArrayUtil.EMPTY_BYTE_ARRAY;
+                    decoder.skipEncodedCredentials();
                 }
+                final String clientInfo = decoder.clientInfo();
 
                 final Image image = (Image)header.context();
 
                 final ControlSession session = conductor.newControlSession(
-                    image.correlationId(),
+                    image,
                     decoder.correlationId(),
                     decoder.responseStreamId(),
                     decoder.version(),
                     responseChannel,
                     credentials,
+                    clientInfo,
                     this);
                 controlSessionByIdMap.put(session.sessionId(), new SessionInfo(image, session));
                 break;
@@ -1073,9 +1077,10 @@ class ControlSessionAdapter implements FragmentHandler
             sessionInfo.image.reject(abortReason);
         }
         conductor.removeReplayTokensForSession(controlSessionId);
-        if (!conductor.context().controlSessionsCounter().isClosed())
+        final Counter controlSessionsCounter = conductor.context().controlSessionsCounter();
+        if (!controlSessionsCounter.isClosed())
         {
-            conductor.context().controlSessionsCounter().decrementRelease();
+            controlSessionsCounter.decrementRelease();
         }
     }
 
