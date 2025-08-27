@@ -797,7 +797,7 @@ public final class AeronCounters
      * Counter id for Sequencer Index.
      */
     @AeronCounter
-    public static final int SEQUENCE_INDEX_COUNTER_TYPE_ID = 500;
+    public static final int SEQUENCER_INDEX_COUNTER_TYPE_ID = 500;
 
     /**
      * Counter id for application group last message.
