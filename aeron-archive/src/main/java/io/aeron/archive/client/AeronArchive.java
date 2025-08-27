@@ -2815,11 +2815,6 @@ public final class AeronArchive implements AutoCloseable
         public static final String CLIENT_NAME_PROP_NAME = "aeron.archive.client.name";
 
         /**
-         * Limit to the number of characters allowed in the client name.
-         */
-        public static final int MAX_CLIENT_NAME_LENGTH = 100;
-
-        /**
          * Default no operation {@link RecordingSignalConsumer} to be used when not set explicitly.
          */
         public static final RecordingSignalConsumer NO_OP_RECORDING_SIGNAL_CONSUMER =
@@ -3068,10 +3063,10 @@ public final class AeronArchive implements AutoCloseable
                 throw new ConfigurationException("AeronArchive.Context.controlResponseChannel must be set");
             }
 
-            if (clientName.length() > Configuration.MAX_CLIENT_NAME_LENGTH)
+            if (clientName.length() > Aeron.Configuration.MAX_CLIENT_NAME_LENGTH)
             {
                 throw new ConfigurationException(
-                    "AeronArchive.Context.clientName length must be <= " + Configuration.MAX_CLIENT_NAME_LENGTH);
+                    "AeronArchive.Context.clientName length must be <= " + Aeron.Configuration.MAX_CLIENT_NAME_LENGTH);
             }
 
             if (null == aeron)
