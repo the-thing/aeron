@@ -24,15 +24,18 @@
 
 extern "C"
 {
-#include "client/aeron_archive.h"
-#include "client/aeron_archive_client.h"
-#include "client/aeron_archive_context.h"
+#include <inttypes.h>
+#include "aeronc.h"
 #include "aeron_agent.h"
 #include "aeron_client.h"
 #include "aeron_counter.h"
+#include "aeron_counters.h"
+#include "client/aeron_archive.h"
+#include "client/aeron_archive_client.h"
+#include "client/aeron_archive_client_version.h"
+#include "client/aeron_archive_context.h"
 #include "uri/aeron_uri_string_builder.h"
 #include "util/aeron_env.h"
-#include <inttypes.h>
 }
 
 #include "../TestArchive.h"
@@ -157,9 +160,11 @@ public:
     void connect(
         void *recording_signal_consumer_clientd = nullptr,
         const char *request_channel = "aeron:udp?endpoint=localhost:8010",
-        const char *response_channel = "aeron:udp?endpoint=localhost:0")
+        const char *response_channel = "aeron:udp?endpoint=localhost:0",
+        const char *client_name = "")
     {
         ASSERT_EQ_ERR(0, aeron_archive_context_init(&m_ctx));
+        ASSERT_EQ_ERR(0, aeron_archive_context_set_client_name(m_ctx, client_name));
         ASSERT_EQ_ERR(0, aeron_archive_context_set_control_request_channel(m_ctx, request_channel));
         ASSERT_EQ_ERR(0, aeron_archive_context_set_control_response_channel(m_ctx, response_channel));
         ASSERT_EQ_ERR(0, aeron_archive_context_set_idle_strategy(m_ctx, aeron_idle_strategy_sleeping_idle, (void *)&m_idle_duration_ns));
@@ -3979,7 +3984,7 @@ TEST_F(AeronCArchiveTest, shouldDetachAndReattachSegments)
     ASSERT_EQ(start_position, 0);
 }
 
-TEST_F(AeronCArchiveTest, shouldSetClientName)
+TEST_F(AeronCArchiveTest, shouldSetAeronClientName)
 {
     connect(
         nullptr,
@@ -3989,4 +3994,70 @@ TEST_F(AeronCArchiveTest, shouldSetClientName)
     auto aeron = aeron_archive_context_get_aeron(m_ctx);
     const auto client_name = std::string(aeron_context_get_client_name(aeron->context));
     EXPECT_NE(std::string::npos, client_name.find("archive-client"));
+}
+
+TEST_F(AeronCArchiveTest, shouldSendClientInfoToArchive)
+{
+    connect(
+        nullptr,
+        "aeron:udp?endpoint=localhost:8010",
+        "aeron:udp?control=localhost:9090|control-mode=response",
+        "my client");
+
+    m_aeron = aeron_archive_context_get_aeron(m_ctx);
+    m_counters_reader = aeron_counters_reader(m_aeron);
+
+    int64_t controlSessionId = aeron_archive_control_session_id(m_archive);
+
+    struct counter_data
+    {
+        int32_t id;
+        size_t key_length;
+        size_t label_length;
+        uint8_t key[AERON_COUNTER_MAX_KEY_LENGTH];
+        char label[AERON_COUNTER_MAX_LABEL_LENGTH];
+    };
+    counter_data counter = {};
+
+    static constexpr int32_t controlSessionTypeId = AERON_COUNTER_ARCHIVE_CONTROL_SESSION_TYPE_ID;
+
+    aeron_counters_reader_foreach_counter(
+        m_counters_reader,
+[](int64_t value,
+        int32_t id,
+        int32_t type_id,
+        const uint8_t *key,
+        size_t key_length,
+        const char *label,
+        size_t label_length,
+        void *clientd)
+    {
+        if (controlSessionTypeId == type_id)
+        {
+            auto *data = static_cast<counter_data *>(clientd);
+            data->id = id;
+            data->key_length = key_length;
+            data->label_length = label_length;
+            memcpy(data->key, key, key_length);
+            memcpy(data->label, label, label_length);
+        }
+    },
+    &counter);
+
+    ASSERT_NE(AERON_NULL_COUNTER_ID, counter.id);
+    ASSERT_GE(counter.key_length, 2 * sizeof(int64_t));
+
+    int64_t actualArchiveId, actualControlSessionId;
+    memcpy(&actualArchiveId, counter.key, sizeof(int64_t));
+    ASSERT_EQ(aeron_archive_get_archive_id(m_archive), actualArchiveId);
+    memcpy(&actualControlSessionId, counter.key + sizeof(int64_t), sizeof(int64_t));
+    ASSERT_EQ(controlSessionId, actualControlSessionId);
+
+    const auto label = std::string(counter.label);
+    const auto expected = std::string("name=")
+        .append(aeron_archive_context_get_client_name(m_ctx))
+        .append(" version=").append(aeron_archive_client_version_text())
+        .append(" commit=").append(aeron_archive_client_version_git_sha());
+    EXPECT_NE(std::string::npos, label.find(expected));
+    EXPECT_NE(std::string::npos, label.find(std::string("archiveId=").append(std::to_string(actualArchiveId))));
 }

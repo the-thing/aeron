@@ -95,11 +95,18 @@ int aeron_archive_context_init(aeron_archive_context_t **ctx)
         AERON_DATA_HEADER_LENGTH,
         AERON_MAX_UDP_PAYLOAD_LENGTH);
 
+    _ctx->client_name[0] = '\0';
+
     char *value = NULL;
 
     if ((value = getenv(AERON_DIR_ENV_VAR)))
     {
         aeron_archive_context_set_aeron_directory_name(_ctx, value);
+    }
+
+    if ((value = getenv(AERON_ARCHIVE_CLIENT_NAME_ENV_VAR)))
+    {
+        aeron_archive_context_set_client_name(_ctx, value);
     }
 
     if ((value = getenv(AERON_ARCHIVE_CONTROL_CHANNEL_ENV_VAR)))
@@ -625,6 +632,25 @@ int aeron_archive_context_set_control_mtu_length(aeron_archive_context_t *ctx, s
 size_t aeron_archive_context_get_control_mtu_length(aeron_archive_context_t *ctx)
 {
     return ctx->control_mtu_length;
+}
+
+int aeron_archive_context_set_client_name(aeron_archive_context_t *context, const char *value)
+{
+    size_t copy_length = 0;
+    if (!aeron_str_length(value, AERON_COUNTER_MAX_CLIENT_NAME_LENGTH + 1, &copy_length))
+    {
+        AERON_SET_ERR(EINVAL, "client_name length must <= %d", AERON_COUNTER_MAX_CLIENT_NAME_LENGTH);
+        return -1;
+    }
+
+    memcpy(context->client_name, value, copy_length);
+    context->client_name[copy_length] = '\0';
+    return 0;
+}
+
+const char *aeron_archive_context_get_client_name(aeron_archive_context_t *context)
+{
+    return context->client_name;
 }
 
 int aeron_archive_context_set_recording_events_channel(
