@@ -24,9 +24,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public final class ShutdownBarrier extends AtomicBoolean implements AutoCloseable
 {
     private static final long serialVersionUID = -4654671469794556979L;
-    private final CountDownLatch startCloseLatch = new CountDownLatch(1);
-    private final CountDownLatch completeCloseLatch = new CountDownLatch(1);
-    private final Thread shutdownHook = new Thread(() ->
+    private final transient CountDownLatch startCloseLatch = new CountDownLatch(1);
+    private final transient CountDownLatch completeCloseLatch = new CountDownLatch(1);
+    private final transient Thread shutdownHook = new Thread(() ->
     {
         doSignal();
         try
