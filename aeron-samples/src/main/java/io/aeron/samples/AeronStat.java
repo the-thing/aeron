@@ -19,13 +19,11 @@ import io.aeron.CncFileDescriptor;
 import io.aeron.status.ChannelEndpointStatus;
 import org.agrona.DirectBuffer;
 import org.agrona.SystemUtil;
-import org.agrona.concurrent.SigInt;
 import org.agrona.concurrent.status.CountersReader;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -36,7 +34,10 @@ import static io.aeron.driver.status.ReceiveChannelStatus.RECEIVE_CHANNEL_STATUS
 import static io.aeron.driver.status.ReceiverPos.RECEIVER_POS_TYPE_ID;
 import static io.aeron.driver.status.SendChannelStatus.SEND_CHANNEL_STATUS_TYPE_ID;
 import static io.aeron.driver.status.SenderLimit.SENDER_LIMIT_TYPE_ID;
-import static io.aeron.driver.status.StreamCounter.*;
+import static io.aeron.driver.status.StreamCounter.CHANNEL_OFFSET;
+import static io.aeron.driver.status.StreamCounter.REGISTRATION_ID_OFFSET;
+import static io.aeron.driver.status.StreamCounter.SESSION_ID_OFFSET;
+import static io.aeron.driver.status.StreamCounter.STREAM_ID_OFFSET;
 import static io.aeron.driver.status.SystemCounterDescriptor.SYSTEM_COUNTER_TYPE_ID;
 
 /**
@@ -100,7 +101,7 @@ public class AeronStat
      * Main method for launching the process.
      *
      * @param args passed to the process.
-     * @throws IOException if an error occurs writing to the console.
+     * @throws IOException          if an error occurs writing to the console.
      * @throws InterruptedException if the thread sleep delay is interrupted.
      */
     public static void main(final String[] args) throws IOException, InterruptedException
@@ -184,16 +185,16 @@ public class AeronStat
     private static void workLoop(final long delayMs, final Runnable outputPrinter)
         throws IOException, InterruptedException
     {
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        do
+        try (ShutdownBarrier barrier = new ShutdownBarrier())
         {
-            clearScreen();
-            outputPrinter.run();
-            Thread.sleep(delayMs);
+            do
+            {
+                clearScreen();
+                outputPrinter.run();
+                Thread.sleep(delayMs);
+            }
+            while (barrier.get());
         }
-        while (running.get());
     }
 
     private static void printOutput(final CncFileReader cncFileReader, final CounterFilter counterFilter)

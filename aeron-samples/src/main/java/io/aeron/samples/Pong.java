@@ -22,13 +22,9 @@ import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.FragmentHandler;
-import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SigInt;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Pong component of Ping-Pong.
@@ -54,6 +50,7 @@ public class Pong
      *
      * @param args passed to the process.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         final MediaDriver driver = EMBEDDED_MEDIA_DRIVER ? MediaDriver.launchEmbedded() : null;
@@ -72,10 +69,9 @@ public class Pong
         System.out.println("Publishing Pong at " + PONG_CHANNEL + " on stream id " + PONG_STREAM_ID);
         System.out.println("Using exclusive publications " + EXCLUSIVE_PUBLICATIONS);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        try (Aeron aeron = Aeron.connect(ctx);
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+            MediaDriver embeddedDriver = driver;
+            Aeron aeron = Aeron.connect(ctx);
             Subscription subscription = aeron.addSubscription(PING_CHANNEL, PING_STREAM_ID);
             Publication publication = EXCLUSIVE_PUBLICATIONS ?
                 aeron.addExclusivePublication(PONG_CHANNEL, PONG_STREAM_ID) :
@@ -91,15 +87,13 @@ public class Pong
             final FragmentHandler fragmentHandler = new ImageFragmentAssembler((buffer, offset, length, header) ->
                 pingHandler(publication, buffer, offset, length));
 
-            while (running.get())
+            while (shutdownBarrier.get())
             {
                 idleStrategy.idle(image.poll(fragmentHandler, FRAME_COUNT_LIMIT));
             }
 
             System.out.println("Shutting down...");
         }
-
-        CloseHelper.close(driver);
     }
 
     private static void pingHandler(

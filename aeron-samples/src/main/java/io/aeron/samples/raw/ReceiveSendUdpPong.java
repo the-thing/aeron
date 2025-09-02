@@ -16,15 +16,14 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
+import io.aeron.samples.ShutdownBarrier;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
-import org.agrona.concurrent.SigInt;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.aeron.samples.raw.Common.init;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
@@ -77,44 +76,44 @@ public class ReceiveSendUdpPong
         final DatagramChannel sendChannel = DatagramChannel.open();
         Common.init(sendChannel);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        while (true)
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
         {
-            buffer.clear();
-
-            boolean available = false;
-            while (!available)
+            while (true)
             {
-                Thread.onSpinWait();
-                if (!running.get())
-                {
-                    return;
-                }
+                buffer.clear();
 
-                for (int i = receiveChannels.length - 1; i >= 0; i--)
+                boolean available = false;
+                while (!available)
                 {
-                    if (null != receiveChannels[i].receive(buffer))
+                    Thread.onSpinWait();
+                    if (!shutdownBarrier.get())
                     {
-                        available = true;
-                        break;
+                        return;
+                    }
+
+                    for (int i = receiveChannels.length - 1; i >= 0; i--)
+                    {
+                        if (null != receiveChannels[i].receive(buffer))
+                        {
+                            available = true;
+                            break;
+                        }
                     }
                 }
+
+                buffer.flip();
+                final int length = buffer.remaining();
+                final long receivedSequenceNumber = buffer.getLong(0);
+                final long receivedTimestamp = buffer.getLong(SIZE_OF_LONG);
+
+                buffer.clear();
+                buffer.putLong(receivedSequenceNumber);
+                buffer.putLong(receivedTimestamp);
+                buffer.position(length);
+                buffer.flip();
+
+                sendChannel.send(buffer, sendAddress);
             }
-
-            buffer.flip();
-            final int length = buffer.remaining();
-            final long receivedSequenceNumber = buffer.getLong(0);
-            final long receivedTimestamp = buffer.getLong(SIZE_OF_LONG);
-
-            buffer.clear();
-            buffer.putLong(receivedSequenceNumber);
-            buffer.putLong(receivedTimestamp);
-            buffer.position(length);
-            buffer.flip();
-
-            sendChannel.send(buffer, sendAddress);
         }
     }
 }

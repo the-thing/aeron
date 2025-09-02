@@ -26,13 +26,11 @@ import org.agrona.LangUtil;
 import org.agrona.SystemUtil;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SigInt;
 import org.agrona.concurrent.SleepingMillisIdleStrategy;
 import org.agrona.concurrent.UnsafeBuffer;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.agrona.BitUtil.SIZE_OF_INT;
@@ -148,17 +146,16 @@ public class FileReceiver
         System.out.println("Files stored to " + storageDir.getAbsolutePath());
 
         final IdleStrategy idleStrategy = new SleepingMillisIdleStrategy(1);
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
 
-        try (MediaDriver mediaDriver = MediaDriver.launch();
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+            MediaDriver mediaDriver = MediaDriver.launch();
             Aeron aeron = Aeron.connect(new Aeron.Context().aeronDirectoryName(mediaDriver.aeronDirectoryName()));
             Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
         {
             System.out.println("Receiving from " + CHANNEL + " on stream id " + STREAM_ID);
             final FileReceiver fileReceiver = new FileReceiver(storageDir, subscription);
 
-            while (running.get())
+            while (shutdownBarrier.get())
             {
                 idleStrategy.idle(fileReceiver.doWork());
             }

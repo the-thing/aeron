@@ -22,10 +22,8 @@ import io.aeron.archive.client.RecordingDescriptorConsumer;
 import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.samples.SampleConfiguration;
 import io.aeron.samples.SamplesUtil;
+import io.aeron.samples.ShutdownBarrier;
 import org.agrona.collections.MutableLong;
-import org.agrona.concurrent.SigInt;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A basic subscriber application which requests a replay from the archive and consumes it.
@@ -50,15 +48,13 @@ public class ReplayedBasicSubscriber
         System.out.println("Subscribing to " + CHANNEL + " on stream id " + STREAM_ID);
 
         final FragmentHandler fragmentHandler = SamplesUtil.printAsciiMessage(STREAM_ID);
-        final AtomicBoolean running = new AtomicBoolean(true);
-
-        SigInt.register(() -> running.set(false));
 
         // Create a unique response stream id so not to clash with other archive clients.
         final AeronArchive.Context archiveCtx = new AeronArchive.Context()
             .controlResponseStreamId(AeronArchive.Configuration.controlResponseStreamId() + 2);
 
-        try (AeronArchive archive = AeronArchive.connect(archiveCtx))
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+            AeronArchive archive = AeronArchive.connect(archiveCtx))
         {
             final long recordingId = findLatestRecording(archive);
             final long position = 0L;
@@ -69,7 +65,7 @@ public class ReplayedBasicSubscriber
 
             try (Subscription subscription = archive.context().aeron().addSubscription(channel, REPLAY_STREAM_ID))
             {
-                SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, running).accept(subscription);
+                SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, shutdownBarrier).accept(subscription);
                 System.out.println("Shutting down...");
             }
         }

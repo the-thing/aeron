@@ -16,11 +16,11 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
+import io.aeron.samples.ShutdownBarrier;
 import org.HdrHistogram.Histogram;
 import org.agrona.BitUtil;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
-import org.agrona.concurrent.SigInt;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -89,17 +89,24 @@ public class BurstSendReceiveUdpPing
         final DatagramChannel sendChannel = DatagramChannel.open();
         init(sendChannel);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        while (running.get())
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
         {
-            measureRoundTrip(
-                histogram, sendAddress, buffer, packetSize, burstSize, receiveChannel, sendChannel, running);
+            while (shutdownBarrier.get())
+            {
+                measureRoundTrip(
+                    histogram,
+                    sendAddress,
+                    buffer,
+                    packetSize,
+                    burstSize,
+                    receiveChannel,
+                    sendChannel,
+                    shutdownBarrier);
 
-            histogram.reset();
-            System.gc();
-            LockSupport.parkNanos(1_000_000_000L);
+                histogram.reset();
+                System.gc();
+                LockSupport.parkNanos(1_000_000_000L);
+            }
         }
     }
 

@@ -18,11 +18,12 @@ package io.aeron.samples;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
-import org.agrona.CloseHelper;
-import org.agrona.concurrent.SigInt;
 
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static io.aeron.samples.SamplesUtil.rateReporterHandler;
 
@@ -41,14 +42,15 @@ public class RateSubscriber
      *
      * @param args passed to the process.
      * @throws InterruptedException if the task is interrupted
-     * @throws ExecutionException if the {@link Future} has an error.
+     * @throws ExecutionException   if the {@link Future} has an error.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args) throws InterruptedException, ExecutionException
     {
         System.out.println("Subscribing to " + CHANNEL + " on stream id " + STREAM_ID);
 
         final MediaDriver driver = EMBEDDED_MEDIA_DRIVER ? MediaDriver.launchEmbedded() : null;
-        final ExecutorService executor = Executors.newFixedThreadPool(1);
+        final ExecutorService executor = Executors.newFixedThreadPool(2);
         final Aeron.Context ctx = new Aeron.Context()
             .availableImageHandler(SamplesUtil::printAvailableImage)
             .unavailableImageHandler(SamplesUtil::printUnavailableImage);
@@ -59,32 +61,25 @@ public class RateSubscriber
         }
 
         final RateReporter reporter = new RateReporter(TimeUnit.SECONDS.toNanos(1), SamplesUtil::printRate);
-        final AtomicBoolean running = new AtomicBoolean(true);
 
-        SigInt.register(() ->
-        {
-            reporter.halt();
-            running.set(false);
-        });
-
-        try (Aeron aeron = Aeron.connect(ctx);
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+            MediaDriver embeddedDriver = driver;
+            Aeron aeron = Aeron.connect(ctx);
             Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
         {
-            final Future<?> future = executor.submit(() -> SamplesUtil.subscriberLoop(
-                rateReporterHandler(reporter), FRAGMENT_COUNT_LIMIT, running).accept(subscription));
+            executor.submit(() -> SamplesUtil.subscriberLoop(
+                rateReporterHandler(reporter), FRAGMENT_COUNT_LIMIT, shutdownBarrier).accept(subscription));
+            executor.submit(reporter);
 
-            reporter.run();
+            shutdownBarrier.await();
 
             System.out.println("Shutting down...");
-            future.get();
-        }
 
-        executor.shutdown();
-        if (!executor.awaitTermination(5, TimeUnit.SECONDS))
-        {
-            System.out.println("Warning: not all tasks completed promptly");
+            executor.shutdown();
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS))
+            {
+                System.out.println("Warning: not all tasks completed promptly");
+            }
         }
-
-        CloseHelper.close(driver);
     }
 }

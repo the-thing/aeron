@@ -16,9 +16,9 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
+import io.aeron.samples.ShutdownBarrier;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
-import org.agrona.concurrent.SigInt;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -28,7 +28,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
 import static java.nio.channels.SelectionKey.OP_READ;
@@ -36,8 +35,6 @@ import static org.agrona.BitUtil.SIZE_OF_LONG;
 
 /**
  * Benchmark used to calculate latency of underlying system.
- *
- * @see SendHackSelectReceiveUdpPing
  */
 public class SelectReceiveSendUdpPong
 {
@@ -94,33 +91,33 @@ public class SelectReceiveSendUdpPong
 
         receiveChannel.register(selector, OP_READ, handler);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        while (true)
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
         {
-            while (selector.selectNow() == 0)
+            while (true)
             {
-                if (!running.get())
+                while (selector.selectNow() == 0)
                 {
-                    return;
+                    if (!shutdownBarrier.get())
+                    {
+                        return;
+                    }
+
+                    Thread.onSpinWait();
                 }
 
-                Thread.onSpinWait();
-            }
+                final Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                final Iterator<SelectionKey> iter = selectedKeys.iterator();
 
-            final Set<SelectionKey> selectedKeys = selector.selectedKeys();
-            final Iterator<SelectionKey> iter = selectedKeys.iterator();
-
-            while (iter.hasNext())
-            {
-                final SelectionKey key = iter.next();
-                if (key.isReadable())
+                while (iter.hasNext())
                 {
-                    ((IntSupplier)key.attachment()).getAsInt();
-                }
+                    final SelectionKey key = iter.next();
+                    if (key.isReadable())
+                    {
+                        ((IntSupplier)key.attachment()).getAsInt();
+                    }
 
-                iter.remove();
+                    iter.remove();
+                }
             }
         }
     }

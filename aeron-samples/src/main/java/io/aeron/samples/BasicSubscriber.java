@@ -19,10 +19,6 @@ import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.FragmentHandler;
-import org.agrona.CloseHelper;
-import org.agrona.concurrent.SigInt;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This is a Basic Aeron subscriber application.
@@ -48,6 +44,7 @@ public class BasicSubscriber
      *
      * @param args passed to the process.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         System.out.println("Subscribing to " + CHANNEL + " on stream id " + STREAM_ID);
@@ -63,24 +60,20 @@ public class BasicSubscriber
         }
 
         final FragmentHandler fragmentHandler = SamplesUtil.printAsciiMessage(STREAM_ID);
-        final AtomicBoolean running = new AtomicBoolean(true);
-
-        // Register a SIGINT handler for graceful shutdown.
-        SigInt.register(() -> running.set(false));
 
         // Create an Aeron instance using the configured Context and create a
         // Subscription on that instance that subscribes to the configured
         // channel and stream ID.
         // The Aeron and Subscription classes implement "AutoCloseable" and will automatically
         // clean up resources when this try block is finished
-        try (Aeron aeron = Aeron.connect(ctx);
+        try (ShutdownBarrier barrier = new ShutdownBarrier();
+            MediaDriver embeddedDriver = driver;
+            Aeron aeron = Aeron.connect(ctx);
             Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
         {
-            SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, running).accept(subscription);
+            SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, barrier).accept(subscription);
 
             System.out.println("Shutting down...");
         }
-
-        CloseHelper.close(driver);
     }
 }

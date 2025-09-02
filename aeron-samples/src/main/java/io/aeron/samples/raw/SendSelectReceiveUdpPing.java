@@ -16,11 +16,11 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
+import io.aeron.samples.ShutdownBarrier;
 import org.HdrHistogram.Histogram;
 import org.agrona.SystemUtil;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.HighResolutionTimer;
-import org.agrona.concurrent.SigInt;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -40,8 +40,6 @@ import static org.agrona.BitUtil.SIZE_OF_LONG;
 
 /**
  * Benchmark used to calculate latency of underlying system.
- *
- * @see HackSelectReceiveSendUdpPong
  */
 public class SendSelectReceiveUdpPing
 {
@@ -101,16 +99,16 @@ public class SendSelectReceiveUdpPing
 
         receiveChannel.register(selector, OP_READ, handler);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        SigInt.register(() -> running.set(false));
-
-        while (running.get())
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
         {
-            measureRoundTrip(histogram, sendAddress, buffer, sendChannel, selector, sequence, running);
+            while (shutdownBarrier.get())
+            {
+                measureRoundTrip(histogram, sendAddress, buffer, sendChannel, selector, sequence, shutdownBarrier);
 
-            histogram.reset();
-            System.gc();
-            LockSupport.parkNanos(1_000_000_000L);
+                histogram.reset();
+                System.gc();
+                LockSupport.parkNanos(1_000_000_000L);
+            }
         }
     }
 

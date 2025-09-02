@@ -21,10 +21,8 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
-import org.agrona.concurrent.SigInt;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A very simple Aeron subscriber application which can receive small non-fragmented messages
@@ -39,6 +37,7 @@ public class SimpleSubscriber
      *
      * @param args passed to the process.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         // Maximum number of message fragments to receive during a single 'poll' operation
@@ -53,26 +52,6 @@ public class SimpleSubscriber
 
         System.out.println("Subscribing to " + channel + " on stream id " + streamId);
 
-        final AtomicBoolean running = new AtomicBoolean(true);
-        // Register a SIGINT handler for graceful shutdown.
-        SigInt.register(() -> running.set(false));
-
-        // dataHandler method is called for every new datagram received
-        final FragmentHandler fragmentHandler =
-            (buffer, offset, length, header) ->
-            {
-                final byte[] data = new byte[length];
-                buffer.getBytes(offset, data);
-
-                System.out.printf(
-                    "Received message (%s) to stream %d from session %x term id %x term offset %d (%d@%d)%n",
-                    new String(data), streamId, header.sessionId(),
-                    header.termId(), header.termOffset(), length, offset);
-
-                // Received the intended message, time to exit the program
-                running.set(false);
-            };
-
         // Create a context, needed for client connection to media driver
         // A separate media driver process need to run prior to running this application
         final Aeron.Context ctx = new Aeron.Context();
@@ -82,14 +61,31 @@ public class SimpleSubscriber
         // dataHandler method, which will be called with new messages as they are received.
         // The Aeron and Subscription classes implement AutoCloseable, and will automatically
         // clean up resources when this try block is finished.
-        try (Aeron aeron = Aeron.connect(ctx);
+        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+            Aeron aeron = Aeron.connect(ctx);
             Subscription subscription = aeron.addSubscription(channel, streamId))
         {
             final IdleStrategy idleStrategy = new BackoffIdleStrategy(
                 100, 10, TimeUnit.MICROSECONDS.toNanos(1), TimeUnit.MICROSECONDS.toNanos(100));
 
+            // dataHandler method is called for every new datagram received
+            final FragmentHandler fragmentHandler =
+                (buffer, offset, length, header) ->
+                {
+                    final byte[] data = new byte[length];
+                    buffer.getBytes(offset, data);
+
+                    System.out.printf(
+                        "Received message (%s) to stream %d from session %x term id %x term offset %d (%d@%d)%n",
+                        new String(data), streamId, header.sessionId(),
+                        header.termId(), header.termOffset(), length, offset);
+
+                    // Received the intended message, time to exit the program
+                    shutdownBarrier.signal();
+                };
+
             // Try to read the data from subscriber
-            while (running.get())
+            while (shutdownBarrier.get())
             {
                 // poll delivers messages to the dataHandler as they arrive
                 // and returns number of fragments read, or 0
