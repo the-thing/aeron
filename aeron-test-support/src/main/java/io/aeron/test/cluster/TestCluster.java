@@ -171,6 +171,7 @@ public final class TestCluster implements AutoCloseable
     private File markFileBaseDir;
     private String clusterBaseDir;
     private ClusterBackup.Configuration.ReplayStart replayStart;
+    private List<String> hostnames;
 
     private TestCluster(
         final int staticMemberCount,
@@ -1887,37 +1888,59 @@ public final class TestCluster implements AutoCloseable
 
     private String nodeNameMappings()
     {
-        return nodeNameMappings(byHostInvalidInitialResolutions);
+        final List<String> initialAddresses = initialAddresses(byHostInvalidInitialResolutions, this::defaultHostname);
+        return nodeNameMappings(initialAddresses, this::defaultHostname);
     }
 
     private String nodeNameMappings(final int memberId)
     {
-        return nodeNameMappings(byHostInvalidInitialResolutions, byMemberInvalidInitialResolutions, memberId);
+        final List<String> initialAddresses = initialAddresses(
+            byHostInvalidInitialResolutions, byMemberInvalidInitialResolutions, memberId, this::defaultHostname);
+        return nodeNameMappings(initialAddresses, this::defaultHostname);
     }
 
-    private static String nodeNameMappings(final IntHashSet invalidInitialResolutions)
+    private List<String> initialAddresses(
+        final IntHashSet invalidInitialResolutions,
+        final IntFunction<String> defaultAddresses)
     {
-        return
-            "node0," + (invalidInitialResolutions.contains(0) ? "bad.invalid" : "localhost") + ",localhost|" +
-            "node1," + (invalidInitialResolutions.contains(1) ? "bad.invalid" : "localhost") + ",localhost|" +
-            "node2," + (invalidInitialResolutions.contains(2) ? "bad.invalid" : "localhost") + ",localhost|";
+        final String host0 = invalidInitialResolutions.contains(0) ? "bad.invalid" : defaultAddresses.apply(0);
+        final String host1 = invalidInitialResolutions.contains(1) ? "bad.invalid" : defaultAddresses.apply(1);
+        final String host2 = invalidInitialResolutions.contains(2) ? "bad.invalid" : defaultAddresses.apply(2);
+
+        return List.of(host0, host1, host2);
     }
 
-    private static String nodeNameMappings(
+    private static List<String> initialAddresses(
         final IntHashSet byHostInvalidInitialResolutions,
         final IntHashSet byMemberInvalidInitialResolutions,
-        final int memberId)
+        final int memberId,
+        final IntFunction<String> defaultAddresses)
     {
         final boolean memberInvalid = byMemberInvalidInitialResolutions.contains(memberId);
 
-        final String host0 = memberInvalid || byHostInvalidInitialResolutions.contains(0) ? "bad.invalid" : "localhost";
-        final String host1 = memberInvalid || byHostInvalidInitialResolutions.contains(1) ? "bad.invalid" : "localhost";
-        final String host2 = memberInvalid || byHostInvalidInitialResolutions.contains(2) ? "bad.invalid" : "localhost";
+        final String host0 = memberInvalid || byHostInvalidInitialResolutions.contains(0) ?
+            "bad.invalid" : defaultAddresses.apply(0);
+        final String host1 = memberInvalid || byHostInvalidInitialResolutions.contains(1) ?
+            "bad.invalid" : defaultAddresses.apply(1);
+        final String host2 = memberInvalid || byHostInvalidInitialResolutions.contains(2) ?
+            "bad.invalid" : defaultAddresses.apply(2);
+
+        return List.of(host0, host1, host2);
+    }
+
+    private static String nodeNameMappings(
+        final List<String> initialHostnames,
+        final IntFunction<String> reresolveHostnames)
+    {
+        if (initialHostnames.size() < 3)
+        {
+            throw new IllegalStateException("Need at least 3 hostnames, hostnames=" + initialHostnames);
+        }
 
         return
-            "node0," + host0 + ",localhost|" +
-            "node1," + host1 + ",localhost|" +
-            "node2," + host2 + ",localhost|";
+            "node0," + initialHostnames.get(0) + "," + reresolveHostnames.apply(0) + "|" +
+            "node1," + initialHostnames.get(1) + "," + reresolveHostnames.apply(1) + "|" +
+            "node2," + initialHostnames.get(2) + "," + reresolveHostnames.apply(2) + "|";
     }
 
     public DataCollector dataCollector()
@@ -2118,6 +2141,7 @@ public final class TestCluster implements AutoCloseable
         private String clusterBaseDir = System.getProperty(
             CLUSTER_BASE_DIR_PROP_NAME, CommonContext.generateRandomDirName());
         private boolean useResponseChannels = false;
+        private List<String> hostnames;
 
         public Builder withStaticNodes(final int nodeCount)
         {
@@ -2238,6 +2262,12 @@ public final class TestCluster implements AutoCloseable
             return this;
         }
 
+        public Builder withCustomAddresses(final List<String> addresses)
+        {
+            this.hostnames = addresses;
+            return this;
+        }
+
         public TestCluster start()
         {
             return start(nodeCount);
@@ -2271,6 +2301,7 @@ public final class TestCluster implements AutoCloseable
             testCluster.markFileBaseDir(markFileBaseDir);
             testCluster.clusterBaseDir(clusterBaseDir);
             testCluster.replyStart(replayStart);
+            testCluster.hostnames(hostnames);
 
             try
             {
@@ -2302,6 +2333,21 @@ public final class TestCluster implements AutoCloseable
     private void replyStart(final ClusterBackup.Configuration.ReplayStart replayStart)
     {
         this.replayStart = replayStart;
+    }
+
+    private void hostnames(final List<String> hostnames)
+    {
+        this.hostnames = hostnames;
+    }
+
+    private String defaultHostname(final int nodeId)
+    {
+        if (null != hostnames && nodeId < hostnames.size())
+        {
+            return hostnames.get(nodeId);
+        }
+
+        return "localhost";
     }
 
     private void clusterBaseDir(final String clusterBaseDir)

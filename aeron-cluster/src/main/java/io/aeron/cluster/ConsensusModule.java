@@ -72,6 +72,7 @@ import static io.aeron.cluster.ConsensusModule.Configuration.CLUSTER_CLIENT_TIME
 import static io.aeron.cluster.ConsensusModule.Configuration.CLUSTER_NODE_ROLE_TYPE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.COMMIT_POSITION_TYPE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.*;
+import static java.lang.Boolean.parseBoolean;
 import static org.agrona.BitUtil.findNextPositivePowerOfTwo;
 import static org.agrona.SystemUtil.*;
 
@@ -933,6 +934,22 @@ public final class ConsensusModule implements AutoCloseable
             "aeron.cluster.consensus.module.extension";
 
         /**
+         * Property name of the setting to control whether the consensus module should bind the control endpoint of
+         * the consensus publication to its local consensus address.
+         */
+        @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = true)
+        public static final String CONSENSUS_MODULE_ENABLE_CONTROL_ON_CONSENSUS_CHANNEL_PROP_NAME =
+            "aeron.cluster.consensus.control.enable";
+
+        /**
+         * Property name of the setting to control whether the consensus module should bind the control endpoint of
+         * the consensus publication to its local log address.
+         */
+        @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = true)
+        public static final String CONSENSUS_MODULE_ENABLE_CONTROL_ON_LOG_CHANNEL_PROP_NAME =
+            "aeron.cluster.log.control.enable";
+
+        /**
          * The value {@link #CLUSTER_INGRESS_FRAGMENT_LIMIT_DEFAULT} or system property
          * {@link #CLUSTER_INGRESS_FRAGMENT_LIMIT_PROP_NAME} if set.
          *
@@ -1438,6 +1455,29 @@ public final class ConsensusModule implements AutoCloseable
 
             return null;
         }
+
+        /**
+         * Determine the ConsensusModule should bind the control endpoint of the consensus publication.
+         *
+         * @return <code>true</code> if the ConsensusModule should bind the control endpoint of the consensus
+         * publication.
+         */
+        public static boolean enableControlOnConsensusChannel()
+        {
+            return parseBoolean(System.getProperty(
+                CONSENSUS_MODULE_ENABLE_CONTROL_ON_CONSENSUS_CHANNEL_PROP_NAME, "true"));
+        }
+
+        /**
+         * Determine the ConsensusModule should bind the control endpoint of the log publication.
+         *
+         * @return <code>true</code> if the ConsensusModule should bind the log endpoint of the consensus
+         * publication.
+         */
+        public static boolean enableControlOnLogChannel()
+        {
+            return parseBoolean(System.getProperty(CONSENSUS_MODULE_ENABLE_CONTROL_ON_LOG_CHANNEL_PROP_NAME, "true"));
+        }
     }
 
     /**
@@ -1558,6 +1598,8 @@ public final class ConsensusModule implements AutoCloseable
         private boolean useAgentInvoker = false;
         private ConsensusModuleStateExport boostrapState = null;
         private boolean acceptStandbySnapshots = Configuration.acceptStandbySnapshots();
+        private boolean enableControlOnConsensusChannel = Configuration.enableControlOnConsensusChannel();
+        private boolean enableControlOnLogChannel = Configuration.enableControlOnLogChannel();
 
         /**
          * Perform a shallow copy of the object.
@@ -4220,6 +4262,52 @@ public final class ConsensusModule implements AutoCloseable
         public Context leadershipTermIdCounter(final Counter leadershipTermId)
         {
             this.leadershipTermId = leadershipTermId;
+            return this;
+        }
+
+        /**
+         * If the ConsensusModule should set the control endpoint for the Consensus publication.
+         *
+         * @return <code>true</code> if the control endpoint should be set, <code>false</code> otherwise.
+         */
+        public boolean enableControlOnConsensusChannel()
+        {
+            return enableControlOnConsensusChannel;
+        }
+
+        /**
+         * If the ConsensusModule should bind the control endpoint for the Consensus publication.
+         *
+         * @param enableControlOnConsensusChannel <code>true</code> if the control endpoint should be set,
+         *                                        <code>false</code> otherwise.
+         * @return this for fluent API.
+         */
+        public Context enableControlOnConsensusChannel(final boolean enableControlOnConsensusChannel)
+        {
+            this.enableControlOnConsensusChannel = enableControlOnConsensusChannel;
+            return this;
+        }
+
+        /**
+         * If the ConsensusModule should set the control endpoint for the Consensus publication.
+         *
+         * @return <code>true</code> if the control endpoint should be bound, <code>false</code> otherwise.
+         */
+        public boolean enableControlOnLogControl()
+        {
+            return enableControlOnLogChannel;
+        }
+
+        /**
+         * If the LogModule should set the control endpoint for the Log publication.
+         *
+         * @param setControlOnLogChannel <code>true</code> if the control endpoint should be set, <code>false</code>
+         *                               otherwise.
+         * @return this for fluent API.
+         */
+        public Context enableControlOnLogControl(final boolean setControlOnLogChannel)
+        {
+            this.enableControlOnLogChannel = setControlOnLogChannel;
             return this;
         }
 
