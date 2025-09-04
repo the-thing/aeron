@@ -19,11 +19,13 @@ import io.aeron.CncFileDescriptor;
 import io.aeron.status.ChannelEndpointStatus;
 import org.agrona.DirectBuffer;
 import org.agrona.SystemUtil;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 import org.agrona.concurrent.status.CountersReader;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -182,10 +184,12 @@ public class AeronStat
         }
     }
 
+    @SuppressWarnings("try")
     private static void workLoop(final long delayMs, final Runnable outputPrinter)
         throws IOException, InterruptedException
     {
-        try (ShutdownBarrier barrier = new ShutdownBarrier())
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false)))
         {
             do
             {
@@ -193,7 +197,7 @@ public class AeronStat
                 outputPrinter.run();
                 Thread.sleep(delayMs);
             }
-            while (barrier.get());
+            while (running.get());
         }
     }
 

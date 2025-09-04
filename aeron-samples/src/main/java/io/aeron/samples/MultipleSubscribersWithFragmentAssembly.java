@@ -23,8 +23,10 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A subscriber application with two subscriptions which can receive fragmented messages.
@@ -47,6 +49,7 @@ public class MultipleSubscribersWithFragmentAssembly
      *
      * @param args passed to the process.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         System.out.format("Subscribing to %s on stream ID %d and stream ID %d%n",
@@ -59,7 +62,8 @@ public class MultipleSubscribersWithFragmentAssembly
         final FragmentAssembler assembler1 = new FragmentAssembler(reassembledMessage1(STREAM_ID_1));
         final FragmentAssembler assembler2 = new FragmentAssembler(reassembledMessage2(STREAM_ID_2));
 
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false));
             Aeron aeron = Aeron.connect(ctx);
             Subscription subscription1 = aeron.addSubscription(CHANNEL, STREAM_ID_1);
             Subscription subscription2 = aeron.addSubscription(CHANNEL, STREAM_ID_2))
@@ -69,7 +73,7 @@ public class MultipleSubscribersWithFragmentAssembly
 
             int idleCount = 0;
 
-            while (shutdownBarrier.get())
+            while (running.get())
             {
                 final int fragmentsRead1 = subscription1.poll(assembler1, FRAGMENT_COUNT_LIMIT);
                 final int fragmentsRead2 = subscription2.poll(assembler2, FRAGMENT_COUNT_LIMIT);

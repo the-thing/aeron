@@ -15,7 +15,13 @@
  */
 package io.aeron.cluster;
 
-import io.aeron.*;
+import io.aeron.Aeron;
+import io.aeron.AeronCounters;
+import io.aeron.ChannelUri;
+import io.aeron.CommonContext;
+import io.aeron.Counter;
+import io.aeron.RethrowingErrorHandler;
+import io.aeron.Subscription;
 import io.aeron.archive.Archive;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.cluster.client.AeronCluster;
@@ -27,12 +33,11 @@ import io.aeron.cluster.codecs.HeartbeatRequestDecoder;
 import io.aeron.cluster.codecs.MessageHeaderDecoder;
 import io.aeron.cluster.codecs.StandbySnapshotDecoder;
 import io.aeron.cluster.codecs.mark.ClusterComponentType;
-import io.aeron.cluster.service.ClusterMarkFile;
-import io.aeron.cluster.service.ClusterCounters;
-import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.cluster.service.ClusterClock;
+import io.aeron.cluster.service.ClusterCounters;
+import io.aeron.cluster.service.ClusterMarkFile;
+import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.cluster.service.SnapshotDurationTracker;
-
 import io.aeron.config.Config;
 import io.aeron.config.DefaultType;
 import io.aeron.driver.DutyCycleTracker;
@@ -46,8 +51,25 @@ import io.aeron.security.AuthorisationService;
 import io.aeron.security.AuthorisationServiceSupplier;
 import io.aeron.security.DefaultAuthenticatorSupplier;
 import io.aeron.version.Versioned;
-import org.agrona.*;
-import org.agrona.concurrent.*;
+import org.agrona.CloseHelper;
+import org.agrona.ErrorHandler;
+import org.agrona.ExpandableArrayBuffer;
+import org.agrona.IoUtil;
+import org.agrona.LangUtil;
+import org.agrona.MarkFile;
+import org.agrona.SemanticVersion;
+import org.agrona.Strings;
+import org.agrona.SystemUtil;
+import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentInvoker;
+import org.agrona.concurrent.AgentRunner;
+import org.agrona.concurrent.CountedErrorHandler;
+import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.NoOpLock;
+import org.agrona.concurrent.ShutdownSignalBarrier;
+import org.agrona.concurrent.SystemEpochClock;
+import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.errors.DistinctErrorLog;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersReader;
@@ -65,16 +87,35 @@ import java.util.function.Function;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
-import static io.aeron.AeronCounters.*;
-import static io.aeron.ChannelUri.*;
-import static io.aeron.CommonContext.*;
+import static io.aeron.AeronCounters.CLUSTER_ELECTION_COUNT_TYPE_ID;
+import static io.aeron.AeronCounters.CLUSTER_LEADERSHIP_TERM_ID_TYPE_ID;
+import static io.aeron.AeronCounters.CLUSTER_STANDBY_SNAPSHOT_COUNTER_TYPE_ID;
+import static io.aeron.AeronCounters.NODE_CONTROL_TOGGLE_TYPE_ID;
+import static io.aeron.AeronCounters.validateCounterTypeId;
+import static io.aeron.ChannelUri.addAliasIfAbsent;
+import static io.aeron.ChannelUri.parse;
+import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
+import static io.aeron.CommonContext.INITIAL_TERM_ID_PARAM_NAME;
+import static io.aeron.CommonContext.TERM_ID_PARAM_NAME;
+import static io.aeron.CommonContext.TERM_OFFSET_PARAM_NAME;
+import static io.aeron.CommonContext.UDP_CHANNEL;
+import static io.aeron.CommonContext.driverFilePageSize;
+import static io.aeron.CommonContext.fallbackLogger;
 import static io.aeron.cluster.ConsensusModule.Configuration.CLUSTER_CLIENT_TIMEOUT_COUNT_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.CLUSTER_CLOCK_PROP_NAME;
 import static io.aeron.cluster.ConsensusModule.Configuration.CLUSTER_NODE_ROLE_TYPE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.COMMIT_POSITION_TYPE_ID;
-import static io.aeron.cluster.ConsensusModule.Configuration.*;
+import static io.aeron.cluster.ConsensusModule.Configuration.CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.CONSENSUS_MODULE_STATE_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.CONTROL_TOGGLE_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.ELECTION_STATE_TYPE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.SERVICE_ID;
+import static io.aeron.cluster.ConsensusModule.Configuration.SNAPSHOT_COUNTER_TYPE_ID;
 import static java.lang.Boolean.parseBoolean;
 import static org.agrona.BitUtil.findNextPositivePowerOfTwo;
-import static org.agrona.SystemUtil.*;
+import static org.agrona.SystemUtil.getDurationInNanos;
+import static org.agrona.SystemUtil.getSizeAsInt;
+import static org.agrona.SystemUtil.loadPropertiesFiles;
 
 /**
  * Component which resides on each node and is responsible for coordinating consensus within a cluster in concert
@@ -1489,6 +1530,7 @@ public final class ConsensusModule implements AutoCloseable
     public static final class Context implements Cloneable
     {
         private static final VarHandle IS_CONCLUDED_VH;
+
         static
         {
             try
@@ -1584,6 +1626,7 @@ public final class ConsensusModule implements AutoCloseable
         private Counter electionCounter;
         private Counter leadershipTermId;
         private ShutdownSignalBarrier shutdownSignalBarrier;
+        private boolean ownsShutdownSignalBarrier = false;
         private Runnable terminationHook;
 
         private AeronArchive.Context archiveContext;
@@ -2007,6 +2050,7 @@ public final class ConsensusModule implements AutoCloseable
 
             if (null == shutdownSignalBarrier)
             {
+                ownsShutdownSignalBarrier = true;
                 shutdownSignalBarrier = new ShutdownSignalBarrier();
             }
 
@@ -4329,28 +4373,38 @@ public final class ConsensusModule implements AutoCloseable
          */
         public void close()
         {
-            CloseHelper.close(countedErrorHandler, recordingLog);
-            CloseHelper.close(countedErrorHandler, nodeStateFile);
-            CloseHelper.close(countedErrorHandler, markFile);
-            if (errorHandler instanceof AutoCloseable)
+            try
             {
-                CloseHelper.quietClose((AutoCloseable)errorHandler); // Ignore error to ensure the rest will be closed
-            }
+                CloseHelper.close(countedErrorHandler, recordingLog);
+                CloseHelper.close(countedErrorHandler, nodeStateFile);
+                CloseHelper.close(countedErrorHandler, markFile);
+                if (errorHandler instanceof AutoCloseable handler)
+                {
+                    CloseHelper.quietClose(handler); // Ignore error to ensure the rest will be closed
+                }
 
-            if (ownsAeronClient)
-            {
-                CloseHelper.close(aeron);
+                if (ownsAeronClient)
+                {
+                    CloseHelper.close(aeron);
+                }
+                else if (!aeron.isClosed())
+                {
+                    CloseHelper.closeAll(
+                        timedOutClientCounter,
+                        clusterControlToggle,
+                        snapshotCounter,
+                        moduleStateCounter,
+                        electionStateCounter,
+                        clusterNodeRoleCounter,
+                        commitPosition);
+                }
             }
-            else if (!aeron.isClosed())
+            finally
             {
-                CloseHelper.closeAll(
-                    timedOutClientCounter,
-                    clusterControlToggle,
-                    snapshotCounter,
-                    moduleStateCounter,
-                    electionStateCounter,
-                    clusterNodeRoleCounter,
-                    commitPosition);
+                if (ownsShutdownSignalBarrier)
+                {
+                    CloseHelper.close(shutdownSignalBarrier);
+                }
             }
         }
 

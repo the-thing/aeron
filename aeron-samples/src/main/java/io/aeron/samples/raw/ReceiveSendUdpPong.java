@@ -16,14 +16,15 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
-import io.aeron.samples.ShutdownBarrier;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.aeron.samples.raw.Common.init;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
@@ -41,6 +42,7 @@ public class ReceiveSendUdpPong
      * @param args passed to the process.
      * @throws IOException if an error occurs with the channel.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args) throws IOException
     {
         int numChannels = 1;
@@ -76,7 +78,8 @@ public class ReceiveSendUdpPong
         final DatagramChannel sendChannel = DatagramChannel.open();
         Common.init(sendChannel);
 
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false)))
         {
             while (true)
             {
@@ -86,7 +89,7 @@ public class ReceiveSendUdpPong
                 while (!available)
                 {
                     Thread.onSpinWait();
-                    if (!shutdownBarrier.get())
+                    if (!running.get())
                     {
                         return;
                     }

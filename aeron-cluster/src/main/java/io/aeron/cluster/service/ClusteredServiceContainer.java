@@ -15,7 +15,11 @@
  */
 package io.aeron.cluster.service;
 
-import io.aeron.*;
+import io.aeron.Aeron;
+import io.aeron.AeronCounters;
+import io.aeron.CommonContext;
+import io.aeron.RethrowingErrorHandler;
+import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.cluster.AppVersionValidator;
 import io.aeron.cluster.client.ClusterException;
@@ -28,8 +32,26 @@ import io.aeron.driver.status.DutyCycleStallTracker;
 import io.aeron.exceptions.ConcurrentConcludeException;
 import io.aeron.exceptions.ConfigurationException;
 import io.aeron.version.Versioned;
-import org.agrona.*;
-import org.agrona.concurrent.*;
+import org.agrona.CloseHelper;
+import org.agrona.DelegatingErrorHandler;
+import org.agrona.ErrorHandler;
+import org.agrona.ExpandableArrayBuffer;
+import org.agrona.IoUtil;
+import org.agrona.LangUtil;
+import org.agrona.MarkFile;
+import org.agrona.SemanticVersion;
+import org.agrona.Strings;
+import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentRunner;
+import org.agrona.concurrent.CountedErrorHandler;
+import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.NanoClock;
+import org.agrona.concurrent.NoOpLock;
+import org.agrona.concurrent.ShutdownSignalBarrier;
+import org.agrona.concurrent.SystemEpochClock;
+import org.agrona.concurrent.SystemNanoClock;
+import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.errors.DistinctErrorLog;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.StatusIndicator;
@@ -44,11 +66,14 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
-import static io.aeron.ChannelUri.*;
+import static io.aeron.ChannelUri.addAliasIfAbsent;
 import static io.aeron.CommonContext.driverFilePageSize;
-import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.*;
+import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.LIVENESS_TIMEOUT_MS;
+import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.SERVICE_NAME_PROP_NAME;
 import static java.nio.charset.StandardCharsets.US_ASCII;
-import static org.agrona.SystemUtil.*;
+import static org.agrona.SystemUtil.getDurationInNanos;
+import static org.agrona.SystemUtil.getSizeAsInt;
+import static org.agrona.SystemUtil.loadPropertiesFiles;
 
 /**
  * Container for a service in the cluster managed by the Consensus Module. This is where business logic resides and
@@ -63,13 +88,15 @@ public final class ClusteredServiceContainer implements AutoCloseable
      *
      * @param args command line argument which is a list for properties files as URLs or filenames.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         loadPropertiesFiles(args);
 
-        try (ClusteredServiceContainer container = launch())
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            ClusteredServiceContainer ignore = launch(new Context().shutdownSignalBarrier(barrier)))
         {
-            container.context().shutdownSignalBarrier().await();
+            barrier.await();
 
             System.out.println("Shutdown ClusteredServiceContainer...");
         }
@@ -708,6 +735,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
     public static final class Context implements Cloneable
     {
         private static final VarHandle IS_CONCLUDED_VH;
+
         static
         {
             try
@@ -762,6 +790,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
 
         private ClusteredService clusteredService;
         private ShutdownSignalBarrier shutdownSignalBarrier;
+        private boolean ownsShutdownSignalBarrier;
         private Runnable terminationHook;
         private ClusterMarkFile markFile;
 
@@ -1004,6 +1033,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
 
             if (null == shutdownSignalBarrier)
             {
+                ownsShutdownSignalBarrier = true;
                 shutdownSignalBarrier = new ShutdownSignalBarrier();
             }
 
@@ -2022,13 +2052,23 @@ public final class ClusteredServiceContainer implements AutoCloseable
          */
         public void close()
         {
-            final ErrorHandler errorHandler = countedErrorHandler();
-            if (ownsAeronClient)
+            try
             {
-                CloseHelper.close(errorHandler, aeron);
-            }
+                final ErrorHandler errorHandler = countedErrorHandler();
+                if (ownsAeronClient)
+                {
+                    CloseHelper.close(errorHandler, aeron);
+                }
 
-            CloseHelper.close(errorHandler, markFile);
+                CloseHelper.close(markFile);
+            }
+            finally
+            {
+                if (ownsShutdownSignalBarrier)
+                {
+                    CloseHelper.close(shutdownSignalBarrier);
+                }
+            }
         }
 
         CountDownLatch abortLatch()

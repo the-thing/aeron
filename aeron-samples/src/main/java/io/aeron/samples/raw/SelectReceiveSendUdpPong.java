@@ -16,9 +16,9 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
-import io.aeron.samples.ShutdownBarrier;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -28,6 +28,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntSupplier;
 
 import static java.nio.channels.SelectionKey.OP_READ;
@@ -44,6 +45,7 @@ public class SelectReceiveSendUdpPong
      * @param args passed to the process.
      * @throws IOException if an error occurs with the channel.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args) throws IOException
     {
         if (SystemUtil.isWindows())
@@ -91,13 +93,14 @@ public class SelectReceiveSendUdpPong
 
         receiveChannel.register(selector, OP_READ, handler);
 
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false)))
         {
             while (true)
             {
                 while (selector.selectNow() == 0)
                 {
-                    if (!shutdownBarrier.get())
+                    if (!running.get())
                     {
                         return;
                     }

@@ -21,8 +21,10 @@ import io.aeron.Subscription;
 import io.aeron.logbuffer.FragmentHandler;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A very simple Aeron subscriber application which can receive small non-fragmented messages
@@ -61,7 +63,8 @@ public class SimpleSubscriber
         // dataHandler method, which will be called with new messages as they are received.
         // The Aeron and Subscription classes implement AutoCloseable, and will automatically
         // clean up resources when this try block is finished.
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false));
             Aeron aeron = Aeron.connect(ctx);
             Subscription subscription = aeron.addSubscription(channel, streamId))
         {
@@ -81,11 +84,11 @@ public class SimpleSubscriber
                         header.termId(), header.termOffset(), length, offset);
 
                     // Received the intended message, time to exit the program
-                    shutdownBarrier.signal();
+                    running.set(false);
                 };
 
             // Try to read the data from subscriber
-            while (shutdownBarrier.get())
+            while (running.get())
             {
                 // poll delivers messages to the dataHandler as they arrive
                 // and returns number of fragments read, or 0

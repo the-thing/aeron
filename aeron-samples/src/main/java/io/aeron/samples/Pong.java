@@ -25,6 +25,9 @@ import io.aeron.logbuffer.FragmentHandler;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.BusySpinIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.ShutdownSignalBarrier;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Pong component of Ping-Pong.
@@ -50,49 +53,51 @@ public class Pong
      *
      * @param args passed to the process.
      */
-    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
-        final MediaDriver driver = EMBEDDED_MEDIA_DRIVER ? MediaDriver.launchEmbedded() : null;
-
-        final Aeron.Context ctx = new Aeron.Context();
-        ctx.availableImageHandler(SamplesUtil::printAvailableImage);
-        ctx.unavailableImageHandler(SamplesUtil::printUnavailableImage);
-        if (EMBEDDED_MEDIA_DRIVER)
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier(() -> running.set(false));
+            MediaDriver driver = EMBEDDED_MEDIA_DRIVER ?
+                MediaDriver.launchEmbedded(new MediaDriver.Context().terminationHook(barrier::signalAll)) : null)
         {
-            ctx.aeronDirectoryName(driver.aeronDirectoryName());
-        }
-
-        final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
-
-        System.out.println("Subscribing Ping at " + PING_CHANNEL + " on stream id " + PING_STREAM_ID);
-        System.out.println("Publishing Pong at " + PONG_CHANNEL + " on stream id " + PONG_STREAM_ID);
-        System.out.println("Using exclusive publications " + EXCLUSIVE_PUBLICATIONS);
-
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
-            MediaDriver embeddedDriver = driver;
-            Aeron aeron = Aeron.connect(ctx);
-            Subscription subscription = aeron.addSubscription(PING_CHANNEL, PING_STREAM_ID);
-            Publication publication = EXCLUSIVE_PUBLICATIONS ?
-                aeron.addExclusivePublication(PONG_CHANNEL, PONG_STREAM_ID) :
-                aeron.addPublication(PONG_CHANNEL, PONG_STREAM_ID))
-        {
-            idleStrategy.reset();
-            while (!subscription.isConnected())
+            final Aeron.Context ctx = new Aeron.Context();
+            ctx.availableImageHandler(SamplesUtil::printAvailableImage);
+            ctx.unavailableImageHandler(SamplesUtil::printUnavailableImage);
+            if (EMBEDDED_MEDIA_DRIVER)
             {
-                idleStrategy.idle();
+                ctx.aeronDirectoryName(driver.aeronDirectoryName());
             }
 
-            final Image image = subscription.imageAtIndex(0);
-            final FragmentHandler fragmentHandler = new ImageFragmentAssembler((buffer, offset, length, header) ->
-                pingHandler(publication, buffer, offset, length));
+            final IdleStrategy idleStrategy = new BusySpinIdleStrategy();
 
-            while (shutdownBarrier.get())
+            System.out.println("Subscribing Ping at " + PING_CHANNEL + " on stream id " + PING_STREAM_ID);
+            System.out.println("Publishing Pong at " + PONG_CHANNEL + " on stream id " + PONG_STREAM_ID);
+            System.out.println("Using exclusive publications " + EXCLUSIVE_PUBLICATIONS);
+
+            try (Aeron aeron = Aeron.connect(ctx);
+                Subscription subscription = aeron.addSubscription(PING_CHANNEL, PING_STREAM_ID);
+                Publication publication = EXCLUSIVE_PUBLICATIONS ?
+                    aeron.addExclusivePublication(PONG_CHANNEL, PONG_STREAM_ID) :
+                    aeron.addPublication(PONG_CHANNEL, PONG_STREAM_ID))
             {
-                idleStrategy.idle(image.poll(fragmentHandler, FRAME_COUNT_LIMIT));
-            }
+                idleStrategy.reset();
+                while (!subscription.isConnected())
+                {
+                    idleStrategy.idle();
+                }
 
-            System.out.println("Shutting down...");
+                final Image image = subscription.imageAtIndex(0);
+                final FragmentHandler fragmentHandler = new ImageFragmentAssembler(
+                    (buffer, offset, length, header) ->
+                    pingHandler(publication, buffer, offset, length));
+
+                while (running.get())
+                {
+                    idleStrategy.idle(image.poll(fragmentHandler, FRAME_COUNT_LIMIT));
+                }
+
+                System.out.println("Shutting down...");
+            }
         }
     }
 

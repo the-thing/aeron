@@ -103,10 +103,8 @@ public final class MediaDriver implements AutoCloseable
     {
         loadPropertiesFiles(args);
 
-        final ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
-        final MediaDriver.Context ctx = new MediaDriver.Context().terminationHook(barrier::signal);
-
-        try (MediaDriver ignore = MediaDriver.launch(ctx))
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            MediaDriver ignore = MediaDriver.launch(new Context().terminationHook(barrier::signal)))
         {
             barrier.await();
             System.out.println("Shutdown Driver...");

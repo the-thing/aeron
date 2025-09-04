@@ -15,7 +15,12 @@
  */
 package io.aeron.cluster;
 
-import io.aeron.*;
+import io.aeron.Aeron;
+import io.aeron.AeronCounters;
+import io.aeron.ChannelUri;
+import io.aeron.CommonContext;
+import io.aeron.Counter;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.cluster.client.AeronCluster;
@@ -37,7 +42,15 @@ import org.agrona.ExpandableArrayBuffer;
 import org.agrona.IoUtil;
 import org.agrona.MarkFile;
 import org.agrona.Strings;
-import org.agrona.concurrent.*;
+import org.agrona.concurrent.AgentInvoker;
+import org.agrona.concurrent.AgentRunner;
+import org.agrona.concurrent.CountedErrorHandler;
+import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.NoOpLock;
+import org.agrona.concurrent.ShutdownSignalBarrier;
+import org.agrona.concurrent.SystemEpochClock;
+import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.errors.DistinctErrorLog;
 import org.agrona.concurrent.status.AtomicCounter;
 
@@ -565,6 +578,7 @@ public final class ClusterBackup implements AutoCloseable
     public static class Context implements Cloneable
     {
         private static final VarHandle IS_CONCLUDED_VH;
+
         static
         {
             try
@@ -620,6 +634,7 @@ public final class ClusterBackup implements AutoCloseable
         private AeronArchive.Context archiveContext;
         private AeronArchive.Context clusterArchiveContext;
         private ShutdownSignalBarrier shutdownSignalBarrier;
+        private boolean ownsShutdownSignalBarrier;
         private Runnable terminationHook;
         private ClusterBackupEventsListener eventsListener;
         private CredentialsSupplier credentialsSupplier;
@@ -854,6 +869,7 @@ public final class ClusterBackup implements AutoCloseable
 
             if (null == shutdownSignalBarrier)
             {
+                ownsShutdownSignalBarrier = true;
                 shutdownSignalBarrier = new ShutdownSignalBarrier();
             }
 
@@ -1962,17 +1978,27 @@ public final class ClusterBackup implements AutoCloseable
          */
         public void close()
         {
-            if (ownsAeronClient)
+            try
             {
-                CloseHelper.close(countedErrorHandler, aeron);
-            }
-            else
-            {
-                CloseHelper.close(countedErrorHandler, stateCounter);
-                CloseHelper.close(countedErrorHandler, liveLogPositionCounter);
-            }
+                if (ownsAeronClient)
+                {
+                    CloseHelper.close(countedErrorHandler, aeron);
+                }
+                else if (!aeron.isClosed())
+                {
+                    CloseHelper.close(countedErrorHandler, stateCounter);
+                    CloseHelper.close(countedErrorHandler, liveLogPositionCounter);
+                }
 
-            CloseHelper.close(countedErrorHandler, markFile);
+                CloseHelper.close(markFile);
+            }
+            finally
+            {
+                if (ownsShutdownSignalBarrier)
+                {
+                    CloseHelper.close(shutdownSignalBarrier);
+                }
+            }
         }
 
         /**

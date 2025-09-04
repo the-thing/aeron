@@ -15,14 +15,15 @@
  */
 package io.aeron.samples.raw;
 
-import io.aeron.samples.ShutdownBarrier;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.aeron.driver.Configuration.MTU_LENGTH_DEFAULT;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
@@ -40,6 +41,7 @@ public class ReceiveWriteUdpPong
      * @param args passed to the process.
      * @throws IOException if an error occurs with the channel.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args) throws IOException
     {
         int numChannels = 1;
@@ -67,7 +69,8 @@ public class ReceiveWriteUdpPong
         final DatagramChannel writeChannel = DatagramChannel.open();
         Common.init(writeChannel, writeAddress);
 
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false)))
         {
             while (true)
             {
@@ -77,7 +80,7 @@ public class ReceiveWriteUdpPong
                 while (!available)
                 {
                     Thread.onSpinWait();
-                    if (!shutdownBarrier.get())
+                    if (!running.get())
                     {
                         return;
                     }

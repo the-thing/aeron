@@ -18,12 +18,14 @@ package io.aeron.samples;
 import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.aeron.samples.SamplesUtil.rateReporterHandler;
 
@@ -44,41 +46,43 @@ public class RateSubscriber
      * @throws InterruptedException if the task is interrupted
      * @throws ExecutionException   if the {@link Future} has an error.
      */
-    @SuppressWarnings("try")
     public static void main(final String[] args) throws InterruptedException, ExecutionException
     {
         System.out.println("Subscribing to " + CHANNEL + " on stream id " + STREAM_ID);
 
-        final MediaDriver driver = EMBEDDED_MEDIA_DRIVER ? MediaDriver.launchEmbedded() : null;
-        final ExecutorService executor = Executors.newFixedThreadPool(2);
-        final Aeron.Context ctx = new Aeron.Context()
-            .availableImageHandler(SamplesUtil::printAvailableImage)
-            .unavailableImageHandler(SamplesUtil::printUnavailableImage);
-
-        if (EMBEDDED_MEDIA_DRIVER)
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier(() -> running.set(false));
+            MediaDriver driver = EMBEDDED_MEDIA_DRIVER ?
+                MediaDriver.launchEmbedded(new MediaDriver.Context().terminationHook(barrier::signalAll)) : null)
         {
-            ctx.aeronDirectoryName(driver.aeronDirectoryName());
-        }
+            final ExecutorService executor = Executors.newFixedThreadPool(2);
+            final Aeron.Context ctx = new Aeron.Context()
+                .availableImageHandler(SamplesUtil::printAvailableImage)
+                .unavailableImageHandler(SamplesUtil::printUnavailableImage);
 
-        final RateReporter reporter = new RateReporter(TimeUnit.SECONDS.toNanos(1), SamplesUtil::printRate);
-
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier();
-            MediaDriver embeddedDriver = driver;
-            Aeron aeron = Aeron.connect(ctx);
-            Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
-        {
-            executor.submit(() -> SamplesUtil.subscriberLoop(
-                rateReporterHandler(reporter), FRAGMENT_COUNT_LIMIT, shutdownBarrier).accept(subscription));
-            executor.submit(reporter);
-
-            shutdownBarrier.await();
-
-            System.out.println("Shutting down...");
-
-            executor.shutdown();
-            if (!executor.awaitTermination(5, TimeUnit.SECONDS))
+            if (EMBEDDED_MEDIA_DRIVER)
             {
-                System.out.println("Warning: not all tasks completed promptly");
+                ctx.aeronDirectoryName(driver.aeronDirectoryName());
+            }
+
+            final RateReporter reporter = new RateReporter(TimeUnit.SECONDS.toNanos(1), SamplesUtil::printRate);
+
+            try (Aeron aeron = Aeron.connect(ctx);
+                Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
+            {
+                executor.submit(() -> SamplesUtil.subscriberLoop(
+                    rateReporterHandler(reporter), FRAGMENT_COUNT_LIMIT, running).accept(subscription));
+                executor.submit(reporter);
+
+                barrier.await();
+
+                System.out.println("Shutting down...");
+
+                executor.shutdown();
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS))
+                {
+                    System.out.println("Warning: not all tasks completed promptly");
+                }
             }
         }
     }

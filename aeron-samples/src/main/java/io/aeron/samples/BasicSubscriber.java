@@ -19,6 +19,9 @@ import io.aeron.Aeron;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.FragmentHandler;
+import org.agrona.concurrent.ShutdownSignalBarrier;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This is a Basic Aeron subscriber application.
@@ -48,32 +51,34 @@ public class BasicSubscriber
     public static void main(final String[] args)
     {
         System.out.println("Subscribing to " + CHANNEL + " on stream id " + STREAM_ID);
-
-        final MediaDriver driver = EMBEDDED_MEDIA_DRIVER ? MediaDriver.launchEmbedded() : null;
-        final Aeron.Context ctx = new Aeron.Context()
-            .availableImageHandler(SamplesUtil::printAvailableImage)
-            .unavailableImageHandler(SamplesUtil::printUnavailableImage);
-
-        if (EMBEDDED_MEDIA_DRIVER)
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier(() -> running.set(false));
+            MediaDriver driver = EMBEDDED_MEDIA_DRIVER ?
+                MediaDriver.launchEmbedded(new MediaDriver.Context().terminationHook(barrier::signalAll)) : null)
         {
-            ctx.aeronDirectoryName(driver.aeronDirectoryName());
-        }
+            final Aeron.Context ctx = new Aeron.Context()
+                .availableImageHandler(SamplesUtil::printAvailableImage)
+                .unavailableImageHandler(SamplesUtil::printUnavailableImage);
 
-        final FragmentHandler fragmentHandler = SamplesUtil.printAsciiMessage(STREAM_ID);
+            if (EMBEDDED_MEDIA_DRIVER)
+            {
+                ctx.aeronDirectoryName(driver.aeronDirectoryName());
+            }
 
-        // Create an Aeron instance using the configured Context and create a
-        // Subscription on that instance that subscribes to the configured
-        // channel and stream ID.
-        // The Aeron and Subscription classes implement "AutoCloseable" and will automatically
-        // clean up resources when this try block is finished
-        try (ShutdownBarrier barrier = new ShutdownBarrier();
-            MediaDriver embeddedDriver = driver;
-            Aeron aeron = Aeron.connect(ctx);
-            Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
-        {
-            SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, barrier).accept(subscription);
+            final FragmentHandler fragmentHandler = SamplesUtil.printAsciiMessage(STREAM_ID);
 
-            System.out.println("Shutting down...");
+            // Create an Aeron instance using the configured Context and create a
+            // Subscription on that instance that subscribes to the configured
+            // channel and stream ID.
+            // The Aeron and Subscription classes implement "AutoCloseable" and will automatically
+            // clean up resources when this try block is finished
+            try (Aeron aeron = Aeron.connect(ctx);
+                Subscription subscription = aeron.addSubscription(CHANNEL, STREAM_ID))
+            {
+                SamplesUtil.subscriberLoop(fragmentHandler, FRAGMENT_COUNT_LIMIT, running).accept(subscription);
+
+                System.out.println("Shutting down...");
+            }
         }
     }
 }

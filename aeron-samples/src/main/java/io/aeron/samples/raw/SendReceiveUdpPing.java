@@ -16,11 +16,11 @@
 package io.aeron.samples.raw;
 
 import io.aeron.driver.Configuration;
-import io.aeron.samples.ShutdownBarrier;
 import org.HdrHistogram.Histogram;
 import org.agrona.BitUtil;
 import org.agrona.SystemUtil;
 import org.agrona.concurrent.HighResolutionTimer;
+import org.agrona.concurrent.ShutdownSignalBarrier;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -45,6 +45,7 @@ public class SendReceiveUdpPing
      * @param args passed to the process.
      * @throws IOException if an error occurs with the channel.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args) throws IOException
     {
         int numChannels = 1;
@@ -81,11 +82,12 @@ public class SendReceiveUdpPing
         final DatagramChannel sendChannel = DatagramChannel.open();
         init(sendChannel);
 
-        try (ShutdownBarrier shutdownBarrier = new ShutdownBarrier())
+        final AtomicBoolean running = new AtomicBoolean(true);
+        try (ShutdownSignalBarrier ignore = new ShutdownSignalBarrier(() -> running.set(false)))
         {
-            while (shutdownBarrier.get())
+            while (running.get())
             {
-                measureRoundTrip(histogram, sendAddress, buffer, receiveChannels, sendChannel, shutdownBarrier);
+                measureRoundTrip(histogram, sendAddress, buffer, receiveChannels, sendChannel, running);
 
                 histogram.reset();
                 System.gc();
