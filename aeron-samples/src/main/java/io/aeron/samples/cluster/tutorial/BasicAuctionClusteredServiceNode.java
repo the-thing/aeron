@@ -128,12 +128,12 @@ public class BasicAuctionClusteredServiceNode
     // tag::main[]
     public static void main(final String[] args)
     {
-        final int nodeId = parseInt(System.getProperty("aeron.cluster.tutorial.nodeId"));                    // <1>
-        final String[] hostnames = System.getProperty(
-            "aeron.cluster.tutorial.hostnames", "localhost,localhost,localhost").split(",");  // <2>
+        final int nodeId = parseInt(System.getProperty("aeron.cluster.tutorial.nodeId"));                        // <1>
+        final String[] hostnames =
+            System.getProperty("aeron.cluster.tutorial.hostnames", "localhost,localhost,localhost").split(",");  // <2>
         final String hostname = hostnames[nodeId];
 
-        final File baseDir = new File(System.getProperty("user.dir"), "node" + nodeId);                 // <3>
+        final File baseDir = new File(System.getProperty("user.dir"), "node" + nodeId);                          // <3>
         final String aeronDirName = CommonContext.getAeronDirectoryName() + "-" + nodeId + "-driver";
 
         // end::main[]
@@ -173,34 +173,36 @@ public class BasicAuctionClusteredServiceNode
         // tag::consensus_module[]
         final ConsensusModule.Context consensusModuleContext = new ConsensusModule.Context()
             .errorHandler(errorHandler("Consensus Module"))
-            .clusterMemberId(nodeId)                                                                     // <1>
-            .clusterMembers(clusterMembers(Arrays.asList(hostnames)))                                    // <2>
-            .clusterDir(new File(baseDir, "cluster"))                                               // <3>
-            .ingressChannel("aeron:udp?term-length=64k")                                                 // <4>
-            .replicationChannel(logReplicationChannel(hostname))                                         // <5>
-            .archiveContext(aeronArchiveContext.clone());                                                // <6>
+            .clusterMemberId(nodeId)                                                            // <1>
+            .clusterMembers(clusterMembers(Arrays.asList(hostnames)))                           // <2>
+            .clusterDir(new File(baseDir, "cluster"))                                           // <3>
+            .ingressChannel("aeron:udp?term-length=64k")                                        // <4>
+            .replicationChannel(logReplicationChannel(hostname))                                // <5>
+            .archiveContext(aeronArchiveContext.clone());                                       // <6>
         // end::consensus_module[]
 
         // tag::clustered_service[]
         final ClusteredServiceContainer.Context clusteredServiceContext =
             new ClusteredServiceContainer.Context()
-            .aeronDirectoryName(aeronDirName)                                                            // <1>
-            .archiveContext(aeronArchiveContext.clone())                                                 // <2>
+            .aeronDirectoryName(aeronDirName)                                                   // <1>
+            .archiveContext(aeronArchiveContext.clone())                                        // <2>
             .clusterDir(new File(baseDir, "cluster"))
-            .clusteredService(new BasicAuctionClusteredService())                                        // <3>
+            .clusteredService(new BasicAuctionClusteredService())                               // <3>
             .errorHandler(errorHandler("Clustered Service"));
         // end::clustered_service[]
 
         // tag::running[]
-        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();                                        // <1>
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();                       // <1>
             ClusteredMediaDriver clusteredMediaDriver = ClusteredMediaDriver.launch(
-                mediaDriverContext.terminationHook(barrier::signalAll), archiveContext, consensusModuleContext); // <2>
+                mediaDriverContext.terminationHook(barrier::signalAll),
+                archiveContext,
+                consensusModuleContext.shutdownSignalBarrier(barrier));                         // <2>
             ClusteredServiceContainer container = ClusteredServiceContainer.launch(
-                clusteredServiceContext))                                                                        // <3>
+                clusteredServiceContext.shutdownSignalBarrier(barrier)))                        // <3>
         {
             System.out.println("[" + nodeId + "] Started Cluster Node on " + hostname + "...");
-            barrier.await();                                                                                     // <4>
-            System.out.println("[" + nodeId + "] Exiting");
+            barrier.await();                                                                    // <4>
+            System.out.println("[" + nodeId + "] Exiting...");
         }
         // end::running[]
     }
