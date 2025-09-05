@@ -555,7 +555,15 @@ class Election
         }
         else if (leadershipTermId > this.leadershipTermId && LEADER_READY == state)
         {
-            throw new ClusterEvent("new leader detected due to commit position");
+            throw new ClusterEvent("new leader detected due to commit position - " +
+                " memberId=" + thisMemberId() +
+                " this.leadershipTermId=" + this.leadershipTermId +
+                " this.leaderMemberId=" + thisMemberId() +
+                " this.logPosition=" + this.logPosition +
+                " newLeadershipTermId=" + leadershipTermId +
+                " newLeaderMemberId=" + leaderMemberId +
+                " newLogPosition=" + logPosition +
+                ")");
         }
     }
 

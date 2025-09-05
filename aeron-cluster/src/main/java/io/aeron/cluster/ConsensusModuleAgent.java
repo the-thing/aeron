@@ -1158,9 +1158,16 @@ final class ConsensusModuleAgent
         }
         else if (leadershipTermId > this.leadershipTermId)
         {
-            enterElection(false, "unexpected commit position from new leader (" +
-                "newLeadershipTermId=" + leadershipTermId + ", newLogPosition=" + logPosition +
-                ", newLeaderMemberId=" + leaderMemberId + ")");
+            enterElection(false, "unexpected commit position from new leader - " +
+                " memberId=" + memberId +
+                " this.leadershipTermId=" + this.leadershipTermId +
+                " this.leaderMemberId=" + leaderMember.id() +
+                " this.commitPosition=" + this.commitPosition.getWeak() +
+                " this.appendPosition=" +
+                (null != appendPosition && !appendPosition.isClosed() ? appendPosition.getWeak() : null) +
+                " newLeadershipTermId=" + leadershipTermId +
+                " newLogPosition=" + logPosition +
+                " newLeaderMemberId=" + leaderMemberId + ")");
         }
     }
 
