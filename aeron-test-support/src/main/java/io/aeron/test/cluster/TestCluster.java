@@ -1346,8 +1346,7 @@ public final class TestCluster implements AutoCloseable
 
     public long logPosition()
     {
-        final TestNode leader = findLeader();
-        return leader.consensusModule().context().commitPositionCounter().get();
+        return findLeader().commitPosition();
     }
 
     public void awaitNodeTermination(final TestNode node)
