@@ -923,7 +923,10 @@ class Election
             }
             else
             {
-                state(NULL_POSITION != catchupJoinPosition ? FOLLOWER_CATCHUP_INIT : FOLLOWER_LOG_INIT, nowNs, "");
+                state(
+                    NULL_POSITION != catchupJoinPosition ? FOLLOWER_CATCHUP_INIT : FOLLOWER_LOG_INIT,
+                    nowNs,
+                    "skip log replay");
             }
         }
         else
@@ -933,7 +936,10 @@ class Election
             {
                 stopReplay();
                 logPosition = appendPosition;
-                state(NULL_POSITION != catchupJoinPosition ? FOLLOWER_CATCHUP_INIT : FOLLOWER_LOG_INIT, nowNs, "");
+                state(
+                    NULL_POSITION != catchupJoinPosition ? FOLLOWER_CATCHUP_INIT : FOLLOWER_LOG_INIT,
+                    nowNs,
+                    "log replay done");
             }
         }
 
