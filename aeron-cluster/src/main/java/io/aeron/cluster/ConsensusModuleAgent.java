@@ -1165,7 +1165,9 @@ final class ConsensusModuleAgent
         }
         else if (leadershipTermId > this.leadershipTermId)
         {
-            enterElection(false, "unexpected commit position from new leader - " +
+            enterElection(
+                false,
+                "unexpected commit position from new leader - " +
                 " memberId=" + memberId +
                 " this.leadershipTermId=" + this.leadershipTermId +
                 " this.leaderMemberId=" + leaderMember.id() +
