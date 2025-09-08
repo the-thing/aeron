@@ -774,15 +774,8 @@ public final class AeronCluster implements AutoCloseable
 
         final Int2ObjectHashMap<MemberIngress> map = parseIngressEndpoints(ctx, ingressEndpoints);
         final MemberIngress newLeader = map.get(leaderMemberId);
-        final ChannelUri channelUri = ChannelUri.parse(ctx.ingressChannel());
-
-        if (channelUri.isUdp())
-        {
-            channelUri.put(CommonContext.ENDPOINT_PARAM_NAME, newLeader.endpoint);
-        }
-
-        publication = addIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
-        newLeader.publication = publication;
+        newLeader.createIngressPublication();
+        publication = newLeader.publication;
         endpointByIdMap = map;
     }
 
@@ -2426,29 +2419,15 @@ public final class AeronCluster implements AutoCloseable
 
         private void updateMembers()
         {
-            leaderMemberId = egressPoller.leaderMemberId();
-            final MemberIngress leader = memberByIdMap.get(leaderMemberId);
-            if (null != leader)
-            {
-                ingressPublication = leader.publication;
-                leader.publication = null;
-            }
-
+            CloseHelper.close(ingressPublication);
             CloseHelper.closeAll(memberByIdMap.values());
+
+            leaderMemberId = egressPoller.leaderMemberId();
             memberByIdMap = parseIngressEndpoints(ctx, egressPoller.detail());
 
-            if (null == ingressPublication || ingressPublication.isClosed())
-            {
-                final MemberIngress member = memberByIdMap.get(leaderMemberId);
-                final ChannelUri channelUri = ChannelUri.parse(ctx.ingressChannel());
-
-                if (channelUri.isUdp())
-                {
-                    channelUri.put(CommonContext.ENDPOINT_PARAM_NAME, member.endpoint);
-                }
-
-                ingressPublication = addIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
-            }
+            final MemberIngress leader = memberByIdMap.get(leaderMemberId);
+            leader.createIngressPublication();
+            ingressPublication = leader.publication;
 
             state(State.AWAIT_PUBLICATION_CONNECTED);
         }
@@ -2496,6 +2475,17 @@ public final class AeronCluster implements AutoCloseable
             this.ctx = ctx;
             this.memberId = memberId;
             this.endpoint = endpoint;
+        }
+
+        void createIngressPublication()
+        {
+            final ChannelUri channelUri = ChannelUri.parse(ctx.ingressChannel());
+            if (channelUri.isUdp())
+            {
+                channelUri.put(CommonContext.ENDPOINT_PARAM_NAME, endpoint);
+            }
+
+            publication = addIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
         }
 
         public void close()

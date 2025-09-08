@@ -647,25 +647,7 @@ public final class TestCluster implements AutoCloseable
 
     public AeronCluster connectClient(final AeronCluster.Context clientCtx)
     {
-        if (null == clientMediaDriver)
-        {
-            final String aeronDirName = CommonContext.generateRandomDirName();
-            dataCollector.add(Paths.get(aeronDirName));
-
-            final MediaDriver.Context ctx = new MediaDriver.Context()
-                .threadingMode(ThreadingMode.SHARED)
-                .dirDeleteOnStart(true)
-                .dirDeleteOnShutdown(true)
-                .aeronDirectoryName(aeronDirName)
-                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
-                .senderWildcardPortRange("20700 20709")
-                .receiverWildcardPortRange("20710 20719")
-                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
-                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
-                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs);
-
-            clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
-        }
+        startClientMediaDriver();
 
         clientCtx
             .aeronDirectoryName(clientMediaDriver.aeronDirectoryName())
@@ -695,23 +677,7 @@ public final class TestCluster implements AutoCloseable
     {
         final AeronCluster.Context clientCtx = clientCtx();
 
-        if (null == clientMediaDriver)
-        {
-            final String aeronDirName = CommonContext.generateRandomDirName();
-            dataCollector.add(Paths.get(aeronDirName));
-
-            final MediaDriver.Context ctx = new MediaDriver.Context()
-                .threadingMode(ThreadingMode.INVOKER)
-                .dirDeleteOnStart(true)
-                .dirDeleteOnShutdown(true)
-                .aeronDirectoryName(aeronDirName)
-                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
-                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
-                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
-                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs);
-
-            clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
-        }
+        startClientMediaDriver();
 
         final Aeron aeron = Aeron.connect(new Aeron.Context()
             .useConductorAgentInvoker(true)
@@ -761,6 +727,30 @@ public final class TestCluster implements AutoCloseable
         }
 
         return client;
+    }
+
+    public TestMediaDriver startClientMediaDriver()
+    {
+        if (null == clientMediaDriver)
+        {
+            final String aeronDirName = CommonContext.generateRandomDirName();
+            dataCollector.add(Paths.get(aeronDirName));
+
+            final MediaDriver.Context ctx = new MediaDriver.Context()
+                .threadingMode(ThreadingMode.SHARED)
+                .dirDeleteOnStart(true)
+                .dirDeleteOnShutdown(true)
+                .aeronDirectoryName(aeronDirName)
+                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
+                .senderWildcardPortRange("20700 20709")
+                .receiverWildcardPortRange("20710 20719")
+                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
+                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
+                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs);
+
+            clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
+        }
+        return clientMediaDriver;
     }
 
     private void setIngressEndpoints(final AeronCluster.Context clientCtx)
@@ -1638,17 +1628,18 @@ public final class TestCluster implements AutoCloseable
             final int memberId = initialMemberId + i;
             builder.append(memberId)
                 .append('=')
-                .append(hostname(memberId))
-                .append(":2")
-                .append(clusterId)
-                .append("11")
-                .append(memberId)
+                .append(ingressEndpoint(clusterId, memberId))
                 .append(',');
         }
 
         builder.setLength(builder.length() - 1);
 
         return builder.toString();
+    }
+
+    public static String ingressEndpoint(final int clusterId, final int memberId)
+    {
+        return hostname(memberId) + ":2" + clusterId + "11" + memberId;
     }
 
     public void purgeLogToLastSnapshot()
