@@ -1720,7 +1720,8 @@ public final class ConsensusModule implements AutoCloseable
 
             if (startupCanvassTimeoutNs / leaderHeartbeatTimeoutNs < 2)
             {
-                throw new ClusterException("startupCanvassTimeoutNs=" + startupCanvassTimeoutNs +
+                throw new ClusterException(
+                    "startupCanvassTimeoutNs=" + startupCanvassTimeoutNs +
                     " must be a multiple of leaderHeartbeatTimeoutNs=" + leaderHeartbeatTimeoutNs);
             }
 
