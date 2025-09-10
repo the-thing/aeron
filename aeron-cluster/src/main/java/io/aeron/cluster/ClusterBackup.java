@@ -48,7 +48,6 @@ import org.agrona.concurrent.CountedErrorHandler;
 import org.agrona.concurrent.EpochClock;
 import org.agrona.concurrent.IdleStrategy;
 import org.agrona.concurrent.NoOpLock;
-import org.agrona.concurrent.ShutdownSignalBarrier;
 import org.agrona.concurrent.SystemEpochClock;
 import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.errors.DistinctErrorLog;
@@ -633,8 +632,6 @@ public final class ClusterBackup implements AutoCloseable
 
         private AeronArchive.Context archiveContext;
         private AeronArchive.Context clusterArchiveContext;
-        private ShutdownSignalBarrier shutdownSignalBarrier;
-        private boolean ownsShutdownSignalBarrier;
         private Runnable terminationHook;
         private ClusterBackupEventsListener eventsListener;
         private CredentialsSupplier credentialsSupplier;
@@ -867,15 +864,9 @@ public final class ClusterBackup implements AutoCloseable
                 .ownsAeronClient(false)
                 .lock(NoOpLock.INSTANCE);
 
-            if (null == shutdownSignalBarrier)
-            {
-                ownsShutdownSignalBarrier = true;
-                shutdownSignalBarrier = new ShutdownSignalBarrier();
-            }
-
             if (null == terminationHook)
             {
-                terminationHook = () -> shutdownSignalBarrier.signalAll();
+                terminationHook = () -> {};
             }
 
             if (null == credentialsSupplier)
@@ -1585,28 +1576,6 @@ public final class ClusterBackup implements AutoCloseable
         }
 
         /**
-         * Set the {@link ShutdownSignalBarrier} that can be used to shut down a consensus module.
-         *
-         * @param barrier that can be used to shut down a consensus module.
-         * @return this for a fluent API.
-         */
-        public Context shutdownSignalBarrier(final ShutdownSignalBarrier barrier)
-        {
-            shutdownSignalBarrier = barrier;
-            return this;
-        }
-
-        /**
-         * Get the {@link ShutdownSignalBarrier} that can be used to shut down.
-         *
-         * @return the {@link ShutdownSignalBarrier} that can be used to shut down.
-         */
-        public ShutdownSignalBarrier shutdownSignalBarrier()
-        {
-            return shutdownSignalBarrier;
-        }
-
-        /**
          * Set the {@link Runnable} that is called when the {@link ClusterBackup} processes a termination action.
          *
          * @param terminationHook that can be used to terminate.
@@ -1620,8 +1589,6 @@ public final class ClusterBackup implements AutoCloseable
 
         /**
          * Get the {@link Runnable} that is called when the {@link ClusterBackup} processes a termination action.
-         * <p>
-         * The default action is to call signal on the {@link #shutdownSignalBarrier()}.
          *
          * @return the {@link Runnable} that can be used to terminate.
          */
@@ -1978,27 +1945,17 @@ public final class ClusterBackup implements AutoCloseable
          */
         public void close()
         {
-            try
+            if (ownsAeronClient)
             {
-                if (ownsAeronClient)
-                {
-                    CloseHelper.close(countedErrorHandler, aeron);
-                }
-                else if (!aeron.isClosed())
-                {
-                    CloseHelper.close(countedErrorHandler, stateCounter);
-                    CloseHelper.close(countedErrorHandler, liveLogPositionCounter);
-                }
+                CloseHelper.close(countedErrorHandler, aeron);
+            }
+            else if (!aeron.isClosed())
+            {
+                CloseHelper.close(countedErrorHandler, stateCounter);
+                CloseHelper.close(countedErrorHandler, liveLogPositionCounter);
+            }
 
-                CloseHelper.close(markFile);
-            }
-            finally
-            {
-                if (ownsShutdownSignalBarrier)
-                {
-                    CloseHelper.close(shutdownSignalBarrier);
-                }
-            }
+            CloseHelper.close(markFile);
         }
 
         /**
@@ -2043,7 +2000,6 @@ public final class ClusterBackup implements AutoCloseable
                 "\n    nextQueryDeadlineMsCounter=" + nextQueryDeadlineMsCounter +
                 "\n    archiveContext=" + archiveContext +
                 "\n    clusterArchiveContext=" + clusterArchiveContext +
-                "\n    shutdownSignalBarrier=" + shutdownSignalBarrier +
                 "\n    terminationHook=" + terminationHook +
                 "\n    eventsListener=" + eventsListener +
                 "\n}";

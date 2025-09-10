@@ -94,7 +94,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
         loadPropertiesFiles(args);
 
         try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
-            ClusteredServiceContainer ignore = launch(new Context().shutdownSignalBarrier(barrier)))
+            ClusteredServiceContainer ignore = launch(new Context().terminationHook(barrier::signalAll)))
         {
             barrier.await();
 
@@ -789,8 +789,6 @@ public final class ClusteredServiceContainer implements AutoCloseable
         private boolean ownsAeronClient;
 
         private ClusteredService clusteredService;
-        private ShutdownSignalBarrier shutdownSignalBarrier;
-        private boolean ownsShutdownSignalBarrier;
         private Runnable terminationHook;
         private ClusterMarkFile markFile;
 
@@ -1031,15 +1029,9 @@ public final class ClusteredServiceContainer implements AutoCloseable
                 archiveContext.controlResponseChannel(),
                 "sc-" + serviceId + "-archive-ctrl-resp-cluster-" + clusterId));
 
-            if (null == shutdownSignalBarrier)
-            {
-                ownsShutdownSignalBarrier = true;
-                shutdownSignalBarrier = new ShutdownSignalBarrier();
-            }
-
             if (null == terminationHook)
             {
-                terminationHook = () -> shutdownSignalBarrier.signalAll();
+                terminationHook = () -> {};
             }
 
             if (null == clusteredService)
@@ -1773,28 +1765,6 @@ public final class ClusteredServiceContainer implements AutoCloseable
         }
 
         /**
-         * Set the {@link ShutdownSignalBarrier} that can be used to shut down a clustered service.
-         *
-         * @param barrier that can be used to shut down a clustered service.
-         * @return this for a fluent API.
-         */
-        public Context shutdownSignalBarrier(final ShutdownSignalBarrier barrier)
-        {
-            shutdownSignalBarrier = barrier;
-            return this;
-        }
-
-        /**
-         * Get the {@link ShutdownSignalBarrier} that can be used to shut down a clustered service.
-         *
-         * @return the {@link ShutdownSignalBarrier} that can be used to shut down a clustered service.
-         */
-        public ShutdownSignalBarrier shutdownSignalBarrier()
-        {
-            return shutdownSignalBarrier;
-        }
-
-        /**
          * Set the {@link Runnable} that is called when container is instructed to terminate.
          *
          * @param terminationHook that can be used to terminate a service container.
@@ -1808,8 +1778,6 @@ public final class ClusteredServiceContainer implements AutoCloseable
 
         /**
          * Get the {@link Runnable} that is called when container is instructed to terminate.
-         * <p>
-         * The default action is to call signal on the {@link #shutdownSignalBarrier()}.
          *
          * @return the {@link Runnable} that can be used to terminate a service container.
          */
@@ -2052,23 +2020,13 @@ public final class ClusteredServiceContainer implements AutoCloseable
          */
         public void close()
         {
-            try
+            final ErrorHandler errorHandler = countedErrorHandler();
+            if (ownsAeronClient)
             {
-                final ErrorHandler errorHandler = countedErrorHandler();
-                if (ownsAeronClient)
-                {
-                    CloseHelper.close(errorHandler, aeron);
-                }
+                CloseHelper.close(errorHandler, aeron);
+            }
 
-                CloseHelper.close(markFile);
-            }
-            finally
-            {
-                if (ownsShutdownSignalBarrier)
-                {
-                    CloseHelper.close(shutdownSignalBarrier);
-                }
-            }
+            CloseHelper.close(markFile);
         }
 
         CountDownLatch abortLatch()
@@ -2140,7 +2098,6 @@ public final class ClusteredServiceContainer implements AutoCloseable
                 "\n    errorCounter=" + errorCounter +
                 "\n    countedErrorHandler=" + countedErrorHandler +
                 "\n    clusteredService=" + clusteredService +
-                "\n    shutdownSignalBarrier=" + shutdownSignalBarrier +
                 "\n    terminationHook=" + terminationHook +
                 "\n    cycleThresholdNs=" + cycleThresholdNs +
                 "\n    dutyCyleTracker=" + dutyCycleTracker +

@@ -76,9 +76,9 @@ public final class EchoServiceNode
             ClusteredMediaDriver ignore = ClusteredMediaDriver.launch(
                 clusterConfig.mediaDriverContext().terminationHook(barrier::signalAll),
                 clusterConfig.archiveContext(),
-                clusterConfig.consensusModuleContext().shutdownSignalBarrier(barrier));
+                clusterConfig.consensusModuleContext().terminationHook(barrier::signalAll));
             ClusteredServiceContainer ignore2 = ClusteredServiceContainer.launch(
-                clusterConfig.clusteredServiceContext().shutdownSignalBarrier(barrier)))
+                clusterConfig.clusteredServiceContext().terminationHook(barrier::signalAll)))
         {
             System.out.println("[" + nodeId + "] Started Cluster Node on " + hostnames.get(nodeId) + "...");
             barrier.await();

@@ -196,9 +196,9 @@ public class BasicAuctionClusteredServiceNode
             ClusteredMediaDriver clusteredMediaDriver = ClusteredMediaDriver.launch(
                 mediaDriverContext.terminationHook(barrier::signalAll),
                 archiveContext,
-                consensusModuleContext.shutdownSignalBarrier(barrier));                         // <2>
+                consensusModuleContext.terminationHook(barrier::signalAll));                    // <2>
             ClusteredServiceContainer container = ClusteredServiceContainer.launch(
-                clusteredServiceContext.shutdownSignalBarrier(barrier)))                        // <3>
+                clusteredServiceContext.terminationHook(barrier::signalAll)))                   // <3>
         {
             System.out.println("[" + nodeId + "] Started Cluster Node on " + hostname + "...");
             barrier.await();                                                                    // <4>

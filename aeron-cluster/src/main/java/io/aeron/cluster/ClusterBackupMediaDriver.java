@@ -56,7 +56,7 @@ public class ClusterBackupMediaDriver implements AutoCloseable
             ClusterBackupMediaDriver ignore = launch(
                 new MediaDriver.Context().terminationHook(barrier::signalAll),
                 new Archive.Context(),
-                new ClusterBackup.Context().shutdownSignalBarrier(barrier)))
+                new ClusterBackup.Context().terminationHook(barrier::signalAll)))
         {
             barrier.await();
             System.out.println("Shutdown ClusterBackupMediaDriver...");

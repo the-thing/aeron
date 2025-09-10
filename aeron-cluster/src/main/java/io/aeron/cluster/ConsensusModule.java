@@ -258,13 +258,15 @@ public final class ConsensusModule implements AutoCloseable
      *
      * @param args command line argument which is a list for properties files as URLs or filenames.
      */
+    @SuppressWarnings("try")
     public static void main(final String[] args)
     {
         loadPropertiesFiles(args);
 
-        try (ConsensusModule consensusModule = launch())
+        try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+            ConsensusModule ignored = launch(new Context().terminationHook(barrier::signalAll)))
         {
-            consensusModule.context().shutdownSignalBarrier().await();
+            barrier.await();
             System.out.println("Shutdown ConsensusModule...");
         }
     }
@@ -1625,8 +1627,6 @@ public final class ConsensusModule implements AutoCloseable
         private Counter standbySnapshotCounter;
         private Counter electionCounter;
         private Counter leadershipTermId;
-        private ShutdownSignalBarrier shutdownSignalBarrier;
-        private boolean ownsShutdownSignalBarrier = false;
         private Runnable terminationHook;
 
         private AeronArchive.Context archiveContext;
@@ -2048,15 +2048,9 @@ public final class ConsensusModule implements AutoCloseable
                 archiveContext.controlResponseChannel(),
                 "cm-archive-ctrl-resp-cluster-" + clusterId + "-member-" + clusterMemberId));
 
-            if (null == shutdownSignalBarrier)
-            {
-                ownsShutdownSignalBarrier = true;
-                shutdownSignalBarrier = new ShutdownSignalBarrier();
-            }
-
             if (null == terminationHook)
             {
-                terminationHook = () -> shutdownSignalBarrier.signalAll();
+                terminationHook = () -> {};
             }
 
             if (null == authenticatorSupplier)
@@ -3989,28 +3983,6 @@ public final class ConsensusModule implements AutoCloseable
         }
 
         /**
-         * Set the {@link ShutdownSignalBarrier} that can be used to shut down a consensus module.
-         *
-         * @param barrier that can be used to shut down a consensus module.
-         * @return this for a fluent API.
-         */
-        public Context shutdownSignalBarrier(final ShutdownSignalBarrier barrier)
-        {
-            shutdownSignalBarrier = barrier;
-            return this;
-        }
-
-        /**
-         * Get the {@link ShutdownSignalBarrier} that can be used to shut down a consensus module.
-         *
-         * @return the {@link ShutdownSignalBarrier} that can be used to shut down a consensus module.
-         */
-        public ShutdownSignalBarrier shutdownSignalBarrier()
-        {
-            return shutdownSignalBarrier;
-        }
-
-        /**
          * Set the {@link Runnable} that is called when the {@link ConsensusModule} processes a termination action.
          *
          * @param terminationHook that can be used to terminate a consensus module.
@@ -4024,8 +3996,6 @@ public final class ConsensusModule implements AutoCloseable
 
         /**
          * Get the {@link Runnable} that is called when the {@link ConsensusModule} processes a termination action.
-         * <p>
-         * The default action is to call signal on the {@link #shutdownSignalBarrier()}.
          *
          * @return the {@link Runnable} that can be used to terminate a consensus module.
          */
@@ -4373,38 +4343,28 @@ public final class ConsensusModule implements AutoCloseable
          */
         public void close()
         {
-            try
+            CloseHelper.close(countedErrorHandler, recordingLog);
+            CloseHelper.close(countedErrorHandler, nodeStateFile);
+            CloseHelper.close(countedErrorHandler, markFile);
+            if (errorHandler instanceof AutoCloseable handler)
             {
-                CloseHelper.close(countedErrorHandler, recordingLog);
-                CloseHelper.close(countedErrorHandler, nodeStateFile);
-                CloseHelper.close(countedErrorHandler, markFile);
-                if (errorHandler instanceof AutoCloseable handler)
-                {
-                    CloseHelper.quietClose(handler); // Ignore error to ensure the rest will be closed
-                }
-
-                if (ownsAeronClient)
-                {
-                    CloseHelper.close(aeron);
-                }
-                else if (!aeron.isClosed())
-                {
-                    CloseHelper.closeAll(
-                        timedOutClientCounter,
-                        clusterControlToggle,
-                        snapshotCounter,
-                        moduleStateCounter,
-                        electionStateCounter,
-                        clusterNodeRoleCounter,
-                        commitPosition);
-                }
+                CloseHelper.quietClose(handler); // Ignore error to ensure the rest will be closed
             }
-            finally
+
+            if (ownsAeronClient)
             {
-                if (ownsShutdownSignalBarrier)
-                {
-                    CloseHelper.close(shutdownSignalBarrier);
-                }
+                CloseHelper.close(aeron);
+            }
+            else if (!aeron.isClosed())
+            {
+                CloseHelper.closeAll(
+                    timedOutClientCounter,
+                    clusterControlToggle,
+                    snapshotCounter,
+                    moduleStateCounter,
+                    electionStateCounter,
+                    clusterNodeRoleCounter,
+                    commitPosition);
             }
         }
 
@@ -4588,7 +4548,6 @@ public final class ConsensusModule implements AutoCloseable
                 "\n    standbySnapshotCounter=" + standbySnapshotCounter +
                 "\n    electionCounter=" + electionCounter +
                 "\n    leadershipTermId=" + leadershipTermId +
-                "\n    shutdownSignalBarrier=" + shutdownSignalBarrier +
                 "\n    terminationHook=" + terminationHook +
                 "\n    archiveContext=" + archiveContext +
                 "\n    authenticatorSupplier=" + authenticatorSupplier +
