@@ -31,15 +31,14 @@ final class ClusterControlAdapter implements AutoCloseable
     interface Listener
     {
         void onClusterMembersResponse(
-            long correlationId, int leaderMemberId, String activeMembers, String passiveMembers);
+            long correlationId, int leaderMemberId, String activeMembers);
 
         void onClusterMembersExtendedResponse(
             long correlationId,
             long currentTimeNs,
             int leaderMemberId,
             int memberId,
-            List<ClusterMember> activeMembers,
-            List<ClusterMember> passiveMembers);
+            List<ClusterMember> activeMembers);
     }
 
     private final Subscription subscription;
@@ -92,11 +91,12 @@ final class ClusterControlAdapter implements AutoCloseable
                 messageHeaderDecoder.blockLength(),
                 messageHeaderDecoder.version());
 
-            listener.onClusterMembersResponse(
-                clusterMembersResponseDecoder.correlationId(),
-                clusterMembersResponseDecoder.leaderMemberId(),
-                clusterMembersResponseDecoder.activeMembers(),
-                clusterMembersResponseDecoder.passiveFollowers());
+            final long correlationId = clusterMembersResponseDecoder.correlationId();
+            final int leaderMemberId = clusterMembersResponseDecoder.leaderMemberId();
+            final String activeMembers = clusterMembersResponseDecoder.activeMembers();
+            clusterMembersResponseDecoder.skipPassiveFollowers();
+
+            listener.onClusterMembersResponse(correlationId, leaderMemberId, activeMembers);
         }
         else if (templateId == ClusterMembersExtendedResponseDecoder.TEMPLATE_ID)
         {
@@ -143,44 +143,14 @@ final class ClusterControlAdapter implements AutoCloseable
                     .timeOfLastAppendPositionNs(activeMembersDecoder.timeOfLastAppendNs()));
             }
 
-            final ArrayList<ClusterMember> passiveMembers = new ArrayList<>();
             for (final ClusterMembersExtendedResponseDecoder.PassiveMembersDecoder passiveMembersDecoder :
                 clusterMembersExtendedResponseDecoder.passiveMembers())
             {
-                final int id = passiveMembersDecoder.memberId();
-                final String ingressEndpoint = passiveMembersDecoder.ingressEndpoint();
-                final String consensusEndpoint = passiveMembersDecoder.consensusEndpoint();
-                final String logEndpoint = passiveMembersDecoder.logEndpoint();
-                final String catchupEndpoint = passiveMembersDecoder.catchupEndpoint();
-                final String archiveEndpoint = passiveMembersDecoder.archiveEndpoint();
-                final String endpoints = String.join(
-                    ",",
-                    ingressEndpoint,
-                    consensusEndpoint,
-                    logEndpoint,
-                    catchupEndpoint,
-                    archiveEndpoint);
-
-                passiveMembers.add(new ClusterMember(
-                    id,
-                    ingressEndpoint,
-                    consensusEndpoint,
-                    logEndpoint,
-                    catchupEndpoint,
-                    archiveEndpoint,
-                    endpoints)
-                    .leadershipTermId(passiveMembersDecoder.leadershipTermId())
-                    .logPosition(passiveMembersDecoder.logPosition())
-                    .timeOfLastAppendPositionNs(passiveMembersDecoder.timeOfLastAppendNs()));
+                passiveMembersDecoder.sbeSkip();
             }
 
             listener.onClusterMembersExtendedResponse(
-                correlationId,
-                currentTimeNs,
-                leaderMemberId,
-                memberId,
-                activeMembers,
-                passiveMembers);
+                correlationId, currentTimeNs, leaderMemberId, memberId, activeMembers);
         }
     }
 }

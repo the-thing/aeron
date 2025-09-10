@@ -316,8 +316,7 @@ public class ClusterToolOperator
                         "currentTimeNs=" + clusterMembership.currentTimeNs +
                         ", leaderMemberId=" + clusterMembership.leaderMemberId +
                         ", memberId=" + clusterMembership.memberId +
-                        ", activeMembers=" + clusterMembership.activeMembers +
-                        ", passiveMembers=" + clusterMembership.passiveMembers);
+                        ", activeMembers=" + clusterMembership.activeMembers);
                 }
                 else
                 {
@@ -544,14 +543,12 @@ public class ClusterToolOperator
             public void onClusterMembersResponse(
                 final long correlationId,
                 final int leaderMemberId,
-                final String activeMembers,
-                final String passiveMembers)
+                final String activeMembers)
             {
                 if (correlationId == id.get())
                 {
                     clusterMembership.leaderMemberId = leaderMemberId;
                     clusterMembership.activeMembersStr = activeMembers;
-                    clusterMembership.passiveMembersStr = passiveMembers;
                     id.set(NULL_VALUE);
                 }
             }
@@ -561,8 +558,7 @@ public class ClusterToolOperator
                 final long currentTimeNs,
                 final int leaderMemberId,
                 final int memberId,
-                final List<ClusterMember> activeMembers,
-                final List<ClusterMember> passiveMembers)
+                final List<ClusterMember> activeMembers)
             {
                 if (correlationId == id.get())
                 {
@@ -570,9 +566,7 @@ public class ClusterToolOperator
                     clusterMembership.leaderMemberId = leaderMemberId;
                     clusterMembership.memberId = memberId;
                     clusterMembership.activeMembers = activeMembers;
-                    clusterMembership.passiveMembers = passiveMembers;
                     clusterMembership.activeMembersStr = ClusterMember.encodeAsString(activeMembers);
-                    clusterMembership.passiveMembersStr = ClusterMember.encodeAsString(passiveMembers);
                     id.set(NULL_VALUE);
                 }
             }

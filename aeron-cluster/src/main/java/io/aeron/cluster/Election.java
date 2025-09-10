@@ -334,7 +334,7 @@ class Election
             return;
         }
 
-        if (isPassiveMember() || candidateId == thisMember.id())
+        if (candidateId == thisMember.id())
         {
             return;
         }
@@ -668,7 +668,7 @@ class Election
             workCount++;
         }
 
-        if (isPassiveMember() || (ctx.appointedLeaderId() != NULL_VALUE && ctx.appointedLeaderId() != thisMember.id()))
+        if (ctx.appointedLeaderId() != NULL_VALUE && ctx.appointedLeaderId() != thisMember.id())
         {
             return workCount;
         }
@@ -1374,11 +1374,6 @@ class Election
         replicationCommitPosition = 0;
         replicationDeadlineNs = 0;
         lastPublishedCommitPosition = 0;
-    }
-
-    private boolean isPassiveMember()
-    {
-        return null == ClusterMember.findMember(clusterMembers, thisMember.id());
     }
 
     private void ensureRecordingLogCoherent(

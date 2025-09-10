@@ -46,7 +46,7 @@ import io.aeron.config.DefaultType;
  *               sort-recording-log: reorders entries in the recording log to match the order in memory.
  * seed-recording-log-from-snapshot: creates a new recording log based on the latest valid snapshot.
  *                           errors: prints Aeron and cluster component error logs.
- *                     list-members: prints leader memberId, active members and passive members lists.
+ *                     list-members: prints leader memberId and active members.
  *                     backup-query: [delay] get, or set, time of next backup query.
  *       invalidate-latest-snapshot: marks the latest snapshot as a invalid so the previous is loaded.
  *                         snapshot: triggers a snapshot on the leader.
@@ -168,7 +168,7 @@ public class ClusterTool
 
         COMMANDS.put("list-members", new ClusterToolCommand(
             action(operator::listMembers),
-            "prints leader memberId, active members and passive members lists."));
+            "prints leader memberId and active members."));
 
         COMMANDS.put("backup-query", new ClusterToolCommand((clusterDir, out, args) ->
         {
