@@ -1320,6 +1320,7 @@ abstract class ArchiveConductor
         }
 
         final long replicationId = nextSessionId++;
+        remoteArchiveContext.clientName(remoteArchiveContext.clientName() + " replicationSessionId=" + replicationId);
         final ReplicationSession replicationSession = new ReplicationSession(
             srcRecordingId,
             dstRecordingId,

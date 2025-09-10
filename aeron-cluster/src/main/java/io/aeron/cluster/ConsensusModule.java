@@ -2046,7 +2046,8 @@ public final class ConsensusModule implements AutoCloseable
                 "cm-archive-ctrl-req-cluster-" + clusterId + "-member-" + clusterMemberId))
                 .controlResponseChannel(addAliasIfAbsent(
                 archiveContext.controlResponseChannel(),
-                "cm-archive-ctrl-resp-cluster-" + clusterId + "-member-" + clusterMemberId));
+                "cm-archive-ctrl-resp-cluster-" + clusterId + "-member-" + clusterMemberId))
+                .clientName(agentRoleName);
 
             if (null == terminationHook)
             {

@@ -740,6 +740,7 @@ public final class ClusterBackup implements AutoCloseable
 
             errorHandler = CommonContext.setupErrorHandler(errorHandler, errorLog);
 
+            final String clientName = "cluster-backup clusterId=" + clusterId;
             if (null == aeron)
             {
                 ownsAeronClient = true;
@@ -753,7 +754,7 @@ public final class ClusterBackup implements AutoCloseable
                         .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
                         .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                         .clientLock(NoOpLock.INSTANCE)
-                        .clientName("cluster-backup clusterId=" + clusterId));
+                        .clientName(clientName));
 
                 if (null == errorCounter)
                 {
@@ -842,7 +843,8 @@ public final class ClusterBackup implements AutoCloseable
                 .aeron(aeron)
                 .errorHandler(errorHandler)
                 .ownsAeronClient(false)
-                .lock(NoOpLock.INSTANCE);
+                .lock(NoOpLock.INSTANCE)
+                .clientName(clientName);
 
             if (!archiveContext.controlRequestChannel().startsWith(CommonContext.IPC_CHANNEL))
             {
@@ -862,7 +864,8 @@ public final class ClusterBackup implements AutoCloseable
             clusterArchiveContext
                 .aeron(aeron)
                 .ownsAeronClient(false)
-                .lock(NoOpLock.INSTANCE);
+                .lock(NoOpLock.INSTANCE)
+                .clientName(clientName);
 
             if (null == terminationHook)
             {

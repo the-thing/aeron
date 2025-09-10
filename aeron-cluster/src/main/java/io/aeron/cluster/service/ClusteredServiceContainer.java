@@ -1027,7 +1027,8 @@ public final class ClusteredServiceContainer implements AutoCloseable
                 "sc-" + serviceId + "-archive-ctrl-req-cluster-" + clusterId))
                 .controlResponseChannel(addAliasIfAbsent(
                 archiveContext.controlResponseChannel(),
-                "sc-" + serviceId + "-archive-ctrl-resp-cluster-" + clusterId));
+                "sc-" + serviceId + "-archive-ctrl-resp-cluster-" + clusterId))
+                .clientName(serviceName);
 
             if (null == terminationHook)
             {

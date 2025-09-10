@@ -127,7 +127,7 @@ public class ClusterToolOperator
      */
     protected int recoveryPlan(final PrintStream out, final File clusterDir, final int serviceCount)
     {
-        try (AeronArchive archive = AeronArchive.connect();
+        try (AeronArchive archive = AeronArchive.connect(new AeronArchive.Context().clientName("cluster-tool"));
             RecordingLog recordingLog = new RecordingLog(clusterDir, false))
         {
             out.println(recordingLog.createRecoveryPlan(archive, serviceCount, Aeron.NULL_VALUE));
@@ -778,6 +778,7 @@ public class ClusterToolOperator
         final ClusterNodeControlProperties properties = loadControlProperties(clusterDir);
 
         final AeronArchive.Context archiveCtx = new AeronArchive.Context()
+            .clientName("cluster-tool")
             .controlRequestChannel("aeron:ipc")
             .controlResponseChannel("aeron:ipc");
 

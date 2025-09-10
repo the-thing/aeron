@@ -1307,6 +1307,7 @@ public final class Archive implements AutoCloseable
 
                 final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer();
 
+                final String clientName = "archive archiveId=" + archiveId;
                 if (null == aeron)
                 {
                     ownsAeronClient = true;
@@ -1322,7 +1323,7 @@ public final class Archive implements AutoCloseable
                             .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                             .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
                             .clientLock(NoOpLock.INSTANCE)
-                            .clientName("archive archiveId=" + archiveId));
+                            .clientName(clientName));
 
                     if (null == errorCounter)
                     {
@@ -1522,7 +1523,11 @@ public final class Archive implements AutoCloseable
                     }
                 }
 
-                archiveClientContext.aeron(aeron).lock(NoOpLock.INSTANCE).errorHandler(errorHandler);
+                archiveClientContext
+                    .aeron(aeron)
+                    .lock(NoOpLock.INSTANCE)
+                    .errorHandler(errorHandler)
+                    .clientName(clientName);
 
                 if (null == controlSessionsCounter)
                 {
