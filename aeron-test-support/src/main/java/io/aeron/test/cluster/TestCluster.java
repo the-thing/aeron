@@ -632,7 +632,10 @@ public final class TestCluster implements AutoCloseable
 
     public AeronCluster.Context clientCtx()
     {
-        return new AeronCluster.Context().ingressChannel(ingressChannel).egressChannel(egressChannel);
+        final AeronCluster.Context context = new AeronCluster.Context().ingressChannel(ingressChannel)
+            .egressChannel(egressChannel);
+        setIngressEndpoints(context);
+        return context;
     }
 
     public AeronCluster connectClient()

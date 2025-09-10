@@ -63,6 +63,7 @@ import io.aeron.status.LocalSocketAddressStatus;
 import io.aeron.status.ReadableCounter;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
+import org.agrona.ExpandableArrayBuffer;
 import org.agrona.ExpandableRingBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.SemanticVersion;
@@ -219,6 +220,7 @@ final class ConsensusModuleAgent
     private final DutyCycleTracker dutyCycleTracker;
     private final SnapshotDurationTracker totalSnapshotDurationTracker;
     private final ChannelUri responseChannelTemplate;
+    private final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer();
     private RecordingLog.RecoveryPlan recoveryPlan;
     private AeronArchive archive;
     private AeronArchive extensionArchive;
@@ -675,7 +677,8 @@ final class ConsensusModuleAgent
         final int offset,
         final int length)
     {
-        final ClusterSession session = new ClusterSession(clusterSessionId, responseStreamId, responseChannel);
+        final ClusterSession session = new ClusterSession(
+            clusterSessionId, responseStreamId, responseChannel, responseChannel);
 
         session.loadSnapshotState(correlationId, openedPosition, timeOfLastActivity, closeReason);
 
@@ -744,13 +747,17 @@ final class ConsensusModuleAgent
         final int version,
         final String responseChannel,
         final byte[] encodedCredentials,
+        final String clientInfo,
         final Header header)
     {
         final long clusterSessionId = Cluster.Role.LEADER == role ? nextSessionId++ : NULL_VALUE;
         final ClusterSession session = new ClusterSession(
-            clusterSessionId, responseStreamId, refineResponseChannel(responseChannel));
+            clusterSessionId,
+            responseStreamId,
+            refineResponseChannel(responseChannel),
+            sessionInfo(clientInfo, header));
 
-        session.asyncConnect(aeron);
+        session.asyncConnect(aeron, tempBuffer, ctx.clusterId());
         final long nowNs = clusterClock.timeNanos();
         session.lastActivityNs(nowNs, correlationId);
 
@@ -1245,7 +1252,8 @@ final class ConsensusModuleAgent
         final int responseStreamId,
         final int version,
         final String responseChannel,
-        final byte[] encodedCredentials)
+        final byte[] encodedCredentials,
+        final Header header)
     {
         if (null == election)
         {
@@ -1254,12 +1262,13 @@ final class ConsensusModuleAgent
                 final ClusterSession session = new ClusterSession(
                     NULL_VALUE,
                     responseStreamId,
-                    refineResponseChannel(responseChannel));
+                    refineResponseChannel(responseChannel),
+                    sessionInfo(ClusterSession.Action.BACKUP.name(), header));
 
                 final long nowNs = clusterClock.timeNanos();
 
                 session.action(ClusterSession.Action.BACKUP);
-                session.asyncConnect(aeron);
+                session.asyncConnect(aeron, tempBuffer, ctx.clusterId());
                 session.lastActivityNs(nowNs, correlationId);
 
                 if (AeronCluster.Configuration.PROTOCOL_MAJOR_VERSION == SemanticVersion.major(version))
@@ -1282,7 +1291,8 @@ final class ConsensusModuleAgent
         final long correlationId,
         final int responseStreamId,
         final String responseChannel,
-        final byte[] encodedCredentials)
+        final byte[] encodedCredentials,
+        final Header header)
     {
         if (null == election)
         {
@@ -1291,10 +1301,11 @@ final class ConsensusModuleAgent
                 final ClusterSession session = new ClusterSession(
                     NULL_VALUE,
                     responseStreamId,
-                    refineResponseChannel(responseChannel));
+                    refineResponseChannel(responseChannel),
+                    sessionInfo(ClusterSession.Action.HEARTBEAT.name(), header));
 
                 session.action(ClusterSession.Action.HEARTBEAT);
-                session.asyncConnect(aeron);
+                session.asyncConnect(aeron, tempBuffer, ctx.clusterId());
 
                 final long nowNs = clusterClock.timeNanos();
 
@@ -1327,7 +1338,8 @@ final class ConsensusModuleAgent
         final List<StandbySnapshotEntry> standbySnapshotEntries,
         final int responseStreamId,
         final String responseChannel,
-        final byte[] encodedCredentials)
+        final byte[] encodedCredentials,
+        final Header header)
     {
         if (null == election)
         {
@@ -1336,12 +1348,13 @@ final class ConsensusModuleAgent
                 final ClusterSession session = new ClusterSession(
                     NULL_VALUE,
                     responseStreamId,
-                    refineResponseChannel(responseChannel));
+                    refineResponseChannel(responseChannel),
+                    sessionInfo(ClusterSession.Action.STANDBY_SNAPSHOT.name(), header));
 
                 final long nowNs = clusterClock.timeNanos();
 
                 session.action(ClusterSession.Action.STANDBY_SNAPSHOT);
-                session.asyncConnect(aeron);
+                session.asyncConnect(aeron, tempBuffer, ctx.clusterId());
                 session.lastActivityNs(nowNs, correlationId);
                 session.requestInput(standbySnapshotEntries);
 
@@ -1604,7 +1617,8 @@ final class ConsensusModuleAgent
         final int responseStreamId,
         final String responseChannel)
     {
-        final ClusterSession session = new ClusterSession(clusterSessionId, responseStreamId, responseChannel);
+        final ClusterSession session = new ClusterSession(
+            clusterSessionId, responseStreamId, responseChannel, responseChannel);
         session.open(logPosition);
         session.lastActivityNs(clusterClock.convertToNanos(timestamp), correlationId);
 
@@ -2356,7 +2370,7 @@ final class ConsensusModuleAgent
                 final ClusterSession session = sessions.get(i);
                 if (session.state() == ClusterSession.State.OPEN)
                 {
-                    session.connect(ctx.countedErrorHandler(), aeron);
+                    session.connect(ctx.countedErrorHandler(), aeron, tempBuffer, ctx.clusterId());
                 }
             }
 
@@ -4028,6 +4042,13 @@ final class ConsensusModuleAgent
         }
 
         return workCount;
+    }
+
+    private static String sessionInfo(final String clientInfo, final Header header)
+    {
+        final Image image = (Image)header.context();
+        final String imageInfo = "sourceIdentity=" + image.sourceIdentity() + " sessionId=" + image.sessionId();
+        return Strings.isEmpty(clientInfo) ? imageInfo : clientInfo + " " + imageInfo;
     }
 
     public String toString()

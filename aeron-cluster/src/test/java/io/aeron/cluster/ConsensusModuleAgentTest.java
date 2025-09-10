@@ -159,7 +159,7 @@ class ConsensusModuleAgentTest
         agent.role(Cluster.Role.LEADER);
         Tests.setField(agent, "appendPosition", mock(ReadableCounter.class));
         agent.onSessionConnect(
-            correlationIdOne, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], header);
+            correlationIdOne, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], "", header);
 
         clock.update(UPDATE_INTERVAL_MS, TimeUnit.MILLISECONDS);
         agent.doWork();
@@ -169,7 +169,7 @@ class ConsensusModuleAgentTest
 
         final long correlationIdTwo = 2L;
         agent.onSessionConnect(
-            correlationIdTwo, 3, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_TWO, new byte[0], header);
+            correlationIdTwo, 3, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_TWO, new byte[0], "", header);
         clock.update(clock.time() + 10L, TimeUnit.MILLISECONDS);
         agent.doWork();
         verify(mockTimeConsumer).accept(clock.time());
@@ -194,7 +194,8 @@ class ConsensusModuleAgentTest
         agent.state(ConsensusModule.State.ACTIVE);
         agent.role(Cluster.Role.LEADER);
         Tests.setField(agent, "appendPosition", mock(ReadableCounter.class));
-        agent.onSessionConnect(correlationId, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], header);
+        agent.onSessionConnect(
+            correlationId, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], "", header);
 
         agent.doWork();
 
@@ -233,7 +234,8 @@ class ConsensusModuleAgentTest
         agent.state(ConsensusModule.State.ACTIVE);
         agent.role(Cluster.Role.LEADER);
         Tests.setField(agent, "appendPosition", mock(ReadableCounter.class));
-        agent.onSessionConnect(correlationId, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], header);
+        agent.onSessionConnect(
+            correlationId, 2, PROTOCOL_SEMANTIC_VERSION, RESPONSE_CHANNEL_ONE, new byte[0], "", header);
 
         agent.doWork();
 
@@ -359,7 +361,7 @@ class ConsensusModuleAgentTest
         final long correlationId = 1L;
         final int responseStreamId = 42;
         agent.onSessionConnect(
-            correlationId, responseStreamId, PROTOCOL_SEMANTIC_VERSION, responseChannel, new byte[0], header);
+            correlationId, responseStreamId, PROTOCOL_SEMANTIC_VERSION, responseChannel, new byte[0], "", header);
 
         final ArgumentCaptor<String> channelCaptor = ArgumentCaptor.forClass(String.class);
         verify(mockAeron).asyncAddPublication(channelCaptor.capture(), eq(responseStreamId));

@@ -118,6 +118,11 @@ class IngressAdapter implements AutoCloseable
                     credentials = new byte[credentialsLength];
                     connectRequestDecoder.getEncodedCredentials(credentials, 0, credentialsLength);
                 }
+                else
+                {
+                    connectRequestDecoder.skipEncodedCredentials();
+                }
+                final String clientInfo = connectRequestDecoder.clientInfo();
 
                 consensusModuleAgent.onSessionConnect(
                     connectRequestDecoder.correlationId(),
@@ -125,6 +130,7 @@ class IngressAdapter implements AutoCloseable
                     connectRequestDecoder.version(),
                     responseChannel,
                     credentials,
+                    clientInfo,
                     header);
                 break;
             }

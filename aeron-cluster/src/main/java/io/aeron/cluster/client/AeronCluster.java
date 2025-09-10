@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.CommonContext.REJOIN_PARAM_NAME;
 import static org.agrona.SystemUtil.getDurationInNanos;
+import static org.agrona.SystemUtil.getProperty;
 
 /**
  * Client for interacting with an Aeron Cluster.
@@ -1276,6 +1277,14 @@ public final class AeronCluster implements AutoCloseable
         public static final int EGRESS_STREAM_ID_DEFAULT = 102;
 
         /**
+         * System property to name Cluster client. Defaults to empty string.
+         *
+         * @since 1.49.0
+         */
+        @Config(defaultType = DefaultType.STRING, defaultString = "", skipCDefaultValidation = true)
+        public static final String CLIENT_NAME_PROP_NAME = "aeron.cluster.client.name";
+
+        /**
          * The timeout in nanoseconds to wait for a message.
          *
          * @return timeout in nanoseconds to wait for a message.
@@ -1335,6 +1344,18 @@ public final class AeronCluster implements AutoCloseable
         {
             return Integer.getInteger(EGRESS_STREAM_ID_PROP_NAME, EGRESS_STREAM_ID_DEFAULT);
         }
+
+        /**
+         * Get the configured client name.
+         *
+         * @return specified client name or empty string if not set.
+         * @see #CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public static String clientName()
+        {
+            return getProperty(CLIENT_NAME_PROP_NAME, "");
+        }
     }
 
     /**
@@ -1374,6 +1395,7 @@ public final class AeronCluster implements AutoCloseable
         private EgressListener egressListener;
         private ControlledEgressListener controlledEgressListener;
         private AgentInvoker agentInvoker;
+        private String clientName = Configuration.clientName();
 
         /**
          * Perform a shallow copy of the object.
@@ -1428,13 +1450,19 @@ public final class AeronCluster implements AutoCloseable
                 egressChannel = egressChannelUri.toString();
             }
 
+            if (clientName.length() > Aeron.Configuration.MAX_CLIENT_NAME_LENGTH)
+            {
+                throw new ConfigurationException(
+                    "AeronCluster.Context.clientName length must be <= " + Aeron.Configuration.MAX_CLIENT_NAME_LENGTH);
+            }
+
             if (null == aeron)
             {
                 aeron = Aeron.connect(
                     new Aeron.Context()
                         .aeronDirectoryName(aeronDirectoryName)
                         .errorHandler(errorHandler)
-                        .clientName("cluster-client"));
+                        .clientName(clientName.isEmpty() ? "cluster-client" : clientName));
 
                 ownsAeronClient = true;
             }
@@ -1691,6 +1719,32 @@ public final class AeronCluster implements AutoCloseable
         public IdleStrategy idleStrategy()
         {
             return idleStrategy;
+        }
+
+        /**
+         * Sets the name used to identify this client among other clients connected to the Cluster.
+         *
+         * @param clientName to use.
+         * @return this for a fluent API.
+         * @see AeronCluster.Configuration#CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public Context clientName(final String clientName)
+        {
+            this.clientName = Strings.isEmpty(clientName) ? "" : clientName;
+            return this;
+        }
+
+        /**
+         * Returns the name of this Cluster client.
+         *
+         * @return name of this client or empty String if not configured.
+         * @see AeronCluster.Configuration#CLIENT_NAME_PROP_NAME
+         * @since 1.49.0
+         */
+        public String clientName()
+        {
+            return clientName;
         }
 
         /**
@@ -2335,13 +2389,17 @@ public final class AeronCluster implements AutoCloseable
             correlationId = ctx.aeron().nextCorrelationId();
             final byte[] encodedCredentials = ctx.credentialsSupplier().encodedCredentials();
 
+            final String clientInfo = "name=" + ctx.clientName() + " " +
+                AeronCounters.formatVersionInfo(AeronClusterVersion.VERSION, AeronClusterVersion.GIT_SHA);
+
             final SessionConnectRequestEncoder encoder = new SessionConnectRequestEncoder()
                 .wrapAndApplyHeader(buffer, 0, messageHeaderEncoder)
                 .correlationId(correlationId)
                 .responseStreamId(ctx.egressStreamId())
                 .version(Configuration.PROTOCOL_SEMANTIC_VERSION)
                 .responseChannel(responseChannel)
-                .putEncodedCredentials(encodedCredentials, 0, encodedCredentials.length);
+                .putEncodedCredentials(encodedCredentials, 0, encodedCredentials.length)
+                .clientInfo(clientInfo);
 
             messageLength = MessageHeaderEncoder.ENCODED_LENGTH + encoder.encodedLength();
             state(State.SEND_MESSAGE);

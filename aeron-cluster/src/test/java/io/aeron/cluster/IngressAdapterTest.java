@@ -106,10 +106,12 @@ class IngressAdapterTest
                     .correlationId(17)
                     .responseStreamId(19)
                     .version(23)
-                    .responseChannel("x");
+                    .responseChannel("x")
+                    .putEncodedCredentials(new byte[10], 5, 0)
+                    .clientInfo("test");
             }, SessionConnectRequestDecoder.BLOCK_LENGTH,
             (ConsensusModuleAgentExpectation)(a, buffer, header) ->
-                a.onSessionConnect(17, 19, 23, "x", new byte[0], header)),
+                a.onSessionConnect(17, 19, 23, "x", new byte[0], "test", header)),
         Arguments.of(
             "SessionCloseRequestDecoder",
             (Consumer<MutableDirectBuffer>)(buffer) ->

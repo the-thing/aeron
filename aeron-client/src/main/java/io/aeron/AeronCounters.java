@@ -578,12 +578,6 @@ public final class AeronCounters
     public static final int CLUSTER_SNAPSHOT_COUNTER_TYPE_ID = 205;
 
     /**
-     * Counter type for count of standby snapshots received.
-     */
-    @AeronCounter(existsInC = false)
-    public static final int CLUSTER_STANDBY_SNAPSHOT_COUNTER_TYPE_ID = 232;
-
-    /**
      * Type id for election state counter.
      */
     @AeronCounter
@@ -612,12 +606,6 @@ public final class AeronCounters
      */
     @AeronCounter
     public static final int CLUSTER_BACKUP_ERROR_COUNT_TYPE_ID = 211;
-
-    /**
-     * The type id of the {@link Counter} used for tracking the number of snapshots downloaded.
-     */
-    @AeronCounter
-    public static final int CLUSTER_BACKUP_SNAPSHOT_RETRIEVE_COUNT_TYPE_ID = 240;
 
     /**
      * Counter type id for the consensus module error count.
@@ -694,6 +682,24 @@ public final class AeronCounters
     public static final int CLUSTER_STANDBY_CONTROL_TOGGLE_TYPE_ID = 223;
 
     /**
+     * The type if of the {@link Counter} used for transition module state.
+     */
+    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_STATE")
+    public static final int TRANSITION_MODULE_STATE_TYPE_ID = 224;
+
+    /**
+     * Transition module control toggle type id.
+     */
+    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_CONTROL_TOGGLE")
+    public static final int TRANSITION_MODULE_CONTROL_TOGGLE_TYPE_ID = 225;
+
+    /**
+     * Counter type id for the transition module error count.
+     */
+    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_ERROR_COUNT")
+    public static final int TRANSITION_MODULE_ERROR_COUNT_TYPE_ID = 226;
+
+    /**
      * The type id of the {@link Counter} used for keeping track of the max duty cycle time of the cluster standby.
      */
     @AeronCounter
@@ -707,31 +713,6 @@ public final class AeronCounters
     public static final int CLUSTER_STANDBY_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID = 228;
 
     /**
-     * The type id of the {@link Counter} to make visible the memberId that the cluster standby is currently using to
-     * as a source for the cluster log.
-     */
-    @AeronCounter
-    public static final int CLUSTER_STANDBY_SOURCE_MEMBER_ID_TYPE_ID = 231;
-
-    /**
-     * Counter type id for the transition module error count.
-     */
-    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_ERROR_COUNT")
-    public static final int TRANSITION_MODULE_ERROR_COUNT_TYPE_ID = 226;
-
-    /**
-     * The type if of the {@link Counter} used for transition module state.
-     */
-    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_STATE")
-    public static final int TRANSITION_MODULE_STATE_TYPE_ID = 224;
-
-    /**
-     * Transition module control toggle type id.
-     */
-    @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_CONTROL_TOGGLE")
-    public static final int TRANSITION_MODULE_CONTROL_TOGGLE_TYPE_ID = 225;
-
-    /**
      * The type id of the {@link Counter} used for keeping track of the max duty cycle time of the transition module.
      */
     @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_MAX_CYCLE_TIME")
@@ -743,6 +724,19 @@ public final class AeronCounters
      */
     @AeronCounter(expectedCName = "CLUSTER_TRANSITION_MODULE_CYCLE_TIME_THRESHOLD_EXCEEDED")
     public static final int TRANSITION_MODULE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID = 230;
+
+    /**
+     * The type id of the {@link Counter} to make visible the memberId that the cluster standby is currently using to
+     * as a source for the cluster log.
+     */
+    @AeronCounter
+    public static final int CLUSTER_STANDBY_SOURCE_MEMBER_ID_TYPE_ID = 231;
+
+    /**
+     * Counter type for count of standby snapshots received.
+     */
+    @AeronCounter(existsInC = false)
+    public static final int CLUSTER_STANDBY_SNAPSHOT_COUNTER_TYPE_ID = 232;
 
     /**
      * The type of the {@link Counter} used for handling node specific operations.
@@ -788,6 +782,18 @@ public final class AeronCounters
      */
     @AeronCounter(existsInC = false)
     public static final int CLUSTER_LEADERSHIP_TERM_ID_TYPE_ID = 239;
+
+    /**
+     * The type id of the {@link Counter} used for tracking the number of snapshots downloaded.
+     */
+    @AeronCounter
+    public static final int CLUSTER_BACKUP_SNAPSHOT_RETRIEVE_COUNT_TYPE_ID = 240;
+
+    /**
+     * The type id of the {@link Counter} used for tracking Cluster clients.
+     */
+    @AeronCounter
+    public static final int CLUSTER_SESSION_TYPE_ID = 241;
 
     // ===================
     // Sequencer Counters.

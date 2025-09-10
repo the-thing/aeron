@@ -16,6 +16,7 @@
 package io.aeron.cluster;
 
 import io.aeron.Aeron;
+import io.aeron.AeronCounters;
 import io.aeron.ChannelUri;
 import io.aeron.Counter;
 import io.aeron.Image;
@@ -25,6 +26,7 @@ import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.cluster.client.AeronCluster;
+import io.aeron.cluster.client.AeronClusterVersion;
 import io.aeron.cluster.client.ClusterException;
 import io.aeron.cluster.client.ControlledEgressListener;
 import io.aeron.cluster.client.EgressListener;
@@ -37,6 +39,7 @@ import io.aeron.cluster.codecs.MessageHeaderDecoder;
 import io.aeron.cluster.codecs.MessageHeaderEncoder;
 import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
 import io.aeron.cluster.service.ClientSession;
+import io.aeron.cluster.service.ClusterCounters;
 import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.cluster.service.SnapshotDurationTracker;
 import io.aeron.driver.MediaDriver;
@@ -2769,42 +2772,42 @@ class ClusterTest
         final MutableInteger sessionCounter = new MutableInteger(0);
 
         cluster = aCluster()
-                .withStaticNodes(3)
-                .withAuthenticationSupplier(() -> new Authenticator()
+            .withStaticNodes(3)
+            .withAuthenticationSupplier(() -> new Authenticator()
+            {
+                @Override
+                public void onConnectRequest(
+                    final long sessionId, final byte[] encodedCredentials, final long nowMs)
                 {
-                    @Override
-                    public void onConnectRequest(
-                        final long sessionId, final byte[] encodedCredentials, final long nowMs)
+                    sessionCounter.increment();
+                }
+
+                @Override
+                public void onChallengeResponse(
+                    final long sessionId, final byte[] encodedCredentials, final long nowMs)
+                {
+                }
+
+                @Override
+                public void onConnectedSession(final SessionProxy sessionProxy, final long nowMs)
+                {
+                    if (sessionCounter.get() > 2)
                     {
-                        sessionCounter.increment();
+                        sessionProxy.reject();
+                    }
+                    else
+                    {
+                        sessionProxy.authenticate("admin".getBytes(StandardCharsets.US_ASCII));
                     }
 
-                    @Override
-                    public void onChallengeResponse(
-                        final long sessionId, final byte[] encodedCredentials, final long nowMs)
-                    {
-                    }
+                }
 
-                    @Override
-                    public void onConnectedSession(final SessionProxy sessionProxy, final long nowMs)
-                    {
-                        if (sessionCounter.get() > 2)
-                        {
-                            sessionProxy.reject();
-                        }
-                        else
-                        {
-                            sessionProxy.authenticate("admin".getBytes(StandardCharsets.US_ASCII));
-                        }
-
-                    }
-
-                    @Override
-                    public void onChallengedSession(final SessionProxy sessionProxy, final long nowMs)
-                    {
-                    }
-                })
-                .start();
+                @Override
+                public void onChallengedSession(final SessionProxy sessionProxy, final long nowMs)
+                {
+                }
+            })
+            .start();
 
         systemTestWatcher.cluster(cluster);
 
@@ -2878,6 +2881,67 @@ class ClusterTest
                 leaderIngressEndpoint,
                 ChannelUri.parse(ingressPublication.channel()).get(ENDPOINT_PARAM_NAME));
         }
+    }
+
+    @Test
+    @InterruptAfter(30)
+    void clusterShouldCreateSessionCounterForEachConnectedClient()
+    {
+        cluster = aCluster().withStaticNodes(3).start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        final ConsensusModule.Context leaderContext = leader.consensusModule().context();
+        final CountersReader leaderCounters = leaderContext.aeron().countersReader();
+
+        final TestMediaDriver clientDriver = cluster.startClientMediaDriver();
+
+        final AeronCluster.Context context =
+            cluster.clientCtx().aeronDirectoryName(clientDriver.aeronDirectoryName());
+        final MutableInteger found = new MutableInteger();
+        try (AeronCluster client1 = AeronCluster.connect(context.clone().clientName("test client"));
+            AeronCluster client2 = AeronCluster.connect(context.clone().clientName(null)))
+        {
+            leaderCounters.forEach((counterId, typeId, keyBuffer, label) ->
+            {
+                if (AeronCounters.CLUSTER_SESSION_TYPE_ID == typeId)
+                {
+                    found.incrementAndGet();
+                    assertEquals(leaderContext.clusterId(), keyBuffer.getInt(0));
+                    final long clusterSessionId = keyBuffer.getLong(SIZE_OF_INT);
+                    if (client1.clusterSessionId() == clusterSessionId)
+                    {
+                        assertEquals(clusterSessionCounterLabel(client1, leaderContext.clusterId()), label);
+                    }
+                    else
+                    {
+                        assertEquals(client2.clusterSessionId(), clusterSessionId);
+                        assertEquals(clusterSessionCounterLabel(client2, leaderContext.clusterId()), label);
+                    }
+                }
+            });
+            assertEquals(2, found.get(), "cluster-session counters not found");
+        }
+
+        found.set(0);
+        leaderCounters.forEach((counterId, typeId, keyBuffer, label) ->
+        {
+            if (AeronCounters.CLUSTER_SESSION_TYPE_ID == typeId)
+            {
+                found.incrementAndGet();
+            }
+        });
+        assertEquals(0, found.get(), "cluster-session not deleted");
+    }
+
+    private String clusterSessionCounterLabel(final AeronCluster client, final int clusterId)
+    {
+        final Publication ingressPublication = client.ingressPublication();
+        return "cluster-session: name=" + client.context().clientName() + " " +
+            AeronCounters.formatVersionInfo(AeronClusterVersion.VERSION, AeronClusterVersion.GIT_SHA) +
+            " sourceIdentity=" + ingressPublication.localSocketAddresses().get(0) +
+            " sessionId=" + ingressPublication.sessionId() +
+            ClusterCounters.CLUSTER_ID_LABEL_SUFFIX + clusterId;
     }
 
     private long readSnapshot(final TestNode node)
