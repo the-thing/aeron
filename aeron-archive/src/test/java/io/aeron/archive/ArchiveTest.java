@@ -1123,7 +1123,7 @@ class ArchiveTest
                 AeronCounters.formatVersionInfo(AeronArchiveVersion.VERSION, AeronArchiveVersion.GIT_SHA) +
                 " sourceIdentity=" + localAddress +
                 " sessionId=" + requestPublication.sessionId() +
-                ArchiveCounters.ARCHIVE_ID_LABEL_PREFIX + aeronArchive.archiveId(),
+                ArchiveCounters.ARCHIVE_ID_LABEL_SUFFIX + aeronArchive.archiveId(),
                 countersReader.getCounterLabel(counterId));
 
             aeronArchive.close();
@@ -1186,7 +1186,7 @@ class ArchiveTest
                 AeronCounters.formatVersionInfo(AeronArchiveVersion.VERSION, AeronArchiveVersion.GIT_SHA) +
                 " sourceIdentity=aeron:ipc" +
                 " sessionId=" + requestPublication.sessionId() +
-                ArchiveCounters.ARCHIVE_ID_LABEL_PREFIX + aeronArchive.archiveId(),
+                ArchiveCounters.ARCHIVE_ID_LABEL_SUFFIX + aeronArchive.archiveId(),
                 countersReader.getCounterLabel(counterId));
 
             aeronArchive.close();

@@ -2807,7 +2807,7 @@ public final class AeronArchive implements AutoCloseable
         public static final int CONTROL_MTU_LENGTH_DEFAULT = io.aeron.driver.Configuration.mtuLength();
 
         /**
-         * System property to name Aeron client. Default to empty string.
+         * System property to name Archive client. Defaults to empty string.
          *
          * @since 1.49.0
          */
@@ -3074,7 +3074,7 @@ public final class AeronArchive implements AutoCloseable
                 aeron = Aeron.connect(
                     new Aeron.Context()
                         .aeronDirectoryName(aeronDirectoryName)
-                        .clientName("archive-client")
+                        .clientName(clientName.isEmpty() ? "archive-client" : clientName)
                         .errorHandler(errorHandler));
                 ownsAeronClient = true;
             }
