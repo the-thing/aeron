@@ -235,6 +235,7 @@ final class ConsensusModuleAgent
     private String ingressEndpoints;
     private StandbySnapshotReplicator standbySnapshotReplicator = null;
     private String localLogChannel;
+    private Subscription extensionLeaderSubscription = null;
 
     ConsensusModuleAgent(final ConsensusModule.Context ctx)
     {
@@ -1479,6 +1480,9 @@ final class ConsensusModuleAgent
         if (null != consensusModuleExtension)
         {
             consensusModuleExtension.onPrepareForNewLeadership();
+
+            CloseHelper.quietClose(extensionLeaderSubscription);
+            extensionLeaderSubscription = null;
         }
 
         return lastAppendPosition;
@@ -1513,6 +1517,7 @@ final class ConsensusModuleAgent
         final int serviceId = PendingServiceMessageTracker.serviceIdFromServiceMessage(clusterSessionId);
         pendingServiceMessageTrackers[serviceId].enqueueMessage((MutableDirectBuffer)buffer, offset, length);
     }
+
 
     void onScheduleTimer(final long correlationId, final long deadline)
     {
@@ -1720,7 +1725,7 @@ final class ConsensusModuleAgent
         if (null != consensusModuleExtension)
         {
             consensusModuleExtension.onNewLeadershipTerm(
-                new ConsensusControlState(null, logRecordingId, leadershipTermId, null));
+                new ConsensusControlState(null, null, logRecordingId, leadershipTermId, null));
         }
     }
 
@@ -1796,6 +1801,30 @@ final class ConsensusModuleAgent
             Long.MAX_VALUE,
             isStartup,
             Cluster.Role.LEADER);
+
+        connectLeaderLogSubscriptionForExtension(logPosition);
+    }
+
+    private void connectLeaderLogSubscriptionForExtension(final long logPosition)
+    {
+        if (null != consensusModuleExtension)
+        {
+            final Subscription subscription = aeron.addSubscription(localLogChannel, ctx.logStreamId());
+            while (0 == subscription.imageCount())
+            {
+                idle();
+            }
+
+            final long joinPosition = subscription.imageAtIndex(0).joinPosition();
+            if (joinPosition != logPosition)
+            {
+                throw new ClusterException(
+                    "Extension subscription " +
+                    "joinPosition (" + joinPosition + ") does not match logPosition (" + logPosition + ")");
+            }
+
+            this.extensionLeaderSubscription = subscription;
+        }
     }
 
     void liveLogDestination(final String liveLogDestination)
@@ -1979,7 +2008,11 @@ final class ConsensusModuleAgent
         if (null != consensusModuleExtension)
         {
             consensusModuleExtension.onElectionComplete(new ConsensusControlState(
-                logPublisher.publication(), logRecordingId, leadershipTermId, localLogChannel));
+                logPublisher.publication(),
+                extensionLeaderSubscription,
+                logRecordingId,
+                leadershipTermId,
+                localLogChannel));
         }
 
         election = null;

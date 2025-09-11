@@ -242,6 +242,23 @@ class ClusterTest
     }
 
     @Test
+    @InterruptAfter(5)
+    void shouldStartCluster()
+    {
+        cluster = aCluster().withStaticNodes(3)
+            .withExtension(true)
+            .withServiceSupplier(value -> new TestNode.TestService[0])
+            .start();
+
+        systemTestWatcher.cluster(cluster);
+        cluster.awaitLeader();
+
+        cluster.node(0).validateOnElectionState(0);
+        cluster.node(1).validateOnElectionState(0);
+        cluster.node(2).validateOnElectionState(0);
+    }
+
+    @Test
     @InterruptAfter(30)
     void shouldStopClusteredServicesOnAppropriateMessage()
     {

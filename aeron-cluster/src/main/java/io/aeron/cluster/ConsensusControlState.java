@@ -16,6 +16,7 @@
 package io.aeron.cluster;
 
 import io.aeron.ExclusivePublication;
+import io.aeron.Subscription;
 
 /**
  * The state needed to allow control of the consensus module.
@@ -27,6 +28,7 @@ import io.aeron.ExclusivePublication;
 public final class ConsensusControlState
 {
     private final ExclusivePublication logPublication;
+    private final Subscription leaderLogSubscription;
     private final long logRecordingId;
     private final long leadershipTermId;
     private final String leaderLocalLogChannel;
@@ -35,17 +37,21 @@ public final class ConsensusControlState
      * Record constructor.
      *
      * @param logPublication        publication or null.
+     * @param leaderLogSubscription null if a follower, if a leader will have an image that has joined at the log
+     *                              position.
      * @param logRecordingId        log recording id.
      * @param leadershipTermId      leadership term id.
      * @param leaderLocalLogChannel leader local log channel or null.
      */
     ConsensusControlState(
         final ExclusivePublication logPublication,
+        final Subscription leaderLogSubscription,
         final long logRecordingId,
         final long leadershipTermId,
         final String leaderLocalLogChannel)
     {
         this.logPublication = logPublication;
+        this.leaderLogSubscription = leaderLogSubscription;
         this.logRecordingId = logRecordingId;
         this.leadershipTermId = leadershipTermId;
         this.leaderLocalLogChannel = leaderLocalLogChannel;
@@ -85,9 +91,21 @@ public final class ConsensusControlState
 
     /**
      * @return the local log channel (for services or extension). Only applicable for a leader.
+     *
+     * @deprecated use {@link #leaderLogSubscription()} instead.
      */
+    @Deprecated
     public String leaderLocalLogChannel()
     {
         return leaderLocalLogChannel;
+    }
+
+    /**
+     * @return a subscription to the log, joined at the log position of the election for a leader node, or null for a
+     * follower.
+     */
+    public Subscription leaderLogSubscription()
+    {
+        return leaderLogSubscription;
     }
 }

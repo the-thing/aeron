@@ -172,6 +172,7 @@ public final class TestCluster implements AutoCloseable
     private String clusterBaseDir;
     private ClusterBackup.Configuration.ReplayStart replayStart;
     private List<String> hostnames;
+    private boolean hasExtension = false;
 
     private TestCluster(
         final int staticMemberCount,
@@ -288,6 +289,7 @@ public final class TestCluster implements AutoCloseable
         final String aeronDirName = CommonContext.generateRandomDirName();
         final File markFileDir = null != markFileBaseDir ? new File(markFileBaseDir, "mark-" + index) : null;
         final TestNode.Context context = new TestNode.Context(serviceSupplier.apply(index), nodeNameMappings());
+        context.hasExtension = hasExtension;
 
         context.aeronArchiveContext
             .lock(NoOpLock.INSTANCE)
@@ -2134,6 +2136,7 @@ public final class TestCluster implements AutoCloseable
         private String clusterBaseDir = System.getProperty(
             CLUSTER_BASE_DIR_PROP_NAME, CommonContext.generateRandomDirName());
         private boolean useResponseChannels = false;
+        private boolean hasExtension = false;
         private List<String> hostnames;
 
         public Builder withStaticNodes(final int nodeCount)
@@ -2294,6 +2297,7 @@ public final class TestCluster implements AutoCloseable
             testCluster.markFileBaseDir(markFileBaseDir);
             testCluster.clusterBaseDir(clusterBaseDir);
             testCluster.replyStart(replayStart);
+            testCluster.hasExtension(hasExtension);
             testCluster.hostnames(hostnames);
 
             try
@@ -2321,11 +2325,22 @@ public final class TestCluster implements AutoCloseable
 
             return testCluster;
         }
+
+        public Builder withExtension(final boolean useExtension)
+        {
+            this.hasExtension = useExtension;
+            return this;
+        }
     }
 
     private void replyStart(final ClusterBackup.Configuration.ReplayStart replayStart)
     {
         this.replayStart = replayStart;
+    }
+
+    private void hasExtension(final boolean hasExtension)
+    {
+        this.hasExtension = hasExtension;
     }
 
     private void hostnames(final List<String> hostnames)
