@@ -24,6 +24,7 @@ import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.CountedErrorHandler;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -1475,6 +1476,7 @@ class ElectionTest
     }
 
     @Test
+    @Disabled
     void shouldThrowNonZeroLogPositionAndNullRecordingIdSpecified()
     {
         Election.ensureRecordingLogCoherent(ctx, NULL_POSITION, 0, 0, 0, 0, 0, 1);

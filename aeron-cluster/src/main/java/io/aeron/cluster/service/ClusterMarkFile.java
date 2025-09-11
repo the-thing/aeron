@@ -392,9 +392,9 @@ public final class ClusterMarkFile implements AutoCloseable
     }
 
     /**
-     * Cluster member id either assigned statically or as the result of dynamic membership join.
+     * Cluster member id.
      *
-     * @return cluster member id either assigned statically or as the result of dynamic membership join.
+     * @return cluster member id.
      */
     public int memberId()
     {
@@ -402,9 +402,9 @@ public final class ClusterMarkFile implements AutoCloseable
     }
 
     /**
-     * Member id assigned as part of dynamic join of a cluster.
+     * Member id assigned as part of active join to the log in a clustered service.
      *
-     * @param memberId assigned as part of dynamic join of a cluster.
+     * @param memberId assigned as part of active join to the log in a clustered service.
      */
     public void memberId(final int memberId)
     {

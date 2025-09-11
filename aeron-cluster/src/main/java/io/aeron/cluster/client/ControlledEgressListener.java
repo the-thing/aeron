@@ -75,7 +75,7 @@ public interface ControlledEgressListener
      * @param clusterSessionId to which the event belongs.
      * @param leadershipTermId for identifying the active term of leadership
      * @param leaderMemberId   identity of the active leader.
-     * @param ingressEndpoints for connecting to the cluster which can be updated due to dynamic membership.
+     * @param ingressEndpoints for connecting to the cluster.
      */
     default void onNewLeader(
         final long clusterSessionId,

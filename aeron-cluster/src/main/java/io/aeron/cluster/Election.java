@@ -1405,7 +1405,7 @@ class Election
     {
         if (NULL_VALUE == recordingId)
         {
-            // This can happen during a dynamic join/log replication if the initial appendPosition != 0 and
+            // This can happen during a log replication if the initial appendPosition != 0 and
             // nextTermLogPosition == appendPosition.
             return;
         }
