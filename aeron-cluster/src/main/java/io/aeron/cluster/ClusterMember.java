@@ -24,7 +24,6 @@ import io.aeron.cluster.client.ClusterException;
 import io.aeron.exceptions.RegistrationException;
 import org.agrona.CloseHelper;
 import org.agrona.ErrorHandler;
-import org.agrona.collections.ArrayUtil;
 import org.agrona.collections.Int2ObjectHashMap;
 
 import java.util.List;
@@ -1251,49 +1250,6 @@ public final class ClusterMember
     }
 
     /**
-     * Is the string of member endpoints not duplicated in the members.
-     *
-     * @param members   to check if the provided endpoints have a duplicate.
-     * @param endpoints to check for duplicates.
-     * @return true if no duplicate is found otherwise false.
-     */
-    public static boolean notDuplicateEndpoint(final ClusterMember[] members, final String endpoints)
-    {
-        for (final ClusterMember member : members)
-        {
-            if (member.endpoints.equals(endpoints))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Find the index at which a member id is present.
-     *
-     * @param clusterMembers to be searched.
-     * @param memberId       to search for.
-     * @return the index at which the member id is found otherwise {@link ArrayUtil#UNKNOWN_INDEX}.
-     */
-    public static int findMemberIndex(final ClusterMember[] clusterMembers, final int memberId)
-    {
-        final int length = clusterMembers.length;
-        int index = ArrayUtil.UNKNOWN_INDEX;
-
-        for (int i = 0; i < length; i++)
-        {
-            if (memberId == clusterMembers[i].id)
-            {
-                index = i;
-            }
-        }
-
-        return index;
-    }
-
-    /**
      * Find a {@link ClusterMember} with a given id.
      *
      * @param clusterMembers to search.
@@ -1311,24 +1267,6 @@ public final class ClusterMember
         }
 
         return null;
-    }
-
-    /**
-     * Find the highest member id in an array of members.
-     *
-     * @param clusterMembers to search for the highest id.
-     * @return the highest id otherwise {@link Aeron#NULL_VALUE} if empty.
-     */
-    public static int highMemberId(final ClusterMember[] clusterMembers)
-    {
-        int highId = Aeron.NULL_VALUE;
-
-        for (final ClusterMember member : clusterMembers)
-        {
-            highId = Math.max(highId, member.id);
-        }
-
-        return highId;
     }
 
     /**
