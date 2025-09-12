@@ -1725,7 +1725,7 @@ final class ConsensusModuleAgent
         if (null != consensusModuleExtension)
         {
             consensusModuleExtension.onNewLeadershipTerm(
-                new ConsensusControlState(null, null, logRecordingId, leadershipTermId, null));
+                new ConsensusControlState(null, null, logRecordingId, leadershipTermId));
         }
     }
 
@@ -2011,8 +2011,8 @@ final class ConsensusModuleAgent
                 logPublisher.publication(),
                 extensionLeaderSubscription,
                 logRecordingId,
-                leadershipTermId,
-                localLogChannel));
+                leadershipTermId
+            ));
         }
 
         election = null;
