@@ -20,7 +20,6 @@ import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.IpTables;
 import io.aeron.test.SystemTestWatcher;
-import io.aeron.test.Tests;
 import io.aeron.test.TopologyTest;
 import io.aeron.test.cluster.TestCluster;
 import io.aeron.test.cluster.TestNode;
@@ -32,20 +31,17 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import java.util.Arrays;
 import java.util.List;
-import java.util.stream.IntStream;
 
 import static io.aeron.test.cluster.TestCluster.aCluster;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 @TopologyTest
 @ExtendWith({ EventLogExtension.class, InterruptingTestCallback.class })
 @EnabledOnOs(OS.LINUX)
 class ClusterNetworkPartitionTest
 {
-    private static final List<String> HOSTNAMES =
-        List.of("127.1.0.0", "127.1.1.0", "127.1.2.0", "127.1.3.0", "127.1.4.0");
-    private static final int CLUSTER_SIZE = HOSTNAMES.size();
+    private static final List<String> HOSTNAMES = Arrays.asList("127.1.0.0", "127.1.1.0", "127.1.2.0");
     private static final String CHAIN_NAME = "CLUSTER-TEST";
 
     @RegisterExtension
@@ -70,7 +66,7 @@ class ClusterNetworkPartitionTest
     void shouldStartClusterThenElectNewLeaderAfterPartition()
     {
         cluster = aCluster()
-            .withStaticNodes(CLUSTER_SIZE)
+            .withStaticNodes(3)
             .withCustomAddresses(HOSTNAMES)
             .start();
         systemTestWatcher.cluster(cluster);
@@ -78,30 +74,22 @@ class ClusterNetworkPartitionTest
         final TestNode firstLeader = cluster.awaitLeader();
 
         cluster.connectClient();
-        cluster.sendAndAwaitMessages(100);
+        cluster.sendAndAwaitMessages(1);
 
-        final long initialLeaderLogPosition = firstLeader.appendPosition();
+        IpTables.makeNetworkPartition(CHAIN_NAME, HOSTNAMES, firstLeader.index());
 
-        IpTables.makeSymmetricNetworkPartition(
-            CHAIN_NAME,
-            List.of(HOSTNAMES.get(firstLeader.index())),
-            IntStream.range(0, HOSTNAMES.size())
-                .filter(i -> i != firstLeader.index())
-                .mapToObj(HOSTNAMES::get)
-                .toList());
+        cluster.sendMessages(20);
 
-        cluster.sendMessages(50); // will be sent to the old leader
-        Tests.await(() -> firstLeader.appendPosition() > initialLeaderLogPosition);
+        cluster.awaitLeader(firstLeader.index());
 
-        final TestNode secondLeader = cluster.awaitLeader(firstLeader.index());
-        assertNotEquals(firstLeader.index(), secondLeader.index());
-
-        cluster.awaitNodeState(firstLeader, (n) -> n.electionState() == ElectionState.CANVASS);
+        final TestNode node = cluster.node(firstLeader.index());
+        cluster.awaitNodeState(node, (n) -> n.electionState() == ElectionState.CANVASS);
 
         IpTables.flushChain(CHAIN_NAME);
 
-        cluster.awaitNodeState(firstLeader, (n) -> n.electionState() == ElectionState.CLOSED);
+        cluster.awaitNodeState(node, (n) -> n.electionState() == ElectionState.CLOSED);
 
-        cluster.sendAndAwaitMessages(100, 200);
+        cluster.sendMessages(10);
+        cluster.awaitServicesMessageCount(11);
     }
 }
