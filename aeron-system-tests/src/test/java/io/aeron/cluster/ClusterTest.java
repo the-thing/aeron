@@ -2867,21 +2867,20 @@ class ClusterTest
     @InterruptAfter(30)
     void clientShouldHandleRedirectResponseDuringConnectPhase()
     {
-        final int nodeCount = 3;
-        cluster = aCluster().withStaticNodes(nodeCount).start();
+        cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
         final TestNode leader = cluster.awaitLeader();
         final ConsensusModule.Context leaderContext = leader.consensusModule().context();
         final String leaderIngressEndpoint =
-            ingressEndpoint(leaderContext.clusterId(), leaderContext.clusterMemberId(), nodeCount);
+            ingressEndpoint(leaderContext.clusterId(), leaderContext.clusterMemberId());
 
         final StringBuilder followerIngressEndpoints = new StringBuilder();
         for (final TestNode node : cluster.followers())
         {
             final ConsensusModule.Context nodeContext = node.consensusModule().context();
             followerIngressEndpoints.append(nodeContext.clusterMemberId()).append("=")
-                .append(ingressEndpoint(nodeContext.clusterId(), nodeContext.clusterMemberId(), nodeCount)).append(",");
+                .append(ingressEndpoint(nodeContext.clusterId(), nodeContext.clusterMemberId())).append(",");
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 

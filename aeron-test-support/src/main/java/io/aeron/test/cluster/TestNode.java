@@ -338,11 +338,6 @@ public final class TestNode implements AutoCloseable
         return 0 == services.length ? -1 : services[0].index();
     }
 
-    public int memberId()
-    {
-        return consensusModule.context().clusterMemberId();
-    }
-
     CountersReader countersReader()
     {
         return mediaDriver.counters();
@@ -363,7 +358,7 @@ public final class TestNode implements AutoCloseable
 
     public String hostname()
     {
-        return context.hostName;
+        return TestCluster.hostname(index());
     }
 
     public boolean allSnapshotsLoaded()
@@ -1269,13 +1264,11 @@ public final class TestNode implements AutoCloseable
         final AtomicBoolean isTerminationExpected = new AtomicBoolean();
         final AtomicBoolean hasMemberTerminated = new AtomicBoolean();
         final AtomicBoolean[] hasServiceTerminated;
-        final String hostName;
         final TestService[] services;
         public boolean hasExtension;
 
-        Context(final TestService[] services, final String hostName, final String nodeMappings)
+        Context(final TestService[] services, final String nodeMappings)
         {
-            this.hostName = hostName;
             mediaDriverContext.nameResolver(new RedirectingNameResolver(nodeMappings));
 
             this.services = services;
