@@ -140,7 +140,6 @@ public final class TestNode implements AutoCloseable
                 final int memberId = context.consensusModuleContext.clusterMemberId();
 
                 ctx.aeronDirectoryName(aeronDirectoryName)
-                    .clusterId(clusterId)
                     .archiveContext(archiveContext.clone())
                     .terminationHook(ClusterTests.terminationHook(
                         context.isTerminationExpected, context.hasServiceTerminated[i]))
