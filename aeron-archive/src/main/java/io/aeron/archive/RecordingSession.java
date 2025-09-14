@@ -240,8 +240,9 @@ class RecordingSession implements Session
             }
             else if (image.isEndOfStream() || image.isClosed())
             {
-                state(State.INACTIVE, "image.isEndOfStream=" + image.isEndOfStream() +
-                    ", image.isClosed=" + image.isClosed());
+                state(
+                    State.INACTIVE,
+                    "image.isEndOfStream=" + image.isEndOfStream() + ", image.isClosed=" + image.isClosed());
             }
 
             if (null != recordingEventsProxy)
