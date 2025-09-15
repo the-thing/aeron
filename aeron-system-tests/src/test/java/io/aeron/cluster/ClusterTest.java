@@ -68,6 +68,7 @@ import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.collections.Hashing;
+import org.agrona.collections.IntArrayList;
 import org.agrona.collections.IntHashSet;
 import org.agrona.collections.MutableBoolean;
 import org.agrona.collections.MutableInteger;
@@ -2901,7 +2902,7 @@ class ClusterTest
     }
 
     @Test
-    @InterruptAfter(30)
+    @InterruptAfter(15)
     void clusterShouldCreateSessionCounterForEachConnectedClient()
     {
         cluster = aCluster().withStaticNodes(3).start();
@@ -2915,7 +2916,7 @@ class ClusterTest
 
         final AeronCluster.Context context =
             cluster.clientCtx().aeronDirectoryName(clientDriver.aeronDirectoryName());
-        final MutableInteger found = new MutableInteger();
+        final IntArrayList sessionCounters = new IntArrayList();
         try (AeronCluster client1 = AeronCluster.connect(context.clone().clientName("test client"));
             AeronCluster client2 = AeronCluster.connect(context.clone().clientName(null)))
         {
@@ -2923,7 +2924,7 @@ class ClusterTest
             {
                 if (AeronCounters.CLUSTER_SESSION_TYPE_ID == typeId)
                 {
-                    found.incrementAndGet();
+                    sessionCounters.add(counterId);
                     assertEquals(leaderContext.clusterId(), keyBuffer.getInt(0));
                     final long clusterSessionId = keyBuffer.getLong(SIZE_OF_INT);
                     if (client1.clusterSessionId() == clusterSessionId)
@@ -2937,18 +2938,11 @@ class ClusterTest
                     }
                 }
             });
-            assertEquals(2, found.get(), "cluster-session counters not found");
+            assertEquals(2, sessionCounters.size(), "cluster-session counters not found");
         }
 
-        found.set(0);
-        leaderCounters.forEach((counterId, typeId, keyBuffer, label) ->
-        {
-            if (AeronCounters.CLUSTER_SESSION_TYPE_ID == typeId)
-            {
-                found.incrementAndGet();
-            }
-        });
-        assertEquals(0, found.get(), "cluster-session not deleted");
+        Tests.await(() -> sessionCounters.intStream()
+            .allMatch(counterId -> CountersReader.RECORD_RECLAIMED == leaderCounters.getCounterState(counterId)));
     }
 
     private String clusterSessionCounterLabel(final AeronCluster client, final int clusterId)
