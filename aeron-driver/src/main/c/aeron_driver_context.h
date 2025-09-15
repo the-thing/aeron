@@ -163,10 +163,10 @@ typedef struct aeron_driver_context_stct
     int64_t untethered_linger_timeout_ns;                   /* aeron.untethered.linger.timeout = -1 */
     uint64_t untethered_resting_timeout_ns;                 /* aeron.untethered.resting.timeout = 10s */
     uint64_t retransmit_unicast_delay_ns;                   /* aeron.retransmit.unicast.delay = 0 */
-    uint64_t retransmit_unicast_linger_ns;                  /* aeron.retransmit.unicast.linger = 60ms */
-    uint64_t nak_unicast_delay_ns;                          /* aeron.nak.unicast.delay = 60ms */
+    uint64_t retransmit_unicast_linger_ns;                  /* aeron.retransmit.unicast.linger = 10ms */
+    uint64_t nak_unicast_delay_ns;                          /* aeron.nak.unicast.delay = 100us */
     uint64_t nak_unicast_retry_delay_ratio;                 /* aeron.nak.unicast.retry.delay.ratio = 100 */
-    uint64_t nak_multicast_max_backoff_ns;                  /* aeron.nak.multicast.max.backoff = 60ms */
+    uint64_t nak_multicast_max_backoff_ns;                  /* aeron.nak.multicast.max.backoff = 10ms */
     size_t unicast_flow_control_rrwm;                       /* aeron.unicast.flow.control.rrwm = 16 */
     size_t multicast_flow_control_rrwm;                     /* aeron.multicast.flow.control.rrwm = 4 */
     uint64_t re_resolution_check_interval_ns;               /* aeron.driver.reresolution.check.interval = 1s */
