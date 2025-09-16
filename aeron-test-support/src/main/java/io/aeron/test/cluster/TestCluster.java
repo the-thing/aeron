@@ -325,6 +325,7 @@ public final class TestCluster implements AutoCloseable
             .replicationChannel(archiveReplicationChannel(index));
 
         context.consensusModuleContext
+            .clusterId(clusterId)
             .clusterMemberId(index)
             .clusterMembers(staticClusterMembers)
             .startupCanvassTimeoutNs(STARTUP_CANVASS_TIMEOUT_NS)
@@ -420,6 +421,7 @@ public final class TestCluster implements AutoCloseable
         consensusChannelUri.put(CommonContext.ENDPOINT_PARAM_NAME, backupStatusEndpoint);
 
         context.clusterBackupContext
+            .clusterId(clusterId)
             .clusterConsensusEndpoints(clusterConsensusEndpoints)
             .consensusChannel(consensusChannelUri.toString())
             .clusterBackupCoolDownIntervalNs(TimeUnit.SECONDS.toNanos(1))
@@ -1068,10 +1070,6 @@ public final class TestCluster implements AutoCloseable
 
     public TestNode awaitLeader(final int skipIndex)
     {
-        if (null != client)
-        {
-            clientKeepAlive.init();
-        }
         final Supplier<String> message = () -> Arrays.stream(nodes)
             .map((node) -> null != node ? node.index() + " " + node.role() + " " + node.electionState() : "null")
             .collect(Collectors.joining(", "));
@@ -1079,10 +1077,6 @@ public final class TestCluster implements AutoCloseable
         TestNode leaderNode;
         while (null == (leaderNode = findLeader(skipIndex)))
         {
-            if (null != client)
-            {
-                clientKeepAlive.run();
-            }
             await(10, message);
         }
 
