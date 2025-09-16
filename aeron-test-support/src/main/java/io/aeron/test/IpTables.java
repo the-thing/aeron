@@ -15,15 +15,18 @@
  */
 package io.aeron.test;
 
+import org.agrona.Strings;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 public class IpTables
 {
-    public static boolean runIpTablesCmd(final boolean ignoreError, final String... command)
+    public static boolean runIpTablesCmd(final boolean ignoreError, final List<String> command)
     {
         try
         {
@@ -63,59 +66,89 @@ public class IpTables
 
     public static void deleteChain(final String chainName)
     {
-        runIpTablesCmd(false, "sudo", "iptables", "-X", chainName);
+        runIpTablesCmd(true, List.of("sudo", "iptables", "-X", chainName));
     }
 
     public static void removeFromInput(final String chainName)
     {
+        final List<String> command = List.of("sudo", "-n", "iptables", "--delete", "INPUT", "--jump", chainName);
         boolean isSuccess;
         do
         {
-            isSuccess = runIpTablesCmd(true, "sudo", "iptables", "-D", "INPUT", "-j", chainName);
+            isSuccess = runIpTablesCmd(true, command);
         }
         while (isSuccess);
     }
 
     public static void addToInput(final String chainName)
     {
-        runIpTablesCmd(true, "sudo", "iptables", "-A", "INPUT", "-j", chainName);
+        runIpTablesCmd(true, List.of("sudo", "-n", "iptables", "--insert", "INPUT", "--jump", chainName));
     }
 
-    public static void makeNetworkPartition(
-        final String chainName,
-        final List<String> hostnames,
-        final int toIsolateIndex)
+    public static void makeSymmetricNetworkPartition(
+        final String chainName, final List<String> groupA, final List<String> groupB)
     {
-        final String toIsolateHostname = hostnames.get(toIsolateIndex);
-        for (int i = 0; i < hostnames.size(); i++)
+        for (final String hostA : groupA)
         {
-            if (i != toIsolateIndex)
+            for (final String hostB : groupB)
             {
-                final String otherHostname = hostnames.get(i);
-                runIpTablesCmd(
-                    false, "sudo", "iptables", "-A", chainName,
-                    "-d", toIsolateHostname,
-                    "-s", otherHostname,
-                    "-j", "DROP");
-                runIpTablesCmd(
-                    false, "sudo", "iptables", "-A", chainName,
-                    "-d", otherHostname,
-                    "-s", toIsolateHostname,
-                    "-j", "DROP");
+                dropUdpTrafficBetweenHosts(chainName, hostB, "", hostA, "");
+            }
+            for (final String hostB : groupB)
+            {
+                dropUdpTrafficBetweenHosts(chainName, hostA, "", hostB, "");
             }
         }
+    }
 
-        runIpTablesCmd(false, "sudo", "iptables", "-A", chainName, "-j", "RETURN");
+    public static void dropUdpTrafficBetweenHosts(
+        final String chainName,
+        final String srcHostname,
+        final String srcPort,
+        final String destHostname,
+        final String destPort)
+    {
+        final List<String> command = new ArrayList<>();
+        command.add("sudo");
+        command.add("-n");
+        command.add("iptables");
+        command.add("--insert");
+        command.add(chainName);
+        command.add("--ipv4");
+        command.add("--protocol");
+        command.add("udp");
+
+        command.add("--source");
+        command.add(srcHostname);
+        if (!Strings.isEmpty(srcPort))
+        {
+            command.add("--source-port");
+            command.add(srcPort);
+        }
+
+        command.add("--destination");
+        command.add(destHostname);
+        if (!Strings.isEmpty(destPort))
+        {
+            command.add("--destination-port");
+            command.add(destPort);
+        }
+
+        command.add("--jump");
+        command.add("DROP");
+
+        runIpTablesCmd(false, command);
     }
 
     public static void createChain(final String chainName)
     {
-        runIpTablesCmd(true, "sudo", "-n", "iptables", "-N", chainName);
+        runIpTablesCmd(true, List.of("sudo", "-n", "iptables", "--new-chain", chainName));
+        runIpTablesCmd(false, List.of("sudo", "-n", "iptables", "--append", chainName, "--jump", "RETURN"));
     }
 
     public static void flushChain(final String chainName)
     {
-        runIpTablesCmd(true, "sudo", "-n", "iptables", "-F", chainName);
+        runIpTablesCmd(true, List.of("sudo", "-n", "iptables", "--flush", chainName));
     }
 
     public static void setupChain(final String chainName)
