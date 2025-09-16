@@ -286,6 +286,11 @@ public final class TestNode implements AutoCloseable
 
     public long appendPosition()
     {
+        return countersReader().getCounterValue(logRecordingCounterId());
+    }
+
+    public int logRecordingCounterId()
+    {
         final long recordingId = consensusModule().context().recordingLog().findLastTermRecordingId();
         if (RecordingPos.NULL_RECORDING_ID == recordingId)
         {
@@ -300,8 +305,7 @@ public final class TestNode implements AutoCloseable
             ArchiveTool.describeRecording(System.out, archive().context().archiveDir(), recordingId);
             fail("recording not active " + recordingId);
         }
-
-        return countersReader.getCounterValue(counterId);
+        return counterId;
     }
 
     boolean isLeader()

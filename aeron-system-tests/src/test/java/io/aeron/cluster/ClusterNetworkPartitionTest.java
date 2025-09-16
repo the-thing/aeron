@@ -15,6 +15,15 @@
  */
 package io.aeron.cluster;
 
+import io.aeron.Aeron;
+import io.aeron.ChannelUri;
+import io.aeron.Image;
+import io.aeron.Subscription;
+import io.aeron.archive.client.AeronArchive;
+import io.aeron.archive.status.RecordingPos;
+import io.aeron.cluster.codecs.MessageHeaderDecoder;
+import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
+import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.test.EventLogExtension;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
@@ -24,6 +33,8 @@ import io.aeron.test.Tests;
 import io.aeron.test.TopologyTest;
 import io.aeron.test.cluster.TestCluster;
 import io.aeron.test.cluster.TestNode;
+import org.agrona.collections.MutableInteger;
+import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +47,9 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 import static io.aeron.test.cluster.TestCluster.aCluster;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @TopologyTest
 @ExtendWith({ EventLogExtension.class, InterruptingTestCallback.class })
@@ -50,7 +63,8 @@ class ClusterNetworkPartitionTest
 
     @RegisterExtension
     final SystemTestWatcher systemTestWatcher = new SystemTestWatcher();
-
+    private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
+    private final SessionMessageHeaderDecoder sessionHeaderDecoder = new SessionMessageHeaderDecoder();
     private TestCluster cluster = null;
 
     @BeforeEach
@@ -104,5 +118,132 @@ class ClusterNetworkPartitionTest
         cluster.awaitNodeState(firstLeader, (n) -> n.electionState() == ElectionState.CLOSED);
 
         cluster.sendAndAwaitMessages(100, 200);
+    }
+
+    @Test
+    @SuppressWarnings("MethodLength")
+    @InterruptAfter(30)
+    void shouldRestartClusterWithMajorityNodesBeingSlow()
+    {
+        cluster = aCluster()
+            .withStaticNodes(CLUSTER_SIZE)
+            .withCustomAddresses(HOSTNAMES)
+            .withClusterId(7)
+            .start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode firstLeader = cluster.awaitLeader();
+        final List<TestNode> followers = cluster.followers();
+        final TestNode fastFollower = followers.get(0);
+        final TestNode[] slowFollowers = followers.subList(1, followers.size()).toArray(new TestNode[0]);
+        final long[] rankedPositions = new long[ClusterMember.quorumThreshold(CLUSTER_SIZE)];
+        final ClusterMember[] clusterMembers =
+            ClusterMember.parse(firstLeader.consensusModule().context().clusterMembers());
+
+        cluster.connectClient();
+        final int initialMessageCount = 100;
+        cluster.sendAndAwaitMessages(initialMessageCount);
+
+        cluster.takeSnapshot(firstLeader);
+        cluster.awaitSnapshotCount(1);
+
+        final int messagesAfterSnapshot = 50;
+        final int committedMessageCount = initialMessageCount + messagesAfterSnapshot;
+        cluster.sendAndAwaitMessages(messagesAfterSnapshot, committedMessageCount);
+
+        final long commitPositionBeforePartition = firstLeader.commitPosition();
+
+        for (final TestNode slowFollower : slowFollowers)
+        {
+            final ClusterMember clusterMember = clusterMembers[slowFollower.memberId()];
+            assertNotNull(clusterMember);
+            assertEquals(slowFollower.memberId(), clusterMember.id());
+
+            IpTables.dropUdpTrafficBetweenHosts(CHAIN_NAME,
+                HOSTNAMES.get(firstLeader.index()),
+                "",
+                HOSTNAMES.get(slowFollower.memberId()),
+                clusterMember.consensusEndpoint().substring(clusterMember.consensusEndpoint().indexOf(':') + 1));
+
+            IpTables.dropUdpTrafficBetweenHosts(CHAIN_NAME,
+                HOSTNAMES.get(firstLeader.index()),
+                "",
+                HOSTNAMES.get(slowFollower.memberId()),
+                clusterMember.logEndpoint().substring(clusterMember.logEndpoint().indexOf(':') + 1));
+        }
+
+        final int messagesReceivedByMinority = 300;
+        cluster.sendMessages(messagesReceivedByMinority); // these messages will be only received by 2 out of 5 nodes
+
+        // await leader to record all ingress messages
+        try (AeronArchive aeronArchive = AeronArchive.connect(
+            firstLeader.consensusModule().context().archiveContext().clientName("test").clone()))
+        {
+            final Aeron aeron = aeronArchive.context().aeron();
+            final CountersReader countersReader = aeron.countersReader();
+            final long recordingId = RecordingPos.getRecordingId(countersReader, firstLeader.logRecordingCounterId());
+            final String replayChannel = "aeron:udp?endpoint=localhost:18181";
+            final int replayStreamId = 1111;
+            final long replaySubscriptionId = aeronArchive.startReplay(
+                recordingId, 0, AeronArchive.REPLAY_ALL_AND_FOLLOW, replayChannel, replayStreamId);
+            final int sessionId = (int)replaySubscriptionId;
+            final Subscription subscription =
+                aeron.addSubscription(ChannelUri.addSessionId(replayChannel, sessionId), replayStreamId);
+            Tests.awaitConnected(subscription);
+
+            final Image image = subscription.imageBySessionId(sessionId);
+            assertNotNull(image);
+            final MutableInteger messageCount = new MutableInteger();
+            final FragmentHandler fragmentHandler = (buffer, offset, length, header) ->
+            {
+                messageHeaderDecoder.wrap(buffer, offset);
+                if (MessageHeaderDecoder.SCHEMA_ID == messageHeaderDecoder.schemaId() &&
+                    SessionMessageHeaderDecoder.TEMPLATE_ID == messageHeaderDecoder.templateId())
+                {
+                    sessionHeaderDecoder.wrap(
+                        buffer,
+                        offset + MessageHeaderDecoder.ENCODED_LENGTH,
+                        messageHeaderDecoder.blockLength(),
+                        messageHeaderDecoder.version());
+                    messageCount.increment();
+                }
+            };
+
+            final int expectedMessageCount = committedMessageCount + messagesReceivedByMinority;
+            while (messageCount.get() < expectedMessageCount)
+            {
+                if (0 == image.poll(fragmentHandler, 10))
+                {
+                    Tests.yield();
+                }
+            }
+
+            subscription.close();
+            aeronArchive.stopReplay(replaySubscriptionId);
+        }
+
+        Tests.await(() -> firstLeader.appendPosition() == fastFollower.appendPosition());
+
+        // ensure message haven't been processed
+        assertEquals(commitPositionBeforePartition, firstLeader.commitPosition());
+        assertEquals(committedMessageCount, firstLeader.service().messageCount());
+        for (final TestNode follower : followers)
+        {
+            assertEquals(committedMessageCount, follower.service().messageCount());
+        }
+
+        cluster.terminationsExpected(true);
+        cluster.stopAllNodes();
+
+        IpTables.flushChain(CHAIN_NAME); // remove network partition
+
+        cluster.restartAllNodes(false);
+        cluster.awaitLeader();
+        cluster.reconnectClient();
+
+        final int newMessages = 200;
+        cluster.sendMessages(newMessages);
+        cluster.awaitResponseMessageCount(newMessages);
+        cluster.awaitServicesMessageCount(committedMessageCount + messagesReceivedByMinority + newMessages);
     }
 }
