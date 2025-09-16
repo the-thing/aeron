@@ -72,6 +72,7 @@ class ClusterNetworkPartitionTest
         cluster = aCluster()
             .withStaticNodes(CLUSTER_SIZE)
             .withCustomAddresses(HOSTNAMES)
+            .withClusterId(7)
             .start();
         systemTestWatcher.cluster(cluster);
 

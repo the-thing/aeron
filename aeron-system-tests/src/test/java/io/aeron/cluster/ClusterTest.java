@@ -2868,8 +2868,7 @@ class ClusterTest
     @InterruptAfter(30)
     void clientShouldHandleRedirectResponseDuringConnectPhase()
     {
-        final int nodeCount = 3;
-        cluster = aCluster().withStaticNodes(nodeCount).start();
+        cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
 
         final TestNode leader = cluster.awaitLeader();
