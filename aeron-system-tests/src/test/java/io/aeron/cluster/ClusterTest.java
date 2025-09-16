@@ -2573,8 +2573,8 @@ class ClusterTest
         final MutableInteger leadershipCounter1 = new MutableInteger();
         final MutableInteger leadershipCounter2 = new MutableInteger();
         try (TestMediaDriver mediaDriver = TestMediaDriver.launch(new MediaDriver.Context()
-            .threadingMode(ThreadingMode.SHARED)
-            .aeronDirectoryName(tmpDir.resolve("aeron").toString()),
+                .threadingMode(ThreadingMode.SHARED)
+                .aeronDirectoryName(tmpDir.resolve("aeron").toString()),
             systemTestWatcher);
             Archive archive = Archive.launch(new Archive.Context()
                 .aeronDirectoryName(mediaDriver.aeronDirectoryName())
@@ -2873,16 +2873,14 @@ class ClusterTest
         systemTestWatcher.cluster(cluster);
 
         final TestNode leader = cluster.awaitLeader();
-        final ConsensusModule.Context leaderContext = leader.consensusModule().context();
         final String leaderIngressEndpoint =
-            ingressEndpoint(leaderContext.clusterId(), leaderContext.clusterMemberId(), nodeCount);
+            ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
 
         final StringBuilder followerIngressEndpoints = new StringBuilder();
         for (final TestNode node : cluster.followers())
         {
-            final ConsensusModule.Context nodeContext = node.consensusModule().context();
-            followerIngressEndpoints.append(nodeContext.clusterMemberId()).append("=")
-                .append(ingressEndpoint(nodeContext.clusterId(), nodeContext.clusterMemberId(), nodeCount)).append(",");
+            followerIngressEndpoints.append(node.memberId()).append("=")
+                .append(ingressEndpoint(cluster.clusterId(), node.memberId(), cluster.memberCount())).append(",");
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 

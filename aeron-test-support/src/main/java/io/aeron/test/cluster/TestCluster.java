@@ -125,7 +125,6 @@ public final class TestCluster implements AutoCloseable
     static final String INGRESS_CHANNEL = "aeron:udp?term-length=128k|alias=ingress";
     static final long LEADER_HEARTBEAT_TIMEOUT_NS = TimeUnit.SECONDS.toNanos(10);
     static final long STARTUP_CANVASS_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS * 2;
-    public static final int DEFAULT_CLUSTER_SIZE = 3;
     public static final String CLUSTER_BASE_DIR_PROP_NAME = "aeron.test.system.cluster.base.dir";
 
     public static final String DEFAULT_NODE_MAPPINGS =
@@ -199,7 +198,7 @@ public final class TestCluster implements AutoCloseable
         this.clusterMemberEndpoints = ingressEndpoints(clusterId, 0, memberCount, memberCount);
         this.senderWildcardPortRanges = senderWildcardPortRanges();
         this.receiverWildcardPortRanges = receiverWildcardPortRanges();
-        this.clusterConsensusEndpoints = clusterConsensusEndpoints(clusterId, 0, memberCount, memberCount);
+        this.clusterConsensusEndpoints = clusterConsensusEndpoints(0, memberCount);
         this.appointedLeaderId = appointedLeaderId;
         this.byHostInvalidInitialResolutions = byHostInvalidInitialResolutions;
     }
@@ -306,8 +305,8 @@ public final class TestCluster implements AutoCloseable
 
         context.aeronArchiveContext
             .lock(NoOpLock.INSTANCE)
-            .controlRequestChannel(archiveControlRequestChannel(index, memberCount))
-            .controlResponseChannel(archiveControlResponseChannel(index, memberCount))
+            .controlRequestChannel(archiveControlRequestChannel(index))
+            .controlResponseChannel(archiveControlResponseChannel(index))
             .controlResponseStreamId(3000 + index)
             .aeronDirectoryName(aeronDirName);
 
@@ -333,7 +332,7 @@ public final class TestCluster implements AutoCloseable
             .threadingMode(ArchiveThreadingMode.SHARED)
             .deleteArchiveOnStart(cleanStart)
             .segmentFileLength(archiveSegmentFileLength)
-            .replicationChannel(archiveReplicationChannel(index, memberCount));
+            .replicationChannel(archiveReplicationChannel(index));
 
         context.consensusModuleContext
             .clusterId(clusterId)
@@ -345,7 +344,7 @@ public final class TestCluster implements AutoCloseable
             .clusterDir(new File(baseDirName, "consensus-module"))
             .ingressChannel(ingressChannel)
             .logChannel(logChannel)
-            .replicationChannel(clusterReplicationChannel(clusterId, index, memberCount))
+            .replicationChannel(clusterReplicationChannel(index))
             .archiveContext(context.aeronArchiveContext.clone()
                 .controlRequestChannel(context.archiveContext.localControlChannel())
                 .controlRequestStreamId(context.archiveContext.localControlStreamId())
@@ -417,7 +416,7 @@ public final class TestCluster implements AutoCloseable
             .catalogCapacity(CATALOG_CAPACITY)
             .aeronDirectoryName(aeronDirName)
             .archiveDir(new File(baseDirName, "archive"))
-            .controlChannel(archiveControlRequestChannel(index, memberCount) + "|alias=backup-control")
+            .controlChannel(archiveControlRequestChannel(index) + "|alias=backup-control")
             .controlStreamId(-2734238)
             .localControlChannel("aeron:ipc?alias=backup-local-control")
             .localControlStreamId(8080808 + index)
@@ -425,10 +424,10 @@ public final class TestCluster implements AutoCloseable
             .threadingMode(ArchiveThreadingMode.SHARED)
             .deleteArchiveOnStart(cleanStart)
             .segmentFileLength(archiveSegmentFileLength)
-            .replicationChannel(archiveReplicationChannel(index, memberCount));
+            .replicationChannel(archiveReplicationChannel(index));
 
         final ChannelUri consensusChannelUri = ChannelUri.parse(context.clusterBackupContext.consensusChannel());
-        final String backupStatusEndpoint = clusterBackupStatusEndpoint(clusterId, index, memberCount);
+        final String backupStatusEndpoint = clusterBackupStatusEndpoint(index);
         consensusChannelUri.put(CommonContext.ENDPOINT_PARAM_NAME, backupStatusEndpoint);
 
         context.clusterBackupContext
@@ -446,7 +445,7 @@ public final class TestCluster implements AutoCloseable
             .clusterArchiveContext(new AeronArchive.Context()
                 .aeronDirectoryName(aeronDirName)
                 .controlRequestChannel(context.archiveContext.controlChannel())
-                .controlResponseChannel(archiveControlResponseChannel(index, memberCount)))
+                .controlResponseChannel(archiveControlResponseChannel(index)))
             .clusterDir(new File(baseDirName, "cluster-backup"))
             .credentialsSupplier(credentialsSupplier)
             .sourceType(sourceType)
@@ -479,8 +478,8 @@ public final class TestCluster implements AutoCloseable
         }
 
         context.aeronArchiveContext
-            .controlRequestChannel(archiveControlRequestChannel(backupNodeIndex, memberCount))
-            .controlResponseChannel(archiveControlResponseChannel(backupNodeIndex, memberCount))
+            .controlRequestChannel(archiveControlRequestChannel(backupNodeIndex))
+            .controlResponseChannel(archiveControlResponseChannel(backupNodeIndex))
             .aeronDirectoryName(aeronDirName);
 
         context.mediaDriverContext
@@ -500,16 +499,16 @@ public final class TestCluster implements AutoCloseable
             .recordingEventsEnabled(false)
             .threadingMode(ArchiveThreadingMode.SHARED)
             .deleteArchiveOnStart(false)
-            .replicationChannel(archiveReplicationChannel(backupNodeIndex, memberCount));
+            .replicationChannel(archiveReplicationChannel(backupNodeIndex));
 
         context.consensusModuleContext
             .clusterMemberId(backupNodeIndex)
-            .clusterMembers(singleNodeClusterMember(0, backupNodeIndex))
+            .clusterMembers(singleNodeClusterMember(backupNodeIndex))
             .appointedLeaderId(backupNodeIndex)
             .clusterDir(new File(baseDirName, "cluster-backup"))
             .ingressChannel(ingressChannel)
             .logChannel(logChannel)
-            .replicationChannel(clusterReplicationChannel(clusterId, backupNodeIndex, memberCount))
+            .replicationChannel(clusterReplicationChannel(backupNodeIndex))
             .archiveContext(context.aeronArchiveContext.clone()
                 .controlRequestChannel(ARCHIVE_LOCAL_CONTROL_CHANNEL)
                 .controlResponseChannel(ARCHIVE_LOCAL_CONTROL_CHANNEL))
@@ -1584,13 +1583,6 @@ public final class TestCluster implements AutoCloseable
     }
 
     public static String clusterMembers(
-        final int clusterId, final int initialMemberId, final int memberCount, final boolean useResponseChannels)
-    {
-        return clusterMembers(
-            clusterId, initialMemberId, initialMemberId + memberCount, memberCount, useResponseChannels);
-    }
-
-    public static String clusterMembers(
         final int clusterId,
         final int beginIndex,
         final int endIndex,
@@ -1601,7 +1593,7 @@ public final class TestCluster implements AutoCloseable
 
         for (int i = beginIndex; i < endIndex; i++)
         {
-            appendClusterMember(clusterId, memberCount, useResponseChannels, i, builder);
+            appendClusterMember(builder, clusterId, i, memberCount, useResponseChannels);
             builder.append('|');
         }
 
@@ -1611,11 +1603,11 @@ public final class TestCluster implements AutoCloseable
     }
 
     private static void appendClusterMember(
+        final StringBuilder builder,
         final int clusterId,
-        final int memberCount,
-        final boolean useResponseChannels,
         final int memberId,
-        final StringBuilder builder)
+        final int memberCount,
+        final boolean useResponseChannels)
     {
         final String hostname = hostname(memberId, memberCount);
         builder
@@ -1632,16 +1624,11 @@ public final class TestCluster implements AutoCloseable
         }
     }
 
-    public static String singleNodeClusterMember(final int clusterId, final int memberId)
+    public String singleNodeClusterMember(final int memberId)
     {
         final StringBuilder builder = new StringBuilder();
-        appendClusterMember(clusterId, 1, false, memberId, builder);
+        appendClusterMember(builder, clusterId, memberId, memberCount, false);
         return builder.toString();
-    }
-
-    public static String ingressEndpoints(final int clusterId, final int initialMemberId, final int memberCount)
-    {
-        return ingressEndpoints(clusterId, initialMemberId, initialMemberId + memberCount, memberCount);
     }
 
     public static String ingressEndpoints(
@@ -1740,13 +1727,7 @@ public final class TestCluster implements AutoCloseable
         }
     }
 
-    static String clusterConsensusEndpoints(final int clusterId, final int beginIndex, final int endIndex)
-    {
-        return clusterConsensusEndpoints(clusterId, beginIndex, endIndex, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String clusterConsensusEndpoints(
-        final int clusterId, final int beginIndex, final int endIndex, final int memberCount)
+    String clusterConsensusEndpoints(final int beginIndex, final int endIndex)
     {
         final StringBuilder builder = new StringBuilder();
 
@@ -1785,103 +1766,52 @@ public final class TestCluster implements AutoCloseable
         return ranges;
     }
 
-    static String hostname(final int memberId)
-    {
-        return hostname(memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String hostname(final int memberId, final int memberCount)
+    static String hostname(final int memberId, final int memberCount)
     {
         return memberId < memberCount ? "node" + memberId : "localhost";
     }
 
-    static String clusterBackupStatusEndpoint(final int clusterId, final int memberId)
-    {
-        return clusterBackupStatusEndpoint(clusterId, memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String clusterBackupStatusEndpoint(final int clusterId, final int memberId, final int memberCount)
+    String clusterBackupStatusEndpoint(final int memberId)
     {
         return hostname(memberId, memberCount) + ":2" + clusterId + "22" + memberId;
     }
 
-    static String archiveControlRequestChannel(final int memberId)
+    String archiveControlRequestChannel(final int memberId)
     {
-        return archiveControlRequestChannel(memberId, DEFAULT_CLUSTER_SIZE);
+        return "aeron:udp?endpoint=" + archiveControlRequestEndpoint(memberId);
     }
 
-    private static String archiveControlRequestChannel(final int memberId, final int memberCount)
-    {
-        return "aeron:udp?endpoint=" + archiveControlRequestEndpoint(memberId, memberCount);
-    }
-
-    static String archiveControlRequestEndpoint(final int memberId)
-    {
-        return archiveControlRequestEndpoint(memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String archiveControlRequestEndpoint(final int memberId, final int memberCount)
+    String archiveControlRequestEndpoint(final int memberId)
     {
         return hostname(memberId, memberCount) + ":801" + memberId;
     }
 
-    static String archiveControlResponseChannel(final int memberId)
+    String archiveControlResponseChannel(final int memberId)
     {
-        return archiveControlResponseChannel(memberId, DEFAULT_CLUSTER_SIZE);
+        return "aeron:udp?endpoint=" + archiveControlResponseEndpoint(memberId);
     }
 
-    private static String archiveControlResponseChannel(final int memberId, final int memberCount)
-    {
-        return "aeron:udp?endpoint=" + archiveControlResponseEndpoint(memberId, memberCount);
-    }
-
-    static String archiveControlResponseEndpoint(final int memberId)
-    {
-        return archiveControlResponseEndpoint(memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String archiveControlResponseEndpoint(final int memberId, final int memberCount)
+    String archiveControlResponseEndpoint(final int memberId)
     {
         return hostname(memberId, memberCount) + ":0";
     }
 
-    static String archiveReplicationChannel(final int memberId)
+    String archiveReplicationChannel(final int memberId)
     {
-        return archiveReplicationChannel(memberId, DEFAULT_CLUSTER_SIZE);
+        return "aeron:udp?endpoint=" + archiveReplicationEndpoint(memberId);
     }
 
-    private static String archiveReplicationChannel(final int memberId, final int memberCount)
-    {
-        return "aeron:udp?endpoint=" + archiveReplicationEndpoint(memberId, memberCount);
-    }
-
-    static String archiveReplicationEndpoint(final int memberId)
-    {
-        return archiveReplicationEndpoint(memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String archiveReplicationEndpoint(final int memberId, final int memberCount)
+    String archiveReplicationEndpoint(final int memberId)
     {
         return hostname(memberId, memberCount) + ":802" + memberId;
     }
 
-    static String clusterReplicationChannel(final int clusterId, final int memberId)
+    String clusterReplicationChannel(final int memberId)
     {
-        return clusterReplicationChannel(clusterId, memberId, DEFAULT_CLUSTER_SIZE);
+        return "aeron:udp?endpoint=" + clusterReplicationEndpoint(memberId) + "|linger=5000000000";
     }
 
-    private static String clusterReplicationChannel(final int clusterId, final int memberId, final int memberCount)
-    {
-        return "aeron:udp?endpoint=" + clusterReplicationEndpoint(clusterId, memberId, memberCount) +
-            "|linger=5000000000";
-    }
-
-    static String clusterReplicationEndpoint(final int clusterId, final int memberId)
-    {
-        return clusterReplicationEndpoint(clusterId, memberId, DEFAULT_CLUSTER_SIZE);
-    }
-
-    private static String clusterReplicationEndpoint(final int clusterId, final int memberId, final int memberCount)
+    String clusterReplicationEndpoint(final int memberId)
     {
         return hostname(memberId, memberCount) + ":2" + clusterId + "55" + memberId;
     }
