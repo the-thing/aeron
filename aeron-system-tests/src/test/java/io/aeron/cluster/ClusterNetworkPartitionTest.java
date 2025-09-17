@@ -174,18 +174,22 @@ class ClusterNetworkPartitionTest
 
         final int messagesReceivedByMinority = 300;
         cluster.sendMessages(messagesReceivedByMinority); // these messages will be only received by 2 out of 5 nodes
+        final long firstLeaderLogRecordingId =
+            RecordingPos.getRecordingId(firstLeader.mediaDriver().counters(), firstLeader.logRecordingCounterId());
 
         // await leader to record all ingress messages
-        try (AeronArchive aeronArchive = AeronArchive.connect(
-            firstLeader.consensusModule().context().archiveContext().clientName("test").clone()))
+        try (AeronArchive aeronArchive = AeronArchive.connect(new AeronArchive.Context()
+            .clientName("test")
+            .aeronDirectoryName(cluster.startClientMediaDriver().aeronDirectoryName())
+            .controlRequestChannel(firstLeader.archive().context().controlChannel())
+            .controlRequestStreamId(firstLeader.archive().context().controlStreamId())
+            .controlResponseChannel("aeron:udp?endpoint=localhost:0")))
         {
             final Aeron aeron = aeronArchive.context().aeron();
-            final CountersReader countersReader = aeron.countersReader();
-            final long recordingId = RecordingPos.getRecordingId(countersReader, firstLeader.logRecordingCounterId());
             final String replayChannel = "aeron:udp?endpoint=localhost:18181";
             final int replayStreamId = 1111;
             final long replaySubscriptionId = aeronArchive.startReplay(
-                recordingId, 0, AeronArchive.REPLAY_ALL_AND_FOLLOW, replayChannel, replayStreamId);
+                firstLeaderLogRecordingId, 0, AeronArchive.REPLAY_ALL_AND_FOLLOW, replayChannel, replayStreamId);
             final int sessionId = (int)replaySubscriptionId;
             final Subscription subscription =
                 aeron.addSubscription(ChannelUri.addSessionId(replayChannel, sessionId), replayStreamId);
