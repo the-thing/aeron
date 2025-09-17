@@ -135,6 +135,9 @@ if (UNIX)
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "11.0")
         add_compile_options(-Wno-error=maybe-uninitialized)
+    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "21.0")
+        # See gtest: https://github.com/google/googletest/issues/4762
+        add_compile_options(-Wno-error=character-conversion)
     endif ()
 
     if (C_WARNINGS_AS_ERRORS)
