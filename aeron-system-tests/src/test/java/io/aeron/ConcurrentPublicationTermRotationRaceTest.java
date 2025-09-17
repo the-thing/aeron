@@ -17,7 +17,11 @@ package io.aeron;
 
 import io.aeron.driver.MediaDriver;
 import io.aeron.logbuffer.BufferClaim;
-import io.aeron.test.*;
+import io.aeron.test.InterruptAfter;
+import io.aeron.test.InterruptingTestCallback;
+import io.aeron.test.SlowTest;
+import io.aeron.test.SystemTestWatcher;
+import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
@@ -57,11 +61,12 @@ class ConcurrentPublicationTermRotationRaceTest
     @BeforeEach
     void setup()
     {
-        final String aeronDir = CommonContext.AERON_DIR_PROP_DEFAULT + "-concurrent-publication";
-        mediaDriver = TestMediaDriver.launch(
-            new MediaDriver.Context().dirDeleteOnStart(true).aeronDirectoryName(aeronDir), systemTestWatcher);
+        mediaDriver = TestMediaDriver.launch(new MediaDriver.Context()
+                .dirDeleteOnStart(true)
+                .aeronDirectoryName(CommonContext.generateRandomDirName()),
+            systemTestWatcher);
         systemTestWatcher.dataCollector().add(mediaDriver.context().aeronDirectory());
-        aeron = Aeron.connect(new Aeron.Context().aeronDirectoryName(aeronDir));
+        aeron = Aeron.connect(new Aeron.Context().aeronDirectoryName(mediaDriver.aeronDirectoryName()));
     }
 
     @AfterEach
@@ -99,8 +104,8 @@ class ConcurrentPublicationTermRotationRaceTest
             {
                 final ConcurrentPublication publication = aeron.addPublication(channel, streamId);
                 final MessagePublisher publisher = (i & 1) == 0 ?
-                new OfferMessagePublisher(publication, 8160, "offer-" + i, startLatch, errors) :
-                new TryClaimMessagePublisher(publication, 7777, "try-claim", startLatch, errors);
+                    new OfferMessagePublisher(publication, 8160, "offer-" + i, startLatch, errors) :
+                    new TryClaimMessagePublisher(publication, 7777, "try-claim", startLatch, errors);
 
                 publishers.add(publisher);
                 publisherIds.add(publisher.publisherId);
@@ -118,8 +123,8 @@ class ConcurrentPublicationTermRotationRaceTest
             final ImageFragmentAssembler fragmentHandler = new ImageFragmentAssembler(
                 (buffer, offset, length, header) ->
                 {
-                    final long threadId = buffer.getLong(offset, LITTLE_ENDIAN);
-                    assertTrue(publisherIds.contains(threadId));
+                    final long publisherId = buffer.getLong(offset, LITTLE_ENDIAN);
+                    assertTrue(publisherIds.contains(publisherId));
                     msgCount.increment();
                 });
             final Supplier<String> errorMessageSupplier = () -> "missing messages: expected=" + NUM_MESSAGES +
