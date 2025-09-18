@@ -494,6 +494,8 @@ public final class NetworkPublication
             initialTermId,
             positionBitsToShift,
             timeNs));
+
+        updateConnectedState(hasSubscribers());
     }
 
     /**
@@ -1106,6 +1108,7 @@ public final class NetworkPublication
                 }
                 else
                 {
+                    checkUntetheredSubscriptions(timeNs, conductor);
                     updateConnectedState(hasSubscribers());
                     final long producerPosition = producerPosition();
                     publisherPos.setRelease(producerPosition);
@@ -1113,7 +1116,6 @@ public final class NetworkPublication
                     {
                         checkForBlockedPublisher(producerPosition, senderPosition.getVolatile(), timeNs);
                     }
-                    checkUntetheredSubscriptions(timeNs, conductor);
                 }
                 break;
             }
