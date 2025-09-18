@@ -241,7 +241,11 @@ public final class CTestMediaDriver implements TestMediaDriver
         environment.put("AERON_TIMER_INTERVAL", String.valueOf(context.timerIntervalNs()));
         environment.put(
             "AERON_UNTETHERED_WINDOW_LIMIT_TIMEOUT", String.valueOf(context.untetheredWindowLimitTimeoutNs()));
-        environment.put("AERON_UNTETHERED_LINGER_TIMEOUT", String.valueOf(context.untetheredLingerTimeoutNs()));
+        final long untetheredLingerTimeoutNs = context.untetheredLingerTimeoutNs();
+        if (Aeron.NULL_VALUE != untetheredLingerTimeoutNs)
+        {
+            environment.put("AERON_UNTETHERED_LINGER_TIMEOUT", String.valueOf(untetheredLingerTimeoutNs));
+        }
         environment.put("AERON_UNTETHERED_RESTING_TIMEOUT", String.valueOf(context.untetheredRestingTimeoutNs()));
 
         if (null != context.receiverGroupTag())
