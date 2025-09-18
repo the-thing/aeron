@@ -105,14 +105,15 @@ class UntetheredSubscriptionTest
         {
             context.untetheredWindowLimitTimeoutNs(TimeUnit.MILLISECONDS.toNanos(50));
         }
+
         if (!channelUri.containsKey(CommonContext.UNTETHERED_LINGER_TIMEOUT_PARAM_NAME))
         {
-            context.untetheredWindowLimitTimeoutNs(TimeUnit.MILLISECONDS.toNanos(25));
+            context.untetheredLingerTimeoutNs(TimeUnit.MILLISECONDS.toNanos(25));
         }
 
         if (!channelUri.containsKey(CommonContext.UNTETHERED_RESTING_TIMEOUT_PARAM_NAME))
         {
-            context.untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(50));
+            context.untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(100));
         }
 
         driver = TestMediaDriver.launch(context, testWatcher);
