@@ -97,13 +97,13 @@ class UntetheredSubscriptionTest
             .errorHandler(Tests::onError)
             .spiesSimulateConnection(true)
             .dirDeleteOnStart(true)
-            .timerIntervalNs(TimeUnit.MILLISECONDS.toNanos(10))
+            .timerIntervalNs(TimeUnit.MICROSECONDS.toNanos(17381))
             .threadingMode(ThreadingMode.SHARED);
 
         final ChannelUri channelUri = ChannelUri.parse(channel);
         if (!channelUri.containsKey(CommonContext.UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME))
         {
-            context.untetheredWindowLimitTimeoutNs(TimeUnit.MILLISECONDS.toNanos(50));
+            context.untetheredWindowLimitTimeoutNs(TimeUnit.MILLISECONDS.toNanos(59));
         }
 
         if (!channelUri.containsKey(CommonContext.UNTETHERED_LINGER_TIMEOUT_PARAM_NAME))
@@ -113,7 +113,7 @@ class UntetheredSubscriptionTest
 
         if (!channelUri.containsKey(CommonContext.UNTETHERED_RESTING_TIMEOUT_PARAM_NAME))
         {
-            context.untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(100));
+            context.untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(111));
         }
 
         driver = TestMediaDriver.launch(context, testWatcher);
@@ -354,8 +354,8 @@ class UntetheredSubscriptionTest
             else
             {
                 final long startNs = System.nanoTime();
-                final long endNs = startNs + driver.context().untetheredWindowLimitTimeoutNs() +
-                    5 * driver.context().untetheredRestingTimeoutNs();
+                final long endNs = startNs +
+                    10 * Math.max(driver.context().timerIntervalNs(), driver.context().untetheredRestingTimeoutNs());
                 do
                 {
                     assertFalse(publication.isConnected());
