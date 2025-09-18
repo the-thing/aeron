@@ -20,6 +20,7 @@ import io.aeron.driver.ThreadingMode;
 import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.LogBufferDescriptor;
 import io.aeron.protocol.DataHeaderFlyweight;
+import io.aeron.test.EventLogExtension;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
@@ -28,12 +29,12 @@ import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -41,33 +42,35 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static java.util.Arrays.asList;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-@ExtendWith(InterruptingTestCallback.class)
+@ExtendWith({ EventLogExtension.class, InterruptingTestCallback.class })
 class UntetheredSubscriptionTest
 {
     private static List<String> channels()
     {
         return asList(
             "aeron:ipc?term-length=64k",
-
             "aeron:udp?endpoint=localhost:24325|term-length=64k",
             "aeron-spy:aeron:udp?endpoint=localhost:24325|term-length=64k",
-
-            "aeron:ipc?term-length=64k|untethered-window-limit-timeout=50ms|" +
-            "untethered-resting-timeout=50ms|untethered-linger-timeout=25ms",
-
-            "aeron:udp?endpoint=localhost:24325|term-length=64k|" +
-            "untethered-window-limit-timeout=50ms|untethered-resting-timeout=50ms|" +
-            "untethered-linger-timeout=25ms",
-
-            "aeron-spy:aeron:udp?endpoint=localhost:24325|term-length=64k|" +
-            "untethered-window-limit-timeout=50ms|untethered-resting-timeout=50ms|" +
-            "untethered-linger-timeout=25ms"
+            """
+                aeron:ipc?term-length=64k|untethered-window-limit-timeout=50ms|\
+                untethered-resting-timeout=50ms|untethered-linger-timeout=25ms""",
+            """
+                aeron:udp?endpoint=localhost:24325|term-length=64k|\
+                untethered-window-limit-timeout=50ms|untethered-resting-timeout=50ms|\
+                untethered-linger-timeout=25ms""",
+            """
+                aeron-spy:aeron:udp?endpoint=localhost:24325|term-length=64k|\
+                untethered-window-limit-timeout=50ms|untethered-resting-timeout=50ms|\
+                untethered-linger-timeout=25ms"""
         );
     }
 
@@ -81,11 +84,6 @@ class UntetheredSubscriptionTest
     private TestMediaDriver driver;
 
     private Aeron aeron;
-
-    @BeforeEach
-    void setUp()
-    {
-    }
 
     @AfterEach
     void after()
@@ -258,15 +256,13 @@ class UntetheredSubscriptionTest
         launch("aeron:ipc");
 
         final int streamId = 1142;
-        final ChannelUriStringBuilder publicationBuilder =
-            new ChannelUriStringBuilder(channel)
+        final ChannelUriStringBuilder publicationBuilder = new ChannelUriStringBuilder(channel)
             .untetheredWindowLimitTimeoutNs(TimeUnit.MILLISECONDS.toNanos(150))
             .untetheredLingerTimeoutNs(TimeUnit.MILLISECONDS.toNanos(68))
             .untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(140));
         final ExclusivePublication publication = aeron.addExclusivePublication(publicationBuilder.build(), streamId);
 
-        final ChannelUriStringBuilder subscriptionBuilder =
-            new ChannelUriStringBuilder(channel)
+        final ChannelUriStringBuilder subscriptionBuilder = new ChannelUriStringBuilder(channel)
             .untetheredWindowLimitTimeoutNs(TimeUnit.SECONDS.toNanos(200))
             .untetheredLingerTimeoutNs(TimeUnit.SECONDS.toNanos(300))
             .untetheredRestingTimeoutNs(TimeUnit.SECONDS.toNanos(444));
@@ -289,6 +285,85 @@ class UntetheredSubscriptionTest
             subscriptionBuilder.untetheredWindowLimitTimeoutNs(),
             subscriptionBuilder.untetheredLingerTimeoutNs(),
             subscriptionBuilder.untetheredRestingTimeoutNs());
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    @SuppressWarnings("try")
+    @InterruptAfter(10)
+    void shouldSetConnectedStatusCorrectlyWhenUntetheredSpyReconnectsAfterResting(final boolean spiesSimulateConnection)
+    {
+        TestMediaDriver.notSupportedOnCMediaDriver("pending fixes");
+        final String channel =
+            "aeron:udp?endpoint=localhost:5596|term-length=64k|tether=false|ssc=" + spiesSimulateConnection;
+        launch(channel);
+
+        final AtomicLong spyUnavailableImageCount = new AtomicLong();
+        final AtomicLong spyAvailableImageCount = new AtomicLong();
+        try (Publication publication = aeron.addExclusivePublication(channel, STREAM_ID);
+            Subscription subscription = aeron.addSubscription(channel, STREAM_ID);
+            Subscription spy = aeron.addSubscription(
+                CommonContext.SPY_PREFIX + channel,
+                STREAM_ID,
+                (image) -> spyAvailableImageCount.incrementAndGet(),
+                (image) -> spyUnavailableImageCount.incrementAndGet()))
+        {
+            while (!publication.isConnected() || !subscription.isConnected() || !spy.isConnected())
+            {
+                Tests.yield();
+                aeron.conductorAgentInvoker().invoke();
+            }
+            assertEquals(1, spyAvailableImageCount.get());
+
+            final UnsafeBuffer data = new UnsafeBuffer(new byte[1024]);
+            ThreadLocalRandom.current().nextBytes(data.byteArray());
+            final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {};
+            while (0 == spyUnavailableImageCount.get())
+            {
+                if (publication.offer(data) > 0)
+                {
+                    while (0 == subscription.poll(fragmentHandler, 1))
+                    {
+                        Tests.yield();
+                    }
+                }
+
+                Tests.yield();
+                aeron.conductorAgentInvoker().invoke();
+            }
+
+            subscription.close();
+            while (2 != spyAvailableImageCount.get()) // wait for spy to re-connect
+            {
+                Tests.yield();
+                aeron.conductorAgentInvoker().invoke();
+            }
+
+            assertEquals(1, spyUnavailableImageCount.get());
+            assertEquals(publication.position(), spy.imageAtIndex(0).position());
+
+            if (spiesSimulateConnection)
+            {
+                while (!publication.isConnected() || !spy.isConnected())
+                {
+                    Tests.yield();
+                    aeron.conductorAgentInvoker().invoke();
+                }
+            }
+            else
+            {
+                final long startNs = System.nanoTime();
+                final long endNs = startNs + driver.context().untetheredWindowLimitTimeoutNs() +
+                    5 * driver.context().untetheredRestingTimeoutNs();
+                do
+                {
+                    assertFalse(publication.isConnected());
+                    assertFalse(publication.isClosed());
+                    assertThat(publication.availableWindow(), lessThanOrEqualTo(0L));
+                }
+                while (System.nanoTime() < endNs);
+            }
+        }
     }
 
     private void assertUntetheredParametersInLogBufferMetadata(

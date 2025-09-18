@@ -105,7 +105,8 @@ class NetworkPublicationSenderFields extends NetworkPublicationPadding2
     boolean trackSenderLimits = false;
     boolean isSetupElicited = false;
     boolean hasInitialConnection = false;
-    InetSocketAddress endpointAddress = null;
+    byte extraPaddingByteForAlignment;
+    InetSocketAddress endpointAddress;
 }
 
 class NetworkPublicationPadding3 extends NetworkPublicationSenderFields
@@ -149,17 +150,18 @@ public final class NetworkPublication
     private final int sessionId;
     private final int streamId;
     private final boolean isExclusive;
-    private final boolean spiesSimulateConnection;
     private final boolean signalEos;
     private final boolean isResponse;
-    private volatile boolean hasReceivers;
+    private final boolean spiesSimulateConnection;
     private volatile boolean hasSpies;
+    private volatile boolean hasReceivers;
     private volatile boolean isConnected;
     private volatile boolean isEndOfStream;
     private volatile boolean hasSenderReleased;
     private volatile boolean hasReceivedUnicastEos;
     private State state = State.ACTIVE;
 
+    private final FlowControl flowControl;
     private final UnsafeBuffer[] termBuffers;
     private final ByteBuffer[] sendBuffers;
     private final ErrorHandler errorHandler;
@@ -174,7 +176,6 @@ public final class NetworkPublication
     private final SetupFlyweight setupHeader;
     private final ByteBuffer rttMeasurementBuffer;
     private final RttMeasurementFlyweight rttMeasurementHeader;
-    private final FlowControl flowControl;
     private final CachedNanoClock cachedNanoClock;
     private final RetransmitHandler retransmitHandler;
     private final UnsafeBuffer metaDataBuffer;
@@ -399,12 +400,6 @@ public final class NetworkPublication
         {
             untetheredSubscriptions.add(new UntetheredSubscription(subscriptionLink, position, nowNs));
         }
-
-        if (spiesSimulateConnection)
-        {
-            LogBufferDescriptor.isConnected(metaDataBuffer, true);
-            isConnected = true;
-        }
     }
 
     /**
@@ -499,13 +494,6 @@ public final class NetworkPublication
             initialTermId,
             positionBitsToShift,
             timeNs));
-
-        final boolean expectedStatus = hasReceivers && flowControl.hasRequiredReceivers();
-        if (isConnected != expectedStatus)
-        {
-            LogBufferDescriptor.isConnected(metaDataBuffer, expectedStatus);
-            isConnected = expectedStatus;
-        }
     }
 
     /**
@@ -759,7 +747,7 @@ public final class NetworkPublication
 
             publisherPos.setRelease(producerPosition);
 
-            if (hasRequiredReceivers() || (spiesSimulateConnection && spyPositions.length > 0))
+            if (hasSubscribers())
             {
                 long minConsumerPosition = senderPosition;
                 for (final ReadablePosition spyPosition : spyPositions)
@@ -786,11 +774,7 @@ public final class NetworkPublication
             }
             else if (publisherLimit.get() > senderPosition)
             {
-                if (isConnected)
-                {
-                    LogBufferDescriptor.isConnected(metaDataBuffer, false);
-                    isConnected = false;
-                }
+                updateConnectedState(false);
                 publisherLimit.setRelease(senderPosition);
                 cleanBufferTo(senderPosition - termBufferLength);
                 workCount = 1;
@@ -1028,21 +1012,18 @@ public final class NetworkPublication
         return position;
     }
 
-    private void updateConnectedStatus()
+    private void updateConnectedState(final boolean newConnectedState)
     {
-        final boolean currentConnectedState =
-            hasRequiredReceivers() || (spiesSimulateConnection && spyPositions.length > 0);
-
-        if (currentConnectedState != isConnected)
+        if (newConnectedState != isConnected)
         {
-            LogBufferDescriptor.isConnected(metaDataBuffer, currentConnectedState);
-            isConnected = currentConnectedState;
+            LogBufferDescriptor.isConnected(metaDataBuffer, newConnectedState);
+            isConnected = newConnectedState;
         }
     }
 
-    private boolean hasRequiredReceivers()
+    private boolean hasSubscribers()
     {
-        return hasReceivers && flowControl.hasRequiredReceivers();
+        return (spiesSimulateConnection && hasSpies) || (hasReceivers && flowControl.hasRequiredReceivers());
     }
 
     private void checkUntetheredSubscriptions(final long nowNs, final DriverConductor conductor)
@@ -1091,7 +1072,6 @@ public final class NetworkPublication
                             rawLog.fileName(),
                             CommonContext.IPC_CHANNEL);
                         untethered.state(UntetheredSubscription.State.ACTIVE, nowNs, streamId, sessionId);
-                        LogBufferDescriptor.isConnected(metaDataBuffer, true);
                     }
                 }
             }
@@ -1112,7 +1092,8 @@ public final class NetworkPublication
                     final long revokedPos = producerPosition();
                     publisherLimit.setRelease(revokedPos);
                     endOfStreamPosition(metaDataBuffer, revokedPos);
-                    LogBufferDescriptor.isConnected(metaDataBuffer, false);
+                    updateConnectedState(false);
+                    isConnected = false;
 
                     isEndOfStream = true;
 
@@ -1125,7 +1106,7 @@ public final class NetworkPublication
                 }
                 else
                 {
-                    updateConnectedStatus();
+                    updateConnectedState(hasSubscribers());
                     final long producerPosition = producerPosition();
                     publisherPos.setRelease(producerPosition);
                     if (!isExclusive)
