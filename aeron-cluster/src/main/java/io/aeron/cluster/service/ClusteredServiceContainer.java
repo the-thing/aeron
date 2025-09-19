@@ -401,8 +401,8 @@ public final class ClusteredServiceContainer implements AutoCloseable
         @Config(
             id = "SERVICE_CYCLE_THRESHOLD",
             defaultType = DefaultType.LONG,
-            defaultLong = 1000L * 1000 * 1000)
-        public static final long CYCLE_THRESHOLD_DEFAULT_NS = TimeUnit.MILLISECONDS.toNanos(1000);
+            defaultLong = 1_000_000L)
+        public static final long CYCLE_THRESHOLD_DEFAULT_NS = TimeUnit.MILLISECONDS.toNanos(1);
 
         /**
          * Property name for threshold value, which is used for tracking snapshot duration breaches.

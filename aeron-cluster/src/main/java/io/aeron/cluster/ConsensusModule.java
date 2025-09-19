@@ -828,8 +828,8 @@ public final class ConsensusModule implements AutoCloseable
         /**
          * Default threshold value for the consensus module agent work cycle threshold to track for being exceeded.
          */
-        @Config(defaultType = DefaultType.LONG, defaultLong = 1000L * 1000 * 1000)
-        public static final long CYCLE_THRESHOLD_DEFAULT_NS = TimeUnit.MILLISECONDS.toNanos(1000);
+        @Config(defaultType = DefaultType.LONG, defaultLong = 1_000_000L)
+        public static final long CYCLE_THRESHOLD_DEFAULT_NS = TimeUnit.MILLISECONDS.toNanos(1);
 
         /**
          * Property name for threshold value, which is used for tracking total snapshot duration breaches.
