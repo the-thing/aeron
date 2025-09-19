@@ -193,8 +193,9 @@ static void aeron_driver_untethered_subscription_state_change_null(
 #define AERON_RETRANSMIT_UNICAST_LINGER_NS_DEFAULT (10 * 1000 * INT64_C(1000))
 #define AERON_NAK_MULTICAST_GROUP_SIZE_DEFAULT (10)
 #define AERON_NAK_MULTICAST_MAX_BACKOFF_NS_DEFAULT (10 * 1000 * INT64_C(1000))
-#define AERON_NAK_UNICAST_DELAY_NS_DEFAULT (100 * INT64_C(1000))
-#define AERON_NAK_UNICAST_RETRY_DELAY_RATIO_DEFAULT (100)
+#define AERON_NAK_UNICAST_DELAY_NS_MIN UINT64_C(1000)
+#define AERON_NAK_UNICAST_DELAY_NS_DEFAULT (AERON_NAK_UNICAST_DELAY_NS_MIN)
+#define AERON_NAK_UNICAST_RETRY_DELAY_RATIO_DEFAULT UINT64_C(100)
 #define AERON_UDP_CHANNEL_TRANSPORT_BINDINGS_MEDIA_DEFAULT ("default")
 #define AERON_UDP_CHANNEL_TRANSPORT_BINDINGS_INTERCEPTORS_DEFAULT ("")
 #define AERON_RECEIVER_GROUP_CONSIDERATION_DEFAULT (AERON_INFER)
@@ -829,15 +830,26 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
         AERON_NAK_UNICAST_DELAY_ENV_VAR,
         getenv(AERON_NAK_UNICAST_DELAY_ENV_VAR),
         _context->nak_unicast_delay_ns,
-        1000,
+        AERON_NAK_UNICAST_DELAY_NS_MIN,
         INT64_MAX);
 
-    _context->receiver_group_tag.value = aeron_config_parse_int64(
+    _context->nak_unicast_retry_delay_ratio = aeron_config_parse_int64(
         AERON_NAK_UNICAST_RETRY_DELAY_RATIO_ENV_VAR,
         getenv(AERON_NAK_UNICAST_RETRY_DELAY_RATIO_ENV_VAR),
         (int64_t)_context->nak_unicast_retry_delay_ratio,
         1,
         INT64_MAX);
+
+    if ((_context->nak_unicast_delay_ns * _context->nak_unicast_retry_delay_ratio) > (uint64_t)INT64_MAX)
+    {
+        AERON_SET_ERR(
+            EINVAL,
+            "nak_unicast_delay_ns (%" PRIu64 ") * nak_unicast_retry_delay_ratio (%" PRIu64 ") exceeds %" PRIi64 "",
+            _context->nak_unicast_delay_ns,
+            _context->nak_unicast_retry_delay_ratio,
+            INT64_MAX);
+        goto error;
+    }
 
     _context->publication_reserved_session_id_low = aeron_config_parse_int32(
         AERON_PUBLICATION_RESERVED_SESSION_ID_LOW_ENV_VAR,
