@@ -400,7 +400,10 @@ public final class NetworkPublication
             untetheredSubscriptions.add(new UntetheredSubscription(subscriptionLink, position, nowNs));
         }
 
-        updateConnectedState(hasSubscribers());
+        if (spiesSimulateConnection)
+        {
+            updateConnectedState(true);
+        }
     }
 
     /**
@@ -423,7 +426,10 @@ public final class NetworkPublication
             }
         }
 
-        updateConnectedState(hasSubscribers());
+        if (spiesSimulateConnection)
+        {
+            updateConnectedState(hasSubscribers());
+        }
     }
 
     /**
