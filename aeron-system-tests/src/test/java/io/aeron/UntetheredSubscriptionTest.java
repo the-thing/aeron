@@ -98,7 +98,8 @@ class UntetheredSubscriptionTest
             .errorHandler(Tests::onError)
             .spiesSimulateConnection(true)
             .dirDeleteOnStart(true)
-            .timerIntervalNs(TimeUnit.MICROSECONDS.toNanos(7654))
+            .timerIntervalNs(TimeUnit.MILLISECONDS.toNanos(3))
+            .statusMessageTimeoutNs(TimeUnit.MILLISECONDS.toNanos(50))
             .threadingMode(ThreadingMode.SHARED);
 
         final ChannelUri channelUri = ChannelUri.parse(channel);
@@ -348,7 +349,8 @@ class UntetheredSubscriptionTest
 
             if (spiesSimulateConnection)
             {
-                while (!publication.isConnected() || !spy.isConnected())
+                assertTrue(spy.isConnected());
+                while (!publication.isConnected())
                 {
                     Tests.yield();
                     aeron.conductorAgentInvoker().invoke();
@@ -357,8 +359,7 @@ class UntetheredSubscriptionTest
             else
             {
                 final long startNs = System.nanoTime();
-                final long endNs = startNs +
-                    10 * Math.max(driver.context().timerIntervalNs(), driver.context().untetheredRestingTimeoutNs());
+                final long endNs = startNs + 5 * driver.context().untetheredRestingTimeoutNs();
                 do
                 {
                     assertFalse(publication.isConnected());
