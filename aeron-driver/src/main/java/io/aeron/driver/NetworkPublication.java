@@ -399,6 +399,8 @@ public final class NetworkPublication
         {
             untetheredSubscriptions.add(new UntetheredSubscription(subscriptionLink, position, nowNs));
         }
+
+        updateConnectedState(hasSubscribers());
     }
 
     /**
@@ -420,6 +422,8 @@ public final class NetworkPublication
                 }
             }
         }
+
+        updateConnectedState(hasSubscribers());
     }
 
     /**
