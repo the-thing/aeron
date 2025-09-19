@@ -641,6 +641,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @SuppressWarnings("MethodLength")
         public Context conclude()
         {
             super.conclude();
@@ -671,6 +672,12 @@ public final class MediaDriver implements AutoCloseable
                     publicationTermWindowLength, 0, TERM_MAX_LENGTH, "publicationTermWindowLength");
                 validateValueRange(
                     ipcPublicationTermWindowLength, 0, TERM_MAX_LENGTH, "ipcPublicationTermWindowLength");
+
+                validateValueRange(
+                    nakUnicastDelayNs, NAK_UNICAST_DELAY_MIN_VALUE_NS, Long.MAX_VALUE, "nakUnicastDelayNs");
+                validateValueRange(
+                    nakUnicastRetryDelayRatio, 1, Long.MAX_VALUE, "nakUnicastRetryDelayRatio");
+                Math.multiplyExact(nakUnicastDelayNs, nakUnicastRetryDelayRatio);
 
                 validateSessionIdRange(publicationReservedSessionIdLow, publicationReservedSessionIdHigh);
 

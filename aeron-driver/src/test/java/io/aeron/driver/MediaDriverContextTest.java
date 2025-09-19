@@ -34,6 +34,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -57,6 +58,7 @@ import static io.aeron.driver.Configuration.ERROR_BUFFER_LENGTH_DEFAULT;
 import static io.aeron.driver.Configuration.LOSS_REPORT_BUFFER_LENGTH_DEFAULT;
 import static io.aeron.driver.Configuration.NAK_MAX_BACKOFF_DEFAULT_NS;
 import static io.aeron.driver.Configuration.NAK_MULTICAST_MAX_BACKOFF_PROP_NAME;
+import static io.aeron.driver.Configuration.NAK_UNICAST_DELAY_MIN_VALUE_NS;
 import static io.aeron.driver.Configuration.UNTETHERED_LINGER_TIMEOUT_PROP_NAME;
 import static io.aeron.driver.Configuration.UNTETHERED_WINDOW_LIMIT_TIMEOUT_DEFAULT_NS;
 import static io.aeron.driver.Configuration.UNTETHERED_WINDOW_LIMIT_TIMEOUT_PROP_NAME;
@@ -446,5 +448,59 @@ class MediaDriverContextTest
     {
         final Context ctx = new Context().untetheredWindowLimitTimeoutNs(35326745);
         assertEquals(Aeron.NULL_VALUE, ctx.untetheredLingerTimeoutNs());
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = { Long.MIN_VALUE, -1, 0, NAK_UNICAST_DELAY_MIN_VALUE_NS - 1 })
+    void shouldRejectInvalidNakUnicastDelay(final long nakUnicastDelayNs)
+    {
+        context.nakUnicastDelayNs(nakUnicastDelayNs);
+
+        final ConfigurationException exception =
+            assertThrowsExactly(ConfigurationException.class, context::conclude);
+        assertEquals(
+            "ERROR - nakUnicastDelayNs less than min size of " + NAK_UNICAST_DELAY_MIN_VALUE_NS + ": " +
+                nakUnicastDelayNs,
+            exception.getMessage());
+    }
+
+    @Test
+    void shouldAcceptMinNakUnicastDelay(final @TempDir Path tempDir)
+    {
+        context
+            .aeronDirectoryName(tempDir.toString())
+            .nakUnicastDelayNs(NAK_UNICAST_DELAY_MIN_VALUE_NS);
+
+        context.conclude();
+
+        assertEquals(NAK_UNICAST_DELAY_MIN_VALUE_NS, context.nakUnicastDelayNs());
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = { Long.MIN_VALUE, -1, 0 })
+    void shouldRejectInvalidNakUnicastRetryDelayRatio(final long nakUnicastRetryDelayRatio)
+    {
+        context.nakUnicastRetryDelayRatio(nakUnicastRetryDelayRatio);
+
+        final ConfigurationException exception =
+            assertThrowsExactly(ConfigurationException.class, context::conclude);
+        assertEquals(
+            "ERROR - nakUnicastRetryDelayRatio less than min size of 1: " +
+                nakUnicastRetryDelayRatio,
+            exception.getMessage());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"5000000000,1000000000000"})
+    void shouldRejectInvalidNakUnicastDelayRetryCombination(
+        final long nakUnicastDelayNs, final long nakUnicastRetryDelayRatio)
+    {
+        context
+            .nakUnicastDelayNs(nakUnicastDelayNs)
+            .nakUnicastRetryDelayRatio(nakUnicastRetryDelayRatio);
+
+        final ArithmeticException exception =
+            assertThrowsExactly(ArithmeticException.class, context::conclude);
+        assertEquals("long overflow", exception.getMessage());
     }
 }

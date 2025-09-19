@@ -827,15 +827,19 @@ public final class Configuration
     public static final String NAK_UNICAST_DELAY_PROP_NAME = "aeron.nak.unicast.delay";
 
     /**
+     * Minimum supported value for {@link #NAK_UNICAST_DELAY_PROP_NAME} which is {@code 1us} (one microsecond).
+     */
+    public static final long NAK_UNICAST_DELAY_MIN_VALUE_NS = 1000L;
+
+    /**
      * Default Unicast NAK delay in nanoseconds.
      */
     @Config(
         expectedCDefaultFieldName = "AERON_NAK_UNICAST_DELAY_NS_DEFAULT",
         isTimeValue = Config.IsTimeValue.TRUE,
         timeUnit = TimeUnit.NANOSECONDS,
-        defaultType = DefaultType.LONG,
-        defaultLong = 100 * 1000)
-    public static final long NAK_UNICAST_DELAY_DEFAULT_NS = TimeUnit.MICROSECONDS.toNanos(100);
+        defaultLong = NAK_UNICAST_DELAY_MIN_VALUE_NS)
+    public static final long NAK_UNICAST_DELAY_DEFAULT_NS = NAK_UNICAST_DELAY_MIN_VALUE_NS;
 
     /**
      * Unicast NAK retry delay ratio property name.
@@ -1359,9 +1363,7 @@ public final class Configuration
      */
     public static long nakUnicastRetryDelayRatio()
     {
-        final long ratio = getLong(NAK_UNICAST_RETRY_DELAY_RATIO_PROP_NAME, NAK_UNICAST_RETRY_DELAY_RATIO_DEFAULT);
-        validateValueRange(ratio, 1, Long.MAX_VALUE, NAK_UNICAST_RETRY_DELAY_RATIO_PROP_NAME);
-        return ratio;
+        return getSizeAsLong(NAK_UNICAST_RETRY_DELAY_RATIO_PROP_NAME, NAK_UNICAST_RETRY_DELAY_RATIO_DEFAULT);
     }
 
     /**
