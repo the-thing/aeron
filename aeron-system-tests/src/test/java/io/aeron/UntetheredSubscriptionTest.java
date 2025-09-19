@@ -94,10 +94,11 @@ class UntetheredSubscriptionTest
     private void launch(final String channel)
     {
         final MediaDriver.Context context = new MediaDriver.Context()
+            .aeronDirectoryName(CommonContext.generateRandomDirName())
             .errorHandler(Tests::onError)
             .spiesSimulateConnection(true)
             .dirDeleteOnStart(true)
-            .timerIntervalNs(TimeUnit.MICROSECONDS.toNanos(17381))
+            .timerIntervalNs(TimeUnit.MICROSECONDS.toNanos(7654))
             .threadingMode(ThreadingMode.SHARED);
 
         final ChannelUri channelUri = ChannelUri.parse(channel);
@@ -118,7 +119,9 @@ class UntetheredSubscriptionTest
 
         driver = TestMediaDriver.launch(context, testWatcher);
         testWatcher.dataCollector().add(driver.context().aeronDirectory());
-        aeron = Aeron.connect(new Aeron.Context().useConductorAgentInvoker(true));
+        aeron = Aeron.connect(new Aeron.Context()
+            .aeronDirectoryName(driver.aeronDirectoryName())
+            .useConductorAgentInvoker(true));
     }
 
     @ParameterizedTest

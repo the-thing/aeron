@@ -393,8 +393,7 @@ public final class NetworkPublication
     public void addSubscriber(
         final SubscriptionLink subscriptionLink, final ReadablePosition position, final long nowNs)
     {
-        spyPositions = ArrayUtil.add(spyPositions, position);
-        hasSpies = true;
+        addSpyPosition(position);
 
         if (!subscriptionLink.isTether())
         {
@@ -407,8 +406,7 @@ public final class NetworkPublication
      */
     public void removeSubscriber(final SubscriptionLink subscriptionLink, final ReadablePosition position)
     {
-        spyPositions = ArrayUtil.remove(spyPositions, position);
-        hasSpies = spyPositions.length > 0;
+        removeSpyPosition(position);
         position.close();
 
         if (!subscriptionLink.isTether())
@@ -730,7 +728,7 @@ public final class NetworkPublication
     boolean isAcceptingSubscriptions()
     {
         return State.ACTIVE == state ||
-            (State.DRAINING == state && spyPositions.length > 0 && producerPosition() > senderPosition.getVolatile());
+            (State.DRAINING == state && hasSpies && producerPosition() > senderPosition.getVolatile());
     }
 
     /**
@@ -985,7 +983,7 @@ public final class NetworkPublication
 
     private boolean spiesFinishedConsuming(final DriverConductor conductor, final long eosPosition)
     {
-        if (spyPositions.length > 0)
+        if (hasSpies)
         {
             for (final ReadablePosition spyPosition : spyPositions)
             {
@@ -1056,7 +1054,7 @@ public final class NetworkPublication
                 {
                     if ((untethered.timeOfLastUpdateNs + untetheredLingerTimeoutNs) - nowNs <= 0)
                     {
-                        spyPositions = ArrayUtil.remove(spyPositions, untethered.position);
+                        removeSpyPosition(untethered.position);
                         untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
                     }
                 }
@@ -1064,7 +1062,7 @@ public final class NetworkPublication
                 {
                     if ((untethered.timeOfLastUpdateNs + untetheredRestingTimeoutNs) - nowNs <= 0)
                     {
-                        spyPositions = ArrayUtil.add(spyPositions, untethered.position);
+                        addSpyPosition(untethered.position);
                         conductor.notifyAvailableImageLink(
                             registrationId,
                             sessionId,
@@ -1236,6 +1234,18 @@ public final class NetworkPublication
     long consumerPosition()
     {
         return senderPosition.getVolatile();
+    }
+
+    private void addSpyPosition(final ReadablePosition position)
+    {
+        spyPositions = ArrayUtil.add(spyPositions, position);
+        hasSpies = true;
+    }
+
+    private void removeSpyPosition(final ReadablePosition position)
+    {
+        spyPositions = ArrayUtil.remove(spyPositions, position);
+        hasSpies = 0 != spyPositions.length;
     }
 
     private boolean isSendResponseSetupFlag()
