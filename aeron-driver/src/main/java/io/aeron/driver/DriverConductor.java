@@ -104,6 +104,7 @@ import static io.aeron.ErrorCode.GENERIC_ERROR;
 import static io.aeron.ErrorCode.UNKNOWN_COUNTER;
 import static io.aeron.ErrorCode.UNKNOWN_PUBLICATION;
 import static io.aeron.ErrorCode.UNKNOWN_SUBSCRIPTION;
+import static io.aeron.driver.PublicationParams.PROTOTYPE_VALUE_CORRELATION_ID;
 import static io.aeron.driver.PublicationParams.confirmMatch;
 import static io.aeron.driver.PublicationParams.getPublicationParams;
 import static io.aeron.driver.PublicationParams.validateMtuForSndbuf;
@@ -119,6 +120,7 @@ import static io.aeron.driver.status.SystemCounterDescriptor.RESOLUTION_CHANGES;
 import static io.aeron.driver.status.SystemCounterDescriptor.RETRANSMIT_OVERFLOW;
 import static io.aeron.driver.status.SystemCounterDescriptor.UNBLOCKED_COMMANDS;
 import static io.aeron.logbuffer.LogBufferDescriptor.PARTITION_COUNT;
+import static io.aeron.logbuffer.LogBufferDescriptor.TERM_MIN_LENGTH;
 import static io.aeron.logbuffer.LogBufferDescriptor.activeTermCount;
 import static io.aeron.logbuffer.LogBufferDescriptor.computePosition;
 import static io.aeron.logbuffer.LogBufferDescriptor.correlationId;
@@ -711,6 +713,11 @@ public final class DriverConductor implements Agent
         {
             throw new IllegalArgumentException(
                 "control-mode=response was specified, but no response-correlation-id set");
+        }
+
+        if (PROTOTYPE_VALUE_CORRELATION_ID == params.responseCorrelationId)
+        {
+            return null;
         }
 
         for (final PublicationImage publicationImage : publicationImages)
@@ -1843,6 +1850,7 @@ public final class DriverConductor implements Agent
         return null;
     }
 
+    @SuppressWarnings("MethodLength")
     private NetworkPublication newNetworkPublication(
         final long registrationId,
         final long clientId,
@@ -1853,6 +1861,12 @@ public final class DriverConductor implements Agent
         final PublicationParams params,
         final boolean isExclusive)
     {
+        if (params.isResponse &&
+            PROTOTYPE_VALUE_CORRELATION_ID == params.responseCorrelationId)
+        {
+            params.termLength = TERM_MIN_LENGTH;
+        }
+
         final String canonicalForm = udpChannel.canonicalForm();
 
         final FlowControl flowControl = udpChannel.isMulticast() || udpChannel.isMultiDestination() ?
