@@ -2,7 +2,6 @@
 agrona = "2.3.0-rc1"
 asciidoctorj = "2.5.13"
 asm = "9.8"
-bnd = "7.1.0"
 byteBuddy = "1.17.7"
 checkstyle = "11.0.1"
 commons-codec = "1.15"
@@ -44,6 +43,5 @@ plexus-utils = { group = "org.codehaus.plexus", name = "plexus-utils", version.r
 sbe = { group = "uk.co.real-logic", name = "sbe-tool", version.ref = "sbe" }
 
 [plugins]
-bnd = { id = "biz.aQute.bnd.builder", version.ref = "bnd" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
