@@ -1639,7 +1639,7 @@ public final class ConsensusModule implements AutoCloseable
         private AppVersionValidator appVersionValidator;
         private boolean isLogMdc;
         private boolean useAgentInvoker = false;
-        private ConsensusModuleStateExport boostrapState = null;
+        private ConsensusModuleStateExport bootstrapState = null;
         private boolean acceptStandbySnapshots = Configuration.acceptStandbySnapshots();
         private boolean enableControlOnConsensusChannel = Configuration.enableControlOnConsensusChannel();
         private boolean enableControlOnLogChannel = Configuration.enableControlOnLogChannel();
@@ -4405,13 +4405,13 @@ public final class ConsensusModule implements AutoCloseable
          */
         ConsensusModule.Context bootstrapState(final ConsensusModuleStateExport bootstrapState)
         {
-            this.boostrapState = bootstrapState;
+            this.bootstrapState = bootstrapState;
             return this;
         }
 
-        ConsensusModuleStateExport boostrapState()
+        ConsensusModuleStateExport bootstrapState()
         {
-            return boostrapState;
+            return bootstrapState;
         }
 
         private void concludeMarkFile()
@@ -4563,7 +4563,7 @@ public final class ConsensusModule implements AutoCloseable
                 "\n    totalSnapshotDurationThresholdNs=" + totalSnapshotDurationThresholdNs +
                 "\n    totalSnapshotDurationTracker=" + totalSnapshotDurationTracker +
                 "\n    acceptStandbySnapshots=" + acceptStandbySnapshots +
-                "\n    boostrapState=" + boostrapState +
+                "\n    bootstrapState=" + bootstrapState +
                 "\n}";
         }
     }

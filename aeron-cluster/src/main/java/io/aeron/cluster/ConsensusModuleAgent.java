@@ -363,7 +363,7 @@ final class ConsensusModuleAgent
             archive.tryStopRecordingByIdentity(lastTermRecordingId);
         }
 
-        if (null == ctx.boostrapState())
+        if (null == ctx.bootstrapState())
         {
             replicateStandbySnapshotsForStartup();
             recoveryPlan = recoverFromSnapshotAndLog();
@@ -3945,23 +3945,23 @@ final class ConsensusModuleAgent
 
     private RecordingLog.RecoveryPlan recoverFromBootstrapState()
     {
-        final ConsensusModuleStateExport boostrapState = ctx.boostrapState();
+        final ConsensusModuleStateExport bootstrapState = ctx.bootstrapState();
 
-        logRecordingId(boostrapState.logRecordingId);
+        logRecordingId(bootstrapState.logRecordingId);
         final RecordingLog.RecoveryPlan recoveryPlan = recordingLog.createRecoveryPlan(
             archive, serviceCount, logRecordingId);
 
-        expectedAckPosition = boostrapState.expectedAckPosition;
-        serviceAckId = boostrapState.serviceAckId;
-        leadershipTermId = boostrapState.leadershipTermId;
-        nextSessionId = boostrapState.nextSessionId;
+        expectedAckPosition = bootstrapState.expectedAckPosition;
+        serviceAckId = bootstrapState.serviceAckId;
+        leadershipTermId = bootstrapState.leadershipTermId;
+        nextSessionId = bootstrapState.nextSessionId;
 
-        for (final ConsensusModuleStateExport.TimerStateExport timer : boostrapState.timers)
+        for (final ConsensusModuleStateExport.TimerStateExport timer : bootstrapState.timers)
         {
             onLoadTimer(timer.correlationId, timer.deadline, null, 0, 0);
         }
 
-        for (final ConsensusModuleStateExport.ClusterSessionStateExport sessionExport : boostrapState.sessions)
+        for (final ConsensusModuleStateExport.ClusterSessionStateExport sessionExport : bootstrapState.sessions)
         {
             onLoadClusterSession(
                 sessionExport.id,
@@ -3991,7 +3991,7 @@ final class ConsensusModuleAgent
             };
 
         for (final ConsensusModuleStateExport.PendingServiceMessageTrackerStateExport tracker :
-            boostrapState.pendingMessageTrackers)
+            bootstrapState.pendingMessageTrackers)
         {
             onLoadPendingMessageTracker(
                 tracker.nextServiceSessionId,
