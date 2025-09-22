@@ -28,6 +28,7 @@ import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.CloseHelper;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -336,7 +337,16 @@ class UntetheredSubscriptionTest
                 aeron.conductorAgentInvoker().invoke();
             }
 
+            final int subPosCounterId = subscription.imageBySessionId(publication.sessionId()).subscriberPositionId();
             subscription.close();
+            final CountersReader countersReader = aeron.countersReader();
+            // await subscription close
+            while (CountersReader.RECORD_ALLOCATED == countersReader.getCounterState(subPosCounterId))
+            {
+                Tests.yield();
+                aeron.conductorAgentInvoker().invoke();
+            }
+
             while (2 != spyAvailableImageCount.get()) // wait for spy to re-connect
             {
                 Tests.yield();
@@ -345,10 +355,10 @@ class UntetheredSubscriptionTest
 
             assertEquals(1, spyUnavailableImageCount.get());
             assertEquals(publication.position(), spy.imageAtIndex(0).position());
+            assertTrue(spy.isConnected());
 
             if (spiesSimulateConnection)
             {
-                assertTrue(spy.isConnected());
                 while (!publication.isConnected())
                 {
                     Tests.yield();
