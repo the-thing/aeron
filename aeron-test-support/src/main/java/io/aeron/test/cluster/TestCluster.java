@@ -34,6 +34,7 @@ import io.aeron.cluster.ClusterMember;
 import io.aeron.cluster.ClusterMembership;
 import io.aeron.cluster.ClusterTool;
 import io.aeron.cluster.ConsensusModule;
+import io.aeron.cluster.ConsensusModuleExtension;
 import io.aeron.cluster.ElectionState;
 import io.aeron.cluster.NodeControl;
 import io.aeron.cluster.RecordingLog;
@@ -173,7 +174,7 @@ public final class TestCluster implements AutoCloseable
     private String clusterBaseDir;
     private ClusterBackup.Configuration.ReplayStart replayStart;
     private List<String> hostnames;
-    private boolean hasExtension = false;
+    private Supplier<ConsensusModuleExtension> extensionSupplier;
 
     private TestCluster(
         final int clusterId,
@@ -301,7 +302,7 @@ public final class TestCluster implements AutoCloseable
         final File markFileDir = null != markFileBaseDir ? new File(markFileBaseDir, "mark-" + index) : null;
         final TestNode.Context context = new TestNode.Context(
             serviceSupplier.apply(index), hostname(index, memberCount), nodeNameMappings());
-        context.hasExtension = hasExtension;
+        context.extensionSupplier = extensionSupplier;
 
         context.aeronArchiveContext
             .lock(NoOpLock.INSTANCE)
@@ -2128,7 +2129,7 @@ public final class TestCluster implements AutoCloseable
         private String clusterBaseDir = System.getProperty(
             CLUSTER_BASE_DIR_PROP_NAME, CommonContext.generateRandomDirName());
         private boolean useResponseChannels = false;
-        private boolean hasExtension = false;
+        private Supplier<ConsensusModuleExtension> extensionSupplier;
         private List<String> hostnames;
 
         public Builder withStaticNodes(final int nodeCount)
@@ -2297,7 +2298,7 @@ public final class TestCluster implements AutoCloseable
             testCluster.markFileBaseDir(markFileBaseDir);
             testCluster.clusterBaseDir(clusterBaseDir);
             testCluster.replyStart(replayStart);
-            testCluster.hasExtension(hasExtension);
+            testCluster.extensionSupplier(extensionSupplier);
             testCluster.hostnames(hostnames);
 
             try
@@ -2326,9 +2327,9 @@ public final class TestCluster implements AutoCloseable
             return testCluster;
         }
 
-        public Builder withExtension(final boolean useExtension)
+        public Builder withExtensionSuppler(final Supplier<ConsensusModuleExtension> extensionSuppler)
         {
-            this.hasExtension = useExtension;
+            this.extensionSupplier = extensionSuppler;
             return this;
         }
     }
@@ -2338,9 +2339,9 @@ public final class TestCluster implements AutoCloseable
         this.replayStart = replayStart;
     }
 
-    private void hasExtension(final boolean hasExtension)
+    private void extensionSupplier(final Supplier<ConsensusModuleExtension> extensionSupplier)
     {
-        this.hasExtension = hasExtension;
+        this.extensionSupplier = extensionSupplier;
     }
 
     private void hostnames(final List<String> hostnames)

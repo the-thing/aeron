@@ -3465,7 +3465,18 @@ final class ConsensusModuleAgent
     {
         if (isSnapshotSetComplete(serviceAcks))
         {
-            takeSnapshot(timestamp, logPosition, serviceAcks);
+            try
+            {
+                takeSnapshot(timestamp, logPosition, serviceAcks);
+            }
+            catch (final RuntimeException ex)
+            {
+                ctx.countedErrorHandler().onError(new ClusterException("failed to take snapshot", ex));
+                if (isTerminalError(ex))
+                {
+                    unexpectedTermination();
+                }
+            }
         }
 
         final long nowNs = clusterClock.timeNanos();
@@ -3491,6 +3502,12 @@ final class ConsensusModuleAgent
                 ClusterControl.ToggleState.reset(controlToggle);
             }
         }
+    }
+
+    private static boolean isTerminalError(final RuntimeException ex)
+    {
+        return ex instanceof AgentTerminationException ||
+            (ex instanceof ArchiveException archiveError && archiveError.errorCode() == ArchiveException.STORAGE_SPACE);
     }
 
     private boolean isSnapshotSetComplete(final ServiceAck[] serviceAcks)
@@ -3529,16 +3546,6 @@ final class ConsensusModuleAgent
             }
 
             awaitRecordingComplete(recordingId, publication.position(), counters, counterId);
-        }
-        catch (final ArchiveException ex)
-        {
-            if (ex.errorCode() == ArchiveException.STORAGE_SPACE)
-            {
-                ctx.countedErrorHandler().onError(ex);
-                unexpectedTermination();
-            }
-
-            throw ex;
         }
 
         final long termBaseLogPosition = recordingLog.getTermEntry(leadershipTermId).termBaseLogPosition;

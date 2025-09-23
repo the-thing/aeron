@@ -19,12 +19,14 @@ import io.aeron.Aeron;
 import io.aeron.AeronCounters;
 import io.aeron.ChannelUri;
 import io.aeron.Counter;
+import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.archive.client.AeronArchive;
+import io.aeron.archive.client.ArchiveException;
 import io.aeron.cluster.client.AeronCluster;
 import io.aeron.cluster.client.AeronClusterVersion;
 import io.aeron.cluster.client.ClusterException;
@@ -40,6 +42,7 @@ import io.aeron.cluster.codecs.MessageHeaderEncoder;
 import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
 import io.aeron.cluster.service.ClientSession;
 import io.aeron.cluster.service.ClusterCounters;
+import io.aeron.cluster.service.ClusterTerminationException;
 import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.cluster.service.SnapshotDurationTracker;
 import io.aeron.driver.MediaDriver;
@@ -73,6 +76,7 @@ import org.agrona.collections.IntHashSet;
 import org.agrona.collections.MutableBoolean;
 import org.agrona.collections.MutableInteger;
 import org.agrona.collections.MutableLong;
+import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersReader;
 import org.hamcrest.CoreMatchers;
@@ -84,10 +88,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -244,10 +250,10 @@ class ClusterTest
 
     @Test
     @InterruptAfter(5)
-    void shouldStartCluster()
+    void shouldStartClusterWithExtension()
     {
         cluster = aCluster().withStaticNodes(3)
-            .withExtension(true)
+            .withExtensionSuppler(TestNode.TestConsensusModuleExtension::new)
             .withServiceSupplier(value -> new TestNode.TestService[0])
             .start();
 
@@ -2104,7 +2110,7 @@ class ClusterTest
         assertThat(
             totalSnapshotDurationTracker.maxSnapshotDuration().get(),
             greaterThanOrEqualTo(
-            percent90(MILLISECONDS.toNanos(Math.max(service1SnapshotDelayMs, service2SnapshotDelayMs)))));
+                percent90(MILLISECONDS.toNanos(Math.max(service1SnapshotDelayMs, service2SnapshotDelayMs)))));
 
         assertEquals(1, service1SnapshotDurationTracker.snapshotDurationThresholdExceededCount().get());
         assertThat(
@@ -2124,7 +2130,7 @@ class ClusterTest
             assertThat(
                 snapshotDurationTracker.maxSnapshotDuration().get(),
                 greaterThanOrEqualTo(
-                percent90(MILLISECONDS.toNanos(Math.max(service1SnapshotDelayMs, service2SnapshotDelayMs)))));
+                    percent90(MILLISECONDS.toNanos(Math.max(service1SnapshotDelayMs, service2SnapshotDelayMs)))));
 
             final SnapshotDurationTracker service1SnapshotTracker = follower.container(0).context()
                 .snapshotDurationTracker();
@@ -2941,6 +2947,161 @@ class ClusterTest
 
         Tests.await(() -> sessionCounters.intStream()
             .allMatch(counterId -> CountersReader.RECORD_RECLAIMED == leaderCounters.getCounterState(counterId)));
+    }
+
+    @Test
+    @InterruptAfter(10)
+    void shouldSwitchBackToActiveStateIfSnapshotFailsWithException()
+    {
+        class ThrowingExtension extends TestNode.TestConsensusModuleExtension
+        {
+            public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
+            {
+                throw new RuntimeException("some snapshot error");
+            }
+        }
+
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("failed to take snapshot"));
+        cluster = aCluster().withStaticNodes(3)
+            .withExtensionSuppler(ThrowingExtension::new)
+            .withServiceSupplier(value -> new TestNode.TestService[0])
+            .start();
+
+        systemTestWatcher.cluster(cluster);
+        final TestNode leader = cluster.awaitLeader();
+        cluster.connectClient();
+        cluster.sendMessages(5);
+
+        cluster.takeSnapshot(leader);
+
+        Tests.awaitValue(leader.consensusModule().context().errorCounter(), 1);
+        for (final TestNode follower : cluster.followers())
+        {
+            Tests.awaitValue(follower.consensusModule().context().errorCounter(), 1);
+        }
+        assertEquals(
+            ClusterControl.ToggleState.NEUTRAL,
+            ClusterControl.ToggleState.get(cluster.getClusterControlToggle(leader)));
+
+        assertEquals(ConsensusModule.State.ACTIVE, leader.moduleState());
+        assertEquals(0, leader.consensusModule().context().snapshotCounter().get());
+        for (final TestNode follower : cluster.followers())
+        {
+            assertEquals(ConsensusModule.State.ACTIVE, follower.moduleState());
+            assertEquals(0, follower.consensusModule().context().snapshotCounter().get());
+        }
+    }
+
+    @Test
+    @InterruptAfter(10)
+    void shouldContinueTerminationSequenceIfSnapshotFailsWithException()
+    {
+        class ThrowingExtension extends TestNode.TestConsensusModuleExtension
+        {
+            public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
+            {
+                throw new RuntimeException("some other error");
+            }
+        }
+
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("failed to take snapshot"));
+        cluster = aCluster().withStaticNodes(3)
+            .withExtensionSuppler(ThrowingExtension::new)
+            .withServiceSupplier(value -> new TestNode.TestService[0])
+            .start();
+
+        systemTestWatcher.cluster(cluster);
+        final TestNode leader = cluster.awaitLeader();
+        cluster.connectClient();
+        cluster.sendMessages(5);
+
+        record NodeCounters(int errorCounterId, int snapshotCounterId)
+        {
+        }
+        final List<NodeCounters> counters = new ArrayList<>();
+        for (int i = 0; i < cluster.memberCount(); i++)
+        {
+            final TestNode node = cluster.node(i);
+            counters.add(new NodeCounters(
+                node.consensusModule().context().errorCounter().id(),
+                node.consensusModule().context().snapshotCounter().id()));
+        }
+
+        cluster.terminationsExpected(true);
+        cluster.shutdownCluster(leader);
+        cluster.awaitNodeTerminations();
+
+        for (int i = 0; i < cluster.memberCount(); i++)
+        {
+            final TestNode node = cluster.node(i);
+            final CountersReader countersReader = node.mediaDriver().counters();
+            final NodeCounters nodeCounters = counters.get(i);
+            Tests.awaitCounterDelta(countersReader, nodeCounters.errorCounterId, 0, 1);
+            assertEquals(0, countersReader.getCounterValue(nodeCounters.snapshotCounterId()));
+        }
+
+        cluster.stopAllNodes();
+    }
+
+    @ParameterizedTest
+    @MethodSource("terminalExceptions")
+    @InterruptAfter(10)
+    void shouldShutdownClusterIfSnapshotFailsWithTerminalException(final RuntimeException terminalException)
+    {
+        class ThrowingExtension extends TestNode.TestConsensusModuleExtension
+        {
+            public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
+            {
+                throw terminalException;
+            }
+        }
+
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("failed to take snapshot"));
+        cluster = aCluster().withStaticNodes(3)
+            .withExtensionSuppler(ThrowingExtension::new)
+            .withServiceSupplier(value -> new TestNode.TestService[0])
+            .start();
+
+        systemTestWatcher.cluster(cluster);
+        final TestNode leader = cluster.awaitLeader();
+        cluster.connectClient();
+        cluster.sendMessages(5);
+
+        record NodeCounters(int errorCounterId, int snapshotCounterId)
+        {
+        }
+        final List<NodeCounters> counters = new ArrayList<>();
+        for (int i = 0; i < cluster.memberCount(); i++)
+        {
+            final TestNode node = cluster.node(i);
+            counters.add(new NodeCounters(
+                node.consensusModule().context().errorCounter().id(),
+                node.consensusModule().context().snapshotCounter().id()));
+        }
+        cluster.terminationsExpected(true);
+
+        cluster.takeSnapshot(leader);
+
+        cluster.awaitNodeTerminations();
+
+        for (int i = 0; i < cluster.memberCount(); i++)
+        {
+            final TestNode node = cluster.node(i);
+            final CountersReader countersReader = node.mediaDriver().counters();
+            final NodeCounters nodeCounters = counters.get(i);
+            Tests.awaitCounterDelta(countersReader, nodeCounters.errorCounterId, 0, 1);
+            assertEquals(0, countersReader.getCounterValue(nodeCounters.snapshotCounterId()));
+        }
+
+        cluster.stopAllNodes();
+    }
+
+    private static List<RuntimeException> terminalExceptions()
+    {
+        return List.of(
+            new AgentTerminationException("test"),
+            new ClusterTerminationException(true),
+            new ArchiveException("disc is gone", ArchiveException.STORAGE_SPACE));
     }
 
     private String clusterSessionCounterLabel(final AeronCluster client, final int clusterId)

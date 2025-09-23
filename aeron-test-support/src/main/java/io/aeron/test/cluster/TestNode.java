@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.IntPredicate;
+import java.util.function.Supplier;
 import java.util.zip.CRC32;
 
 import static io.aeron.Aeron.NULL_VALUE;
@@ -72,6 +73,7 @@ import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.agrona.BitUtil.SIZE_OF_INT;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -86,12 +88,12 @@ public final class TestNode implements AutoCloseable
     private final TestService[] services;
     private final Context context;
     private final TestMediaDriver mediaDriver;
-    private final TestConsensusModuleExtension extension;
+    private final ConsensusModuleExtension extension;
     private boolean isClosed = false;
 
     TestNode(final Context context, final DataCollector dataCollector)
     {
-        if (0 != context.services.length && context.hasExtension)
+        if (0 != context.services.length && null != context.extensionSupplier)
         {
             throw new IllegalStateException("Cannot use extension context");
         }
@@ -113,11 +115,11 @@ public final class TestNode implements AutoCloseable
                 .aeronDirectoryName(aeronDirectoryName)
                 .isIpcIngressAllowed(true)
                 .terminationHook(ClusterTests.terminationHook(
-                context.isTerminationExpected, context.hasMemberTerminated));
+                    context.isTerminationExpected, context.hasMemberTerminated));
 
-            if (context.hasExtension)
+            if (null != context.extensionSupplier)
             {
-                extension = new TestConsensusModuleExtension();
+                extension = context.extensionSupplier.get();
                 context.consensusModuleContext.consensusModuleExtension(extension);
             }
             else
@@ -268,7 +270,7 @@ public final class TestNode implements AutoCloseable
         return ElectionState.get(consensusModule.context().electionStateCounter());
     }
 
-    ConsensusModule.State moduleState()
+    public ConsensusModule.State moduleState()
     {
         return ConsensusModule.State.get(consensusModule.context().moduleStateCounter());
     }
@@ -325,12 +327,12 @@ public final class TestNode implements AutoCloseable
 
     boolean hasServiceTerminated()
     {
-        if (1 != services.length)
+        if (services.length > 1)
         {
             throw new IllegalStateException("service count expected=1 actual=" + services.length);
         }
 
-        return context.hasServiceTerminated[0].get();
+        return 0 == services.length || context.hasServiceTerminated[0].get();
     }
 
     public boolean hasMemberTerminated()
@@ -386,7 +388,9 @@ public final class TestNode implements AutoCloseable
 
     public void validateOnElectionState(final long minJoinPosition)
     {
-        final ConsensusControlState onElectionConsensusControlState = extension.onElectionConsensusControlState;
+        assertInstanceOf(TestConsensusModuleExtension.class, extension);
+        final ConsensusControlState onElectionConsensusControlState =
+            ((TestConsensusModuleExtension)extension).onElectionConsensusControlState;
         assertNotNull(onElectionConsensusControlState);
         if (onElectionConsensusControlState.isLeader())
         {
@@ -1276,7 +1280,7 @@ public final class TestNode implements AutoCloseable
         final AtomicBoolean[] hasServiceTerminated;
         final String hostName;
         final TestService[] services;
-        public boolean hasExtension;
+        Supplier<ConsensusModuleExtension> extensionSupplier;
 
         Context(final TestService[] services, final String hostName, final String nodeMappings)
         {
