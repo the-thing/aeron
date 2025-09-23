@@ -277,7 +277,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
 
         if (!inCoolDown)
         {
-            LogBufferDescriptor.isConnected(metaDataBuffer, false);
+            updateConnectedStatus(false);
 
             conductor.unlinkIpcSubscriptions(this);
 
@@ -304,7 +304,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
             untetheredSubscriptions.add(new UntetheredSubscription(subscriptionLink, subscriberPosition, nowNs));
         }
 
-        LogBufferDescriptor.isConnected(metaDataBuffer, true);
+        updateConnectedStatus(true);
     }
 
     /**
@@ -314,11 +314,6 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     {
         subscriberPositions = ArrayUtil.remove(subscriberPositions, subscriberPosition);
         subscriberPosition.close();
-
-        if (subscriberPositions.length == 0)
-        {
-            LogBufferDescriptor.isConnected(metaDataBuffer, false);
-        }
 
         if (!subscriptionLink.isTether())
         {
@@ -331,6 +326,8 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
                 }
             }
         }
+
+        updateConnectedStatus(0 != subscriberPositions.length);
     }
 
     /**
@@ -347,7 +344,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
                     final long revokedPos = producerPosition();
                     publisherLimit.setRelease(revokedPos);
                     LogBufferDescriptor.endOfStreamPosition(metaDataBuffer, revokedPos);
-                    LogBufferDescriptor.isConnected(metaDataBuffer, false);
+                    updateConnectedStatus(false);
 
                     conductor.transitionToLinger(this);
 
@@ -358,13 +355,14 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
                 }
                 else
                 {
+                    checkUntetheredSubscriptions(timeNs, conductor);
+                    updateConnectedStatus(0 != subscriberPositions.length);
                     final long producerPosition = producerPosition();
                     publisherPos.setRelease(producerPosition);
                     if (!isExclusive)
                     {
                         checkForBlockedPublisher(producerPosition, timeNs);
                     }
-                    checkUntetheredSubscriptions(timeNs, conductor);
                     checkCoolDownStatus(timeNs, conductor);
                 }
                 break;
@@ -562,9 +560,16 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
                         rawLog.fileName(),
                         CommonContext.IPC_CHANNEL);
                     untethered.state(UntetheredSubscription.State.ACTIVE, nowNs, streamId, sessionId);
-                    LogBufferDescriptor.isConnected(metaDataBuffer, true);
                 }
             }
+        }
+    }
+
+    private void updateConnectedStatus(final boolean newStatus)
+    {
+        if (LogBufferDescriptor.isConnected(metaDataBuffer) != newStatus)
+        {
+            LogBufferDescriptor.isConnected(metaDataBuffer, newStatus);
         }
     }
 
