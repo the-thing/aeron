@@ -2975,19 +2975,16 @@ class ClusterTest
         cluster.takeSnapshot(leader);
 
         Tests.awaitValue(leader.consensusModule().context().errorCounter(), 1);
-        for (final TestNode follower : cluster.followers())
-        {
-            Tests.awaitValue(follower.consensusModule().context().errorCounter(), 1);
-        }
+        Tests.await(() -> ConsensusModule.State.ACTIVE == leader.moduleState());
+        assertEquals(0, leader.consensusModule().context().snapshotCounter().get());
         assertEquals(
             ClusterControl.ToggleState.NEUTRAL,
             ClusterControl.ToggleState.get(cluster.getClusterControlToggle(leader)));
 
-        assertEquals(ConsensusModule.State.ACTIVE, leader.moduleState());
-        assertEquals(0, leader.consensusModule().context().snapshotCounter().get());
         for (final TestNode follower : cluster.followers())
         {
-            assertEquals(ConsensusModule.State.ACTIVE, follower.moduleState());
+            Tests.awaitValue(follower.consensusModule().context().errorCounter(), 1);
+            Tests.await(() -> ConsensusModule.State.ACTIVE == follower.moduleState());
             assertEquals(0, follower.consensusModule().context().snapshotCounter().get());
         }
     }
