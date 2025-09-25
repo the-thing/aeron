@@ -1836,14 +1836,6 @@ public final class ConsensusModule implements AutoCloseable
                         ConsensusModuleVersion.GIT_SHA);
                 }
             }
-            else
-            {
-                if (!aeron.context().useConductorAgentInvoker())
-                {
-                    throw new ClusterException(
-                        "Supplied Aeron client instance must set Aeron.Context.useConductorInvoker(true)");
-                }
-            }
 
             if (null == ingressChannel)
             {

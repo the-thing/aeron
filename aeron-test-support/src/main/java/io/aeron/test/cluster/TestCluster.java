@@ -95,6 +95,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.IntPredicate;
 import java.util.function.Predicate;
@@ -179,6 +180,8 @@ public final class TestCluster implements AutoCloseable
     private ClusterBackup.Configuration.ReplayStart replayStart;
     private List<String> hostnames;
     private Supplier<TestNode.TestConsensusModuleExtension> extensionSupplier;
+    private Function<Aeron, Counter> errorCounterSupplier;
+    private Function<Aeron, Counter> snapshotCounterSupplier;
 
     private TestCluster(
         final int clusterId,
@@ -307,6 +310,8 @@ public final class TestCluster implements AutoCloseable
         final TestNode.Context context = new TestNode.Context(
             serviceSupplier.apply(index), hostname(index, memberCount), nodeNameMappings());
         context.extensionSupplier = extensionSupplier;
+        context.errorCounterSupplier = errorCounterSupplier;
+        context.snapshotCounterSupplier = snapshotCounterSupplier;
 
         context.aeronArchiveContext
             .lock(NoOpLock.INSTANCE)
@@ -2183,6 +2188,8 @@ public final class TestCluster implements AutoCloseable
         private boolean useResponseChannels = false;
         private Supplier<TestNode.TestConsensusModuleExtension> extensionSupplier;
         private List<String> hostnames;
+        private Function<Aeron, Counter> errorCounterSupplier;
+        private Function<Aeron, Counter> snapshotCounterSupplier;
 
         public Builder withStaticNodes(final int nodeCount)
         {
@@ -2316,6 +2323,18 @@ public final class TestCluster implements AutoCloseable
             return this;
         }
 
+        public Builder withErrorCounterSupplier(final Function<Aeron, Counter> errorCounterSupplier)
+        {
+            this.errorCounterSupplier = errorCounterSupplier;
+            return this;
+        }
+
+        public Builder withSnapshotCounterSupplier(final Function<Aeron, Counter> snapshotCounterSupplier)
+        {
+            this.snapshotCounterSupplier = snapshotCounterSupplier;
+            return this;
+        }
+
         public TestCluster start()
         {
             return start(nodeCount);
@@ -2357,6 +2376,8 @@ public final class TestCluster implements AutoCloseable
             testCluster.replyStart(replayStart);
             testCluster.extensionSupplier(extensionSupplier);
             testCluster.hostnames(hostnames);
+            testCluster.errorCounterSupplier = errorCounterSupplier;
+            testCluster.snapshotCounterSupplier = snapshotCounterSupplier;
 
             try
             {

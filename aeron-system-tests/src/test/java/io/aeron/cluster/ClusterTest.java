@@ -93,7 +93,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -102,6 +101,8 @@ import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.zip.CRC32;
 
+import static io.aeron.AeronCounters.CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID;
+import static io.aeron.AeronCounters.CLUSTER_SNAPSHOT_COUNTER_TYPE_ID;
 import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.cluster.client.AeronCluster.SESSION_HEADER_LENGTH;
@@ -2062,10 +2063,10 @@ class ClusterTest
             .withServiceSupplier(
                 (i) -> new TestNode.TestService[]
                     {
-                    new TestNode.SleepOnSnapshotTestService()
-                        .snapshotDelayMs(service1SnapshotDelayMs).index(i),
-                    new TestNode.SleepOnSnapshotTestService()
-                        .snapshotDelayMs(service2SnapshotDelayMs).index(i)
+                        new TestNode.SleepOnSnapshotTestService()
+                            .snapshotDelayMs(service1SnapshotDelayMs).index(i),
+                        new TestNode.SleepOnSnapshotTestService()
+                            .snapshotDelayMs(service2SnapshotDelayMs).index(i)
                     })
             .withStaticNodes(3)
             .withAuthorisationServiceSupplier(() -> AuthorisationService.ALLOW_ALL)
@@ -2307,23 +2308,23 @@ class ClusterTest
     {
         final IntFunction<TestNode.TestService[]> serviceSupplier =
             (i) -> new TestNode.TestService[]
-            {
-                new TestNode.TestService().index(i),
-                new TestNode.TestService()
                 {
-                    public void onSessionMessage(
-                        final ClientSession session,
-                        final long timestamp,
-                        final DirectBuffer buffer,
-                        final int offset,
-                        final int length,
-                        final Header header)
+                    new TestNode.TestService().index(i),
+                    new TestNode.TestService()
                     {
-                        Tests.sleep(sleepTimeMs);
-                        messageCount.incrementAndGet();
-                    }
-                }.index(i)
-            };
+                        public void onSessionMessage(
+                            final ClientSession session,
+                            final long timestamp,
+                            final DirectBuffer buffer,
+                            final int offset,
+                            final int length,
+                            final Header header)
+                        {
+                            Tests.sleep(sleepTimeMs);
+                            messageCount.incrementAndGet();
+                        }
+                    }.index(i)
+                };
 
         cluster = aCluster()
             .withLogChannel("aeron:udp?term-length=1m|alias=log")
@@ -2686,28 +2687,28 @@ class ClusterTest
             {
                 final IntHashSet logSessions = new IntHashSet();
                 assertEquals(2, aeronArchive.listRecordings(
-                    0,
-                    Integer.MAX_VALUE,
-                    (controlSessionId,
-                    correlationId,
-                    recordingId,
-                    startTimestamp,
-                    stopTimestamp,
-                    startPosition,
-                    stopPosition,
-                    initialTermId,
-                    segmentFileLength,
-                    termBufferLength,
-                    mtuLength,
-                    sessionId,
-                    streamId,
-                    strippedChannel,
-                    originalChannel,
-                    sourceIdentity) ->
-                    {
-                        assertThat(originalChannel, CoreMatchers.containsString("alias=log"));
-                        logSessions.add(sessionId);
-                    }),
+                        0,
+                        Integer.MAX_VALUE,
+                        (controlSessionId,
+                            correlationId,
+                            recordingId,
+                            startTimestamp,
+                            stopTimestamp,
+                            startPosition,
+                            stopPosition,
+                            initialTermId,
+                            segmentFileLength,
+                            termBufferLength,
+                            mtuLength,
+                            sessionId,
+                            streamId,
+                            strippedChannel,
+                            originalChannel,
+                            sourceIdentity) ->
+                        {
+                            assertThat(originalChannel, CoreMatchers.containsString("alias=log"));
+                            logSessions.add(sessionId);
+                        }),
                     "wrong number of recordings");
                 assertEquals(2, logSessions.size());
             }
@@ -3009,24 +3010,16 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3)
             .withExtensionSuppler(ThrowingExtension::new)
             .withServiceSupplier(value -> new TestNode.TestService[0])
+            .withErrorCounterSupplier((aeron) ->
+                addStaticCounter(aeron, CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID, "error"))
+            .withSnapshotCounterSupplier((aeron) ->
+                addStaticCounter(aeron, CLUSTER_SNAPSHOT_COUNTER_TYPE_ID, "snapshot"))
             .start();
-
         systemTestWatcher.cluster(cluster);
+
         final TestNode leader = cluster.awaitLeader();
         cluster.connectClient();
         cluster.sendMessages(5);
-
-        record NodeCounters(int errorCounterId, int snapshotCounterId)
-        {
-        }
-        final List<NodeCounters> counters = new ArrayList<>();
-        for (int i = 0; i < cluster.memberCount(); i++)
-        {
-            final TestNode node = cluster.node(i);
-            counters.add(new NodeCounters(
-                node.consensusModule().context().errorCounter().id(),
-                node.consensusModule().context().snapshotCounter().id()));
-        }
 
         cluster.terminationsExpected(true);
         cluster.shutdownCluster(leader);
@@ -3035,10 +3028,8 @@ class ClusterTest
         for (int i = 0; i < cluster.memberCount(); i++)
         {
             final TestNode node = cluster.node(i);
-            final CountersReader countersReader = node.mediaDriver().counters();
-            final NodeCounters nodeCounters = counters.get(i);
-            Tests.awaitCounterDelta(countersReader, nodeCounters.errorCounterId, 0, 1);
-            assertEquals(0, countersReader.getCounterValue(nodeCounters.snapshotCounterId()));
+            Tests.awaitValue(node.consensusModule().context().errorCounter(), 1);
+            assertEquals(0, node.consensusModule().context().snapshotCounter().get());
         }
 
         cluster.stopAllNodes();
@@ -3061,37 +3052,26 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3)
             .withExtensionSuppler(ThrowingExtension::new)
             .withServiceSupplier(value -> new TestNode.TestService[0])
+            .withErrorCounterSupplier((aeron) ->
+                addStaticCounter(aeron, CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID, "error"))
+            .withSnapshotCounterSupplier((aeron) ->
+                addStaticCounter(aeron, CLUSTER_SNAPSHOT_COUNTER_TYPE_ID, "snapshot"))
             .start();
-
         systemTestWatcher.cluster(cluster);
+
         final TestNode leader = cluster.awaitLeader();
         cluster.connectClient();
         cluster.sendMessages(5);
 
-        record NodeCounters(int errorCounterId, int snapshotCounterId)
-        {
-        }
-        final List<NodeCounters> counters = new ArrayList<>();
-        for (int i = 0; i < cluster.memberCount(); i++)
-        {
-            final TestNode node = cluster.node(i);
-            counters.add(new NodeCounters(
-                node.consensusModule().context().errorCounter().id(),
-                node.consensusModule().context().snapshotCounter().id()));
-        }
         cluster.terminationsExpected(true);
-
         cluster.takeSnapshot(leader);
-
         cluster.awaitNodeTerminations();
 
         for (int i = 0; i < cluster.memberCount(); i++)
         {
             final TestNode node = cluster.node(i);
-            final CountersReader countersReader = node.mediaDriver().counters();
-            final NodeCounters nodeCounters = counters.get(i);
-            Tests.awaitCounterDelta(countersReader, nodeCounters.errorCounterId, 0, 1);
-            assertEquals(0, countersReader.getCounterValue(nodeCounters.snapshotCounterId()));
+            Tests.awaitValue(node.consensusModule().context().errorCounter(), 1);
+            assertEquals(0, node.consensusModule().context().snapshotCounter().get());
         }
 
         cluster.stopAllNodes();
@@ -3366,5 +3346,12 @@ class ClusterTest
             });
 
         return hasResponse;
+    }
+
+    private static Counter addStaticCounter(final Aeron aeron, final int typeId, final String label)
+    {
+        final long registrationId = aeron.nextCorrelationId();
+        return aeron.addStaticCounter(
+            typeId, label + "-" + registrationId, registrationId);
     }
 }

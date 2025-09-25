@@ -15,10 +15,13 @@
  */
 package io.aeron.test.cluster;
 
+import io.aeron.Aeron;
+import io.aeron.AeronCounters;
 import io.aeron.Counter;
 import io.aeron.ExclusivePublication;
 import io.aeron.FragmentAssembler;
 import io.aeron.Image;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveTool;
 import io.aeron.archive.client.AeronArchive;
@@ -29,11 +32,13 @@ import io.aeron.cluster.ConsensusControlState;
 import io.aeron.cluster.ConsensusModule;
 import io.aeron.cluster.ConsensusModuleControl;
 import io.aeron.cluster.ConsensusModuleExtension;
+import io.aeron.cluster.ConsensusModuleVersion;
 import io.aeron.cluster.ElectionState;
 import io.aeron.cluster.client.ClusterException;
 import io.aeron.cluster.codecs.CloseReason;
 import io.aeron.cluster.service.ClientSession;
 import io.aeron.cluster.service.Cluster;
+import io.aeron.cluster.service.ClusterCounters;
 import io.aeron.cluster.service.ClusterTerminationException;
 import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.driver.MediaDriver;
@@ -55,7 +60,9 @@ import org.agrona.collections.IntArrayList;
 import org.agrona.collections.LongArrayList;
 import org.agrona.collections.MutableInteger;
 import org.agrona.concurrent.AgentTerminationException;
+import org.agrona.concurrent.NoOpLock;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.YieldingIdleStrategy;
 import org.agrona.concurrent.status.CountersReader;
 
 import java.io.File;
@@ -65,6 +72,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.Function;
 import java.util.function.IntPredicate;
 import java.util.function.Supplier;
 import java.util.zip.CRC32;
@@ -106,12 +114,50 @@ public final class TestNode implements AutoCloseable
 
             services = context.services;
 
+            Aeron consensusModuleAeronClient = null;
+            if (null != context.errorCounterSupplier || null != context.snapshotCounterSupplier)
+            {
+                consensusModuleAeronClient = Aeron.connect(new Aeron.Context()
+                    .aeronDirectoryName(aeronDirectoryName)
+                    .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
+                    .useConductorAgentInvoker(true)
+                    .awaitingIdleStrategy(YieldingIdleStrategy.INSTANCE)
+                    .clientLock(NoOpLock.INSTANCE)
+                    .clientName("test-cm-client-" + context.consensusModuleContext.clusterId() + "-" +
+                        context.consensusModuleContext.clusterMemberId()));
+            }
+
             context.consensusModuleContext
                 .serviceCount(services.length)
+                .aeron(consensusModuleAeronClient)
                 .aeronDirectoryName(aeronDirectoryName)
                 .isIpcIngressAllowed(true)
                 .terminationHook(ClusterTests.terminationHook(
                     context.isTerminationExpected, context.hasMemberTerminated));
+
+            if (null != context.errorCounterSupplier)
+            {
+                context.consensusModuleContext.errorCounter(
+                    context.errorCounterSupplier.apply(consensusModuleAeronClient));
+            }
+            else if (null != consensusModuleAeronClient)
+            {
+                final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer();
+                context.consensusModuleContext.errorCounter(ClusterCounters.allocateVersioned(
+                    consensusModuleAeronClient,
+                    tempBuffer,
+                    "Cluster Errors",
+                    AeronCounters.CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID,
+                    context.consensusModuleContext.clusterId(),
+                    ConsensusModuleVersion.VERSION,
+                    ConsensusModuleVersion.GIT_SHA));
+            }
+
+            if (null != context.snapshotCounterSupplier)
+            {
+                context.consensusModuleContext.snapshotCounter(
+                    context.snapshotCounterSupplier.apply(consensusModuleAeronClient));
+            }
 
             if (null != context.extensionSupplier)
             {
@@ -1271,6 +1317,8 @@ public final class TestNode implements AutoCloseable
         final String hostName;
         final TestService[] services;
         Supplier<TestConsensusModuleExtension> extensionSupplier;
+        Function<Aeron, Counter> errorCounterSupplier;
+        Function<Aeron, Counter> snapshotCounterSupplier;
 
         Context(final TestService[] services, final String hostName, final String nodeMappings)
         {
