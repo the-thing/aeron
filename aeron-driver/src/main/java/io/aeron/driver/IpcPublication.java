@@ -327,7 +327,10 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
             }
         }
 
-        updateConnectedStatus(0 != subscriberPositions.length);
+        if (0 == subscriberPositions.length)
+        {
+            updateConnectedStatus(false);
+        }
     }
 
     /**
@@ -542,7 +545,15 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
                 if ((untethered.timeOfLastUpdateNs + untetheredLingerTimeoutNs) - nowNs <= 0)
                 {
                     subscriberPositions = ArrayUtil.remove(subscriberPositions, untethered.position);
-                    untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                    if (untethered.subscriptionLink.isRejoin())
+                    {
+                        untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                    }
+                    else
+                    {
+                        ArrayListUtil.fastUnorderedRemove(untetheredSubscriptions, i, lastIndex--);
+                        untethered.position.close();
+                    }
                 }
             }
             else if (UntetheredSubscription.State.RESTING == untethered.state)

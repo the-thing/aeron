@@ -32,6 +32,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
     final boolean isSparse;
     final boolean isTether;
     final boolean isResponse;
+    final boolean isRejoin;
     final CommonContext.InferableBoolean group;
     final String channel;
     final AeronClient aeronClient;
@@ -57,6 +58,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
         this.isTether = params.isTether;
         this.group = params.group;
         this.isResponse = params.isResponse;
+        this.isRejoin = params.isRejoin;
 
         positionBySubscribableMap = new IdentityHashMap<>(hasSessionId ? 1 : 8);
     }
@@ -124,7 +126,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
 
     boolean isRejoin()
     {
-        return true;
+        return isRejoin;
     }
 
     boolean isTether()

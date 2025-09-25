@@ -1065,7 +1065,15 @@ public final class NetworkPublication
                     if ((untethered.timeOfLastUpdateNs + untetheredLingerTimeoutNs) - nowNs <= 0)
                     {
                         removeSpyPosition(untethered.position);
-                        untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                        if (untethered.subscriptionLink.isRejoin())
+                        {
+                            untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                        }
+                        else
+                        {
+                            ArrayListUtil.fastUnorderedRemove(untetheredSubscriptions, i, lastIndex--);
+                            untethered.position.close();
+                        }
                     }
                 }
                 else if (UntetheredSubscription.State.RESTING == untethered.state)

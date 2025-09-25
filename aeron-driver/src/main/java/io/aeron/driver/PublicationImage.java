@@ -47,8 +47,19 @@ import java.util.Arrays;
 import static io.aeron.ErrorCode.IMAGE_REJECTED;
 import static io.aeron.driver.LossDetector.lossFound;
 import static io.aeron.driver.LossDetector.rebuildOffset;
-import static io.aeron.driver.status.SystemCounterDescriptor.*;
-import static io.aeron.logbuffer.LogBufferDescriptor.*;
+import static io.aeron.driver.status.SystemCounterDescriptor.FLOW_CONTROL_OVER_RUNS;
+import static io.aeron.driver.status.SystemCounterDescriptor.FLOW_CONTROL_UNDER_RUNS;
+import static io.aeron.driver.status.SystemCounterDescriptor.HEARTBEATS_RECEIVED;
+import static io.aeron.driver.status.SystemCounterDescriptor.LOSS_GAP_FILLS;
+import static io.aeron.driver.status.SystemCounterDescriptor.NAK_MESSAGES_SENT;
+import static io.aeron.driver.status.SystemCounterDescriptor.PUBLICATION_IMAGES_REVOKED;
+import static io.aeron.driver.status.SystemCounterDescriptor.STATUS_MESSAGES_SENT;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_ACTIVE_TRANSPORT_COUNT;
+import static io.aeron.logbuffer.LogBufferDescriptor.computePosition;
+import static io.aeron.logbuffer.LogBufferDescriptor.computeTermIdFromPosition;
+import static io.aeron.logbuffer.LogBufferDescriptor.indexByPosition;
+import static io.aeron.logbuffer.LogBufferDescriptor.indexByTerm;
+import static io.aeron.logbuffer.LogBufferDescriptor.isPublicationRevoked;
 import static io.aeron.logbuffer.TermGapFiller.tryFillGap;
 import static io.aeron.protocol.SetupFlyweight.SEND_RESPONSE_SETUP_FLAG;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
@@ -398,7 +409,7 @@ public final class PublicationImage
             }
         }
 
-        if (subscriberPositions.length == 0)
+        if (0 == subscriberPositions.length)
         {
             isRebuilding = false;
         }
@@ -1183,7 +1194,15 @@ public final class PublicationImage
                     if ((untethered.timeOfLastUpdateNs + untetheredLingerTimeoutNs) - nowNs <= 0)
                     {
                         subscriberPositions = ArrayUtil.remove(subscriberPositions, untethered.position);
-                        untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                        if (untethered.subscriptionLink.isRejoin())
+                        {
+                            untethered.state(UntetheredSubscription.State.RESTING, nowNs, streamId, sessionId);
+                        }
+                        else
+                        {
+                            ArrayListUtil.fastUnorderedRemove(untetheredSubscriptions, i, lastIndex--);
+                            untethered.position.close();
+                        }
                     }
                 }
                 else if (UntetheredSubscription.State.RESTING == untethered.state)

@@ -27,8 +27,8 @@ import io.aeron.test.SystemTestWatcher;
 import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.CloseHelper;
+import org.agrona.SystemUtil;
 import org.agrona.concurrent.UnsafeBuffer;
-import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,7 +45,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static io.aeron.CommonContext.UDP_MEDIA;
+import static io.aeron.CommonContext.UNTETHERED_LINGER_TIMEOUT_PARAM_NAME;
+import static io.aeron.CommonContext.UNTETHERED_RESTING_TIMEOUT_PARAM_NAME;
 import static java.util.Arrays.asList;
+import static org.agrona.concurrent.status.CountersReader.RECORD_ALLOCATED;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -114,7 +118,7 @@ class UntetheredSubscriptionTest
             context.untetheredLingerTimeoutNs(TimeUnit.MILLISECONDS.toNanos(25));
         }
 
-        if (!channelUri.containsKey(CommonContext.UNTETHERED_RESTING_TIMEOUT_PARAM_NAME))
+        if (!channelUri.containsKey(UNTETHERED_RESTING_TIMEOUT_PARAM_NAME))
         {
             context.untetheredRestingTimeoutNs(TimeUnit.MILLISECONDS.toNanos(111));
         }
@@ -339,13 +343,8 @@ class UntetheredSubscriptionTest
 
             final int subPosCounterId = subscription.imageBySessionId(publication.sessionId()).subscriberPositionId();
             subscription.close();
-            final CountersReader countersReader = aeron.countersReader();
-            // await subscription close
-            while (CountersReader.RECORD_ALLOCATED == countersReader.getCounterState(subPosCounterId))
-            {
-                Tests.yield();
-                aeron.conductorAgentInvoker().invoke();
-            }
+            subscription.close();
+            awaitCounterClosed(subPosCounterId); // await subscription close
 
             while (2 != spyAvailableImageCount.get()) // wait for spy to re-connect
             {
@@ -368,7 +367,8 @@ class UntetheredSubscriptionTest
             else
             {
                 final long startNs = System.nanoTime();
-                final long endNs = startNs + 5 * driver.context().untetheredRestingTimeoutNs();
+                final long endNs = startNs + 5 * resolveTimeoutNs(
+                    publication, UNTETHERED_RESTING_TIMEOUT_PARAM_NAME, driver.context().untetheredRestingTimeoutNs());
                 do
                 {
                     assertFalse(publication.isConnected());
@@ -425,13 +425,7 @@ class UntetheredSubscriptionTest
 
             final int subPosCounterId = subscription.imageBySessionId(publication.sessionId()).subscriberPositionId();
             subscription.close();
-            final CountersReader countersReader = aeron.countersReader();
-            // await subscription close
-            while (CountersReader.RECORD_ALLOCATED == countersReader.getCounterState(subPosCounterId))
-            {
-                Tests.yield();
-                aeron.conductorAgentInvoker().invoke();
-            }
+            awaitCounterClosed(subPosCounterId); // await subscription close
 
             boolean publicationWasDisconnected = !publication.isConnected();
             while (2 != availableImageCount.get()) // wait for re-connect after resting
@@ -449,6 +443,109 @@ class UntetheredSubscriptionTest
 
             assertEquals(publication.position(), untetheredSubscription.imageAtIndex(0).position());
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    @InterruptAfter(10)
+    void shouldNotRejoinAfterRestingIfRejoinIsFalse(final String channel)
+    {
+        TestMediaDriver.notSupportedOnCMediaDriver("not implemented");
+        launch(channel);
+
+        final AtomicInteger unavailableImageCount = new AtomicInteger();
+        final AtomicInteger availableImageCount = new AtomicInteger();
+        final UnavailableImageHandler unavailableHandler = (image) -> unavailableImageCount.incrementAndGet();
+        final AvailableImageHandler availableHandler = (image) -> availableImageCount.incrementAndGet();
+        final FragmentHandler fragmentHandler = (buffer, offset, length, header) -> {};
+
+        final UnsafeBuffer srcBuffer = new UnsafeBuffer(new byte[MESSAGE_LENGTH]);
+        ThreadLocalRandom.current().nextBytes(srcBuffer.byteArray());
+        final String untetheredChannel = channel + "|tether=false|rejoin=false";
+        final String publicationChannel = channel.startsWith("aeron-spy") ? channel.substring(10) : channel;
+        final boolean isUdp = UDP_MEDIA.equals(ChannelUri.parse(channel).media());
+        boolean pollingUntethered = true;
+
+        try (Subscription tetheredSub = aeron.addSubscription(isUdp ? channel + "|rejoin=false" : channel, STREAM_ID);
+            Subscription untetheredSub = aeron.addSubscription(
+                untetheredChannel, STREAM_ID, availableHandler, unavailableHandler);
+            Publication publication = aeron.addPublication(publicationChannel, STREAM_ID))
+        {
+            while (!tetheredSub.isConnected() || !untetheredSub.isConnected())
+            {
+                Tests.yield();
+                aeron.conductorAgentInvoker().invoke();
+            }
+            final Image tetheredImage = tetheredSub.imageBySessionId(publication.sessionId());
+            final Image untetheredImage = untetheredSub.imageBySessionId(publication.sessionId());
+            final int untetheredSubPosCounterId = untetheredImage.subscriberPositionId();
+
+            while (0 == unavailableImageCount.get())
+            {
+                if (publication.offer(srcBuffer, 0, ThreadLocalRandom.current().nextInt(1, MESSAGE_LENGTH)) < 0)
+                {
+                    Tests.yield();
+                    aeron.conductorAgentInvoker().invoke();
+                }
+
+                if (pollingUntethered && untetheredImage.poll(fragmentHandler, FRAGMENT_COUNT_LIMIT) > 0)
+                {
+                    pollingUntethered = false;
+                }
+
+                tetheredImage.poll(fragmentHandler, FRAGMENT_COUNT_LIMIT);
+            }
+
+            final long startNs = System.nanoTime();
+            final long endNs = startNs + 5 * resolveTimeoutNs(
+                publication, UNTETHERED_LINGER_TIMEOUT_PARAM_NAME, driver.context().untetheredLingerTimeoutNs());
+            do
+            {
+                assertEquals(1, unavailableImageCount.get());
+                assertEquals(1, availableImageCount.get());
+                assertFalse(untetheredSub.isConnected());
+                assertTrue(tetheredSub.isConnected());
+
+                if (publication.offer(srcBuffer, 0, ThreadLocalRandom.current().nextInt(1, MESSAGE_LENGTH)) < 0)
+                {
+                    Tests.yield();
+                    aeron.conductorAgentInvoker().invoke();
+                }
+            }
+            while (System.nanoTime() < endNs);
+
+            while (tetheredImage.position() < publication.position())
+            {
+                if (0 == tetheredImage.poll(fragmentHandler, FRAGMENT_COUNT_LIMIT))
+                {
+                    Tests.yield();
+                    aeron.conductorAgentInvoker().invoke();
+                }
+            }
+
+            awaitCounterClosed(untetheredSubPosCounterId);
+        }
+    }
+
+    private void awaitCounterClosed(final int counterId)
+    {
+        while (RECORD_ALLOCATED == aeron.countersReader().getCounterState(counterId))
+        {
+            Tests.yield();
+            aeron.conductorAgentInvoker().invoke();
+        }
+    }
+
+    private static long resolveTimeoutNs(
+        final Publication publication, final String paramName, final long defaultValue)
+    {
+        final ChannelUri channelUri = ChannelUri.parse(publication.channel());
+        final String timeout = channelUri.get(paramName);
+        if (null != timeout)
+        {
+            return SystemUtil.parseDuration(paramName, timeout);
+        }
+        return defaultValue;
     }
 
     private void assertUntetheredParametersInLogBufferMetadata(
