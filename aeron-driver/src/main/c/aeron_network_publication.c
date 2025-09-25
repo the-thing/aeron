@@ -275,6 +275,7 @@ int aeron_network_publication_create(
     _pub->conductor_fields.subscribable.array = NULL;
     _pub->conductor_fields.subscribable.length = 0;
     _pub->conductor_fields.subscribable.capacity = 0;
+    _pub->conductor_fields.subscribable.inactive_count = 0;
     _pub->conductor_fields.subscribable.add_position_hook_func = aeron_network_publication_add_subscriber_hook;
     _pub->conductor_fields.subscribable.remove_position_hook_func = aeron_network_publication_remove_subscriber_hook;
     _pub->conductor_fields.subscribable.clientd = _pub;
@@ -999,7 +1000,7 @@ int aeron_network_publication_update_pub_pos_and_lmt(aeron_network_publication_t
                     aeron_tetherable_position_t *tetherable_position =
                         &publication->conductor_fields.subscribable.array[i];
 
-                    if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+                    if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
                     {
                         int64_t position = aeron_counter_get_acquire(tetherable_position->value_addr);
                         min_consumer_position = position < min_consumer_position ? position : min_consumer_position;
@@ -1117,7 +1118,7 @@ bool aeron_network_publication_spies_finished_consuming(
         {
             aeron_tetherable_position_t *tetherable_position = &publication->conductor_fields.subscribable.array[i];
 
-            if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+            if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
             {
                 if (aeron_counter_get_acquire(tetherable_position->value_addr) < eos_pos)
                 {
@@ -1132,13 +1133,14 @@ bool aeron_network_publication_spies_finished_consuming(
         for (size_t i = 0, length = publication->conductor_fields.subscribable.length; i < length; i++)
         {
             aeron_counters_manager_free(
-                &conductor->counters_manager, (int32_t)publication->conductor_fields.subscribable.array[i].counter_id);
+                &conductor->counters_manager, publication->conductor_fields.subscribable.array[i].counter_id);
         }
 
         aeron_free(publication->conductor_fields.subscribable.array);
         publication->conductor_fields.subscribable.array = NULL;
         publication->conductor_fields.subscribable.length = 0;
         publication->conductor_fields.subscribable.capacity = 0;
+        publication->conductor_fields.subscribable.inactive_count = 0;
     }
 
     return true;
@@ -1184,31 +1186,46 @@ void aeron_network_publication_check_untethered_subscriptions(
                             AERON_IPC_CHANNEL_LEN);
 
                         aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns);
-
-                        publication->log.untethered_subscription_state_change(
+                            subscribable,
                             tetherable_position,
-                            now_ns,
-                            AERON_SUBSCRIPTION_TETHER_ACTIVE,
                             AERON_SUBSCRIPTION_TETHER_LINGER,
+                            now_ns,
                             publication->stream_id,
-                            publication->session_id);
+                            publication->session_id,
+                            publication->log.untethered_subscription_state_change);
                     }
                     break;
 
                 case AERON_SUBSCRIPTION_TETHER_LINGER:
                     if (now_ns > (tetherable_position->time_of_last_update_ns + linger_timeout_ns))
                     {
-                        aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns);
+                        if (tetherable_position->is_rejoin)
+                        {
+                            aeron_driver_subscribable_state(
+                                subscribable,
+                                tetherable_position,
+                                AERON_SUBSCRIPTION_TETHER_RESTING,
+                                now_ns,
+                                publication->stream_id,
+                                publication->session_id,
+                                publication->log.untethered_subscription_state_change);
+                        }
+                        else
+                        {
+                            aeron_driver_subscribable_state(
+                                subscribable,
+                                tetherable_position,
+                                AERON_SUBSCRIPTION_TETHER_CLOSED,
+                                now_ns,
+                                publication->stream_id,
+                                publication->session_id,
+                                publication->log.untethered_subscription_state_change);
 
-                        publication->log.untethered_subscription_state_change(
-                            tetherable_position,
-                            now_ns,
-                            AERON_SUBSCRIPTION_TETHER_LINGER,
-                            AERON_SUBSCRIPTION_TETHER_RESTING,
-                            publication->stream_id,
-                            publication->session_id);
+                            if (0 == aeron_counters_manager_free(&conductor->counters_manager, tetherable_position->counter_id))
+                            {
+                                tetherable_position->counter_id = AERON_NULL_COUNTER_ID; // prevent double free
+                            }
+                        }
                     }
                     break;
 
@@ -1230,16 +1247,17 @@ void aeron_network_publication_check_untethered_subscriptions(
                             AERON_IPC_CHANNEL_LEN);
 
                         aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
-
-                        publication->log.untethered_subscription_state_change(
+                            subscribable,
                             tetherable_position,
-                            now_ns,
-                            AERON_SUBSCRIPTION_TETHER_RESTING,
                             AERON_SUBSCRIPTION_TETHER_ACTIVE,
+                            now_ns,
                             publication->stream_id,
-                            publication->session_id);
+                            publication->session_id,
+                            publication->log.untethered_subscription_state_change);
                     }
+                    break;
+
+                case AERON_SUBSCRIPTION_TETHER_CLOSED:
                     break;
             }
         }

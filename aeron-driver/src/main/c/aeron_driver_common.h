@@ -72,18 +72,20 @@ typedef enum aeron_subscription_tether_state_enum
 {
     AERON_SUBSCRIPTION_TETHER_ACTIVE,
     AERON_SUBSCRIPTION_TETHER_LINGER,
-    AERON_SUBSCRIPTION_TETHER_RESTING
+    AERON_SUBSCRIPTION_TETHER_RESTING,
+    AERON_SUBSCRIPTION_TETHER_CLOSED
 }
 aeron_subscription_tether_state_t;
 
 typedef struct aeron_tetherable_position_stct
 {
-    bool is_tether;
-    aeron_subscription_tether_state_t state;
-    int32_t counter_id;
     volatile int64_t *value_addr;
     int64_t subscription_registration_id;
     int64_t time_of_last_update_ns;
+    aeron_subscription_tether_state_t state;
+    int32_t counter_id;
+    bool is_tether;
+    bool is_rejoin;
 }
 aeron_tetherable_position_t;
 
@@ -95,20 +97,13 @@ typedef void (*aeron_untethered_subscription_state_change_func_t)(
     int32_t stream_id,
     int32_t session_id);
 
-void aeron_untethered_subscription_state_change(
-    aeron_tetherable_position_t *tetherable_position,
-    int64_t now_ns,
-    aeron_subscription_tether_state_t new_state,
-    int32_t stream_id,
-    int32_t session_id);
-
 typedef struct aeron_subscribable_stct
 {
     int64_t correlation_id;
     size_t length;
     size_t capacity;
     aeron_tetherable_position_t *array;
-    size_t resting_count;
+    size_t inactive_count;
     void (*add_position_hook_func)(void *clientd, volatile int64_t *value_addr);
     void (*remove_position_hook_func)(void *clientd, volatile int64_t *value_addr);
     void *clientd;
@@ -119,11 +114,16 @@ void aeron_driver_subscribable_state(
     aeron_subscribable_t *subscribable,
     aeron_tetherable_position_t *tetherable_position,
     aeron_subscription_tether_state_t state,
-    int64_t now_ns);
+    int64_t now_ns,
+    int32_t stream_id,
+    int32_t session_id,
+    aeron_untethered_subscription_state_change_func_t log_func);
 
 size_t aeron_driver_subscribable_working_position_count(aeron_subscribable_t *subscribable);
 
 bool aeron_driver_subscribable_has_working_positions(aeron_subscribable_t *subscribable);
+
+bool aeron_driver_subscribable_is_active_state(aeron_subscription_tether_state_t state);
 
 typedef struct aeron_command_base_stct
 {

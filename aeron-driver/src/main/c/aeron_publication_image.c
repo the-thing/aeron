@@ -310,6 +310,7 @@ int aeron_publication_image_create(
     _image->conductor_fields.subscribable.array = NULL;
     _image->conductor_fields.subscribable.length = 0;
     _image->conductor_fields.subscribable.capacity = 0;
+    _image->conductor_fields.subscribable.inactive_count = 0;
     _image->conductor_fields.subscribable.add_position_hook_func = aeron_driver_subscribable_null_hook;
     _image->conductor_fields.subscribable.remove_position_hook_func = aeron_driver_subscribable_null_hook;
     _image->conductor_fields.subscribable.clientd = NULL;
@@ -526,7 +527,7 @@ void aeron_publication_image_track_rebuild(aeron_publication_image_t *image, int
         {
             aeron_tetherable_position_t *tetherable_position = &image->conductor_fields.subscribable.array[i];
 
-            if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+            if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
             {
                 const int64_t position = aeron_counter_get_acquire(tetherable_position->value_addr);
 
@@ -1087,7 +1088,7 @@ void aeron_publication_image_check_untethered_subscriptions(
     for (size_t i = 0, length = subscribable->length; i < length; i++)
     {
         aeron_tetherable_position_t *tetherable_position = &subscribable->array[i];
-        if (tetherable_position->is_tether || AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state) {
+        if (aeron_driver_subscribable_is_active_state(tetherable_position->state)) {
             int64_t position = aeron_counter_get_acquire(tetherable_position->value_addr);
             max_sub_pos = position > max_sub_pos ? position : max_sub_pos;
         }
@@ -1128,31 +1129,46 @@ void aeron_publication_image_check_untethered_subscriptions(
                             AERON_IPC_CHANNEL_LEN);
 
                         aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns);
-
-                        image->log.untethered_subscription_state_change(
-                                tetherable_position,
-                                now_ns,
-                                AERON_SUBSCRIPTION_TETHER_ACTIVE,
-                                AERON_SUBSCRIPTION_TETHER_LINGER,
-                                image->stream_id,
-                                image->session_id);
+                            subscribable,
+                            tetherable_position,
+                            AERON_SUBSCRIPTION_TETHER_LINGER,
+                            now_ns,
+                            image->stream_id,
+                            image->session_id,
+                            image->log.untethered_subscription_state_change);
                     }
                     break;
 
                 case AERON_SUBSCRIPTION_TETHER_LINGER:
                     if (now_ns > (tetherable_position->time_of_last_update_ns + linger_timeout_ns))
                     {
-                        aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns);
-
-                        image->log.untethered_subscription_state_change(
+                        if (tetherable_position->is_rejoin)
+                        {
+                            aeron_driver_subscribable_state(
+                                subscribable,
                                 tetherable_position,
-                                now_ns,
-                                AERON_SUBSCRIPTION_TETHER_LINGER,
                                 AERON_SUBSCRIPTION_TETHER_RESTING,
+                                now_ns,
                                 image->stream_id,
-                                image->session_id);
+                                image->session_id,
+                                image->log.untethered_subscription_state_change);
+                        }
+                        else
+                        {
+                            aeron_driver_subscribable_state(
+                                subscribable,
+                                tetherable_position,
+                                AERON_SUBSCRIPTION_TETHER_CLOSED,
+                                now_ns,
+                                image->stream_id,
+                                image->session_id,
+                                image->log.untethered_subscription_state_change);
+
+                            if (0 == aeron_counters_manager_free(&conductor->counters_manager, tetherable_position->counter_id))
+                            {
+                                tetherable_position->counter_id = AERON_NULL_COUNTER_ID; // prevent double free
+                            }
+                        }
                     }
                     break;
 
@@ -1174,16 +1190,17 @@ void aeron_publication_image_check_untethered_subscriptions(
                             image->source_identity_length);
 
                         aeron_driver_subscribable_state(
-                            subscribable, tetherable_position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
-
-                        image->log.untethered_subscription_state_change(
-                                tetherable_position,
-                                now_ns,
-                                AERON_SUBSCRIPTION_TETHER_RESTING,
-                                AERON_SUBSCRIPTION_TETHER_ACTIVE,
-                                image->stream_id,
-                                image->session_id);
+                            subscribable,
+                            tetherable_position,
+                            AERON_SUBSCRIPTION_TETHER_ACTIVE,
+                            now_ns,
+                            image->stream_id,
+                            image->session_id,
+                            image->log.untethered_subscription_state_change);
                     }
+                    break;
+
+                case AERON_SUBSCRIPTION_TETHER_CLOSED:
                     break;
             }
         }
@@ -1208,6 +1225,8 @@ void aeron_publication_image_on_time_event(
             }
             else
             {
+                aeron_publication_image_check_untethered_subscriptions(conductor, image, now_ns);
+
                 int64_t last_packet_timestamp_ns;
                 AERON_GET_ACQUIRE(last_packet_timestamp_ns, image->time_of_last_packet_ns);
                 bool is_end_of_stream;
@@ -1223,8 +1242,6 @@ void aeron_publication_image_on_time_event(
                     image->conductor_fields.time_of_last_state_change_ns = now_ns;
                     AERON_SET_RELEASE(image->is_sending_eos_sm, true);
                 }
-
-                aeron_publication_image_check_untethered_subscriptions(conductor, image, now_ns);
             }
             break;
         }

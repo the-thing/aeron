@@ -181,7 +181,7 @@ inline int64_t aeron_ipc_publication_join_position(aeron_ipc_publication_t *publ
     {
         aeron_tetherable_position_t *tetherable_position = &publication->conductor_fields.subscribable.array[i];
 
-        if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+        if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
         {
             const int64_t sub_pos = aeron_counter_get_acquire(tetherable_position->value_addr);
 
@@ -208,7 +208,7 @@ inline bool aeron_ipc_publication_is_drained(aeron_ipc_publication_t *publicatio
     {
         aeron_tetherable_position_t *tetherable_position = &publication->conductor_fields.subscribable.array[i];
 
-        if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+        if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
         {
             const int64_t sub_pos = aeron_counter_get_acquire(tetherable_position->value_addr);
 

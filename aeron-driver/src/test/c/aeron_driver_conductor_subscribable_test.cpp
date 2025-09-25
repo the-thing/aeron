@@ -54,6 +54,16 @@ protected:
 
         return nullptr;
     }
+
+    static void no_op_log(
+        aeron_tetherable_position_t *tetherable_position,
+        int64_t now_ns,
+        aeron_subscription_tether_state_t old_state,
+        aeron_subscription_tether_state_t new_state,
+        int32_t stream_id,
+        int32_t session_id)
+    {
+    }
 };
 
 TEST_F(DriverConductorSubscribableTest, shouldHaveNoWorkingWhenOnlySubscriptionIsResting)
@@ -78,18 +88,21 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveNoWorkingWhenOnlySubscriptionI
 
     aeron_tetherable_position_t *position;
 
+    int32_t stream_id = 42;
+    int32_t session_id = -188;
+
     position = findTetherablePosition(&m_subscribable, untethered_link_counter_id);
     ASSERT_TRUE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns, stream_id, session_id, no_op_log);
     position = findTetherablePosition(&m_subscribable, untethered_link_counter_id);
     ASSERT_TRUE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns, stream_id, session_id, no_op_log);
     position = findTetherablePosition(&m_subscribable, untethered_link_counter_id);
     ASSERT_FALSE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns, stream_id, session_id, no_op_log);
     position = findTetherablePosition(&m_subscribable, untethered_link_counter_id);
     ASSERT_TRUE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 }
@@ -106,6 +119,9 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveWorkingWhenOneSubscriptionRest
     m_subscribable.clientd = nullptr;
     aeron_tetherable_position_t *position;
 
+    int32_t stream_id = 5;
+    int32_t session_id = 0;
+
     aeron_subscription_link_t resting_link = {};
     strcpy(resting_link.channel, "aeron:ipc");
     resting_link.is_tether = false;
@@ -113,7 +129,7 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveWorkingWhenOneSubscriptionRest
     aeron_driver_subscribable_add_position(
         &m_subscribable, &resting_link, resting_link_counter_id, nullptr, now_ns);
     position = findTetherablePosition(&m_subscribable, resting_link_counter_id);
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_RESTING, now_ns, stream_id, session_id, no_op_log);
 
     aeron_subscription_link_t active_link = {};
     strcpy(active_link.channel, "aeron:ipc");
@@ -122,7 +138,7 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveWorkingWhenOneSubscriptionRest
     aeron_driver_subscribable_add_position(
         &m_subscribable, &active_link, active_link_counter_id, nullptr, now_ns);
     position = findTetherablePosition(&m_subscribable, active_link_counter_id);
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns, stream_id, session_id, no_op_log);
 
     aeron_subscription_link_t lingering_link = {};
     strcpy(lingering_link.channel, "aeron:ipc");
@@ -131,7 +147,7 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveWorkingWhenOneSubscriptionRest
     aeron_driver_subscribable_add_position(
         &m_subscribable, &lingering_link, lingering_link_counter_id, nullptr, now_ns);
     position = findTetherablePosition(&m_subscribable, lingering_link_counter_id);
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_LINGER, now_ns, stream_id, session_id, no_op_log);
 
     ASSERT_TRUE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 
@@ -143,7 +159,7 @@ TEST_F(DriverConductorSubscribableTest, shouldHaveWorkingWhenOneSubscriptionRest
 
     aeron_driver_subscribable_add_position(
         &m_subscribable, &active_link, active_link_counter_id, nullptr, now_ns);
-    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
+    aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns, stream_id, session_id, no_op_log);
     ASSERT_TRUE(aeron_driver_subscribable_has_working_positions(&m_subscribable));
 
     aeron_driver_subscribable_remove_position(&m_subscribable, resting_link_counter_id);
@@ -166,6 +182,8 @@ TEST_F(DriverConductorSubscribableTest, shouldApplyMultipleRandomActionsAndEnsur
     
     int32_t iterations = 1000;
     int32_t counter_id = 0;
+    int32_t stream_id = -165;
+    int32_t session_id = 573485834;
 
     for (int32_t i = 0; i < iterations; i++)
     {
@@ -180,7 +198,7 @@ TEST_F(DriverConductorSubscribableTest, shouldApplyMultipleRandomActionsAndEnsur
                 aeron_driver_subscribable_add_position(
                     &m_subscribable, &link, active_link_counter_id, nullptr, now_ns);
                 aeron_tetherable_position_t *position = findTetherablePosition(&m_subscribable, active_link_counter_id);
-                aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns);
+                aeron_driver_subscribable_state(&m_subscribable, position, AERON_SUBSCRIPTION_TETHER_ACTIVE, now_ns, stream_id, session_id, no_op_log);
 
                 break;
             }
@@ -205,7 +223,7 @@ TEST_F(DriverConductorSubscribableTest, shouldApplyMultipleRandomActionsAndEnsur
                     auto state = static_cast<aeron_subscription_tether_state_t>(state_as_int);
                     aeron_tetherable_position_t *position = &m_subscribable.array[index];
 
-                    aeron_driver_subscribable_state(&m_subscribable, position, state, 0);
+                    aeron_driver_subscribable_state(&m_subscribable, position, state, 0, stream_id, session_id, no_op_log);
                 }
                 break;
             }
@@ -228,9 +246,9 @@ TEST_F(DriverConductorSubscribableTest, shouldApplyMultipleRandomActionsAndEnsur
             }
         }
 
-        ASSERT_EQ(resting_count, m_subscribable.resting_count) << i;
+        ASSERT_EQ(resting_count, m_subscribable.inactive_count) << i;
         ASSERT_EQ(working_count, aeron_driver_subscribable_working_position_count(&m_subscribable));
-        ASSERT_LE(m_subscribable.resting_count, m_subscribable.length);
+        ASSERT_LE(m_subscribable.inactive_count, m_subscribable.length);
         ASSERT_EQ(resting_count == m_subscribable.length, !aeron_driver_subscribable_has_working_positions(&m_subscribable));
     }
 }

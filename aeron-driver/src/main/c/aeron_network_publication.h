@@ -294,7 +294,7 @@ inline int64_t aeron_network_publication_max_spy_position(aeron_network_publicat
         aeron_tetherable_position_t *tetherable_position = &publication->conductor_fields.subscribable.array[i];
         int64_t spy_position = aeron_counter_get_acquire(tetherable_position->value_addr);
 
-        if (AERON_SUBSCRIPTION_TETHER_RESTING != tetherable_position->state)
+        if (aeron_driver_subscribable_is_active_state(tetherable_position->state))
         {
             position = spy_position > position ? spy_position : position;
         }

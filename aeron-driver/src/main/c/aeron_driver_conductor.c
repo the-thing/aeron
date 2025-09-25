@@ -3923,6 +3923,7 @@ int aeron_driver_subscribable_add_position(
     {
         aeron_tetherable_position_t *entry = &subscribable->array[subscribable->length];
         entry->is_tether = link->is_tether;
+        entry->is_rejoin = link->is_rejoin;
         entry->state = AERON_SUBSCRIPTION_TETHER_ACTIVE;
         entry->counter_id = counter_id;
         entry->value_addr = value_addr;
@@ -3943,9 +3944,9 @@ void aeron_driver_subscribable_remove_position(aeron_subscribable_t *subscribabl
         aeron_tetherable_position_t *tetherable_position = &subscribable->array[i];
         if (counter_id == tetherable_position->counter_id)
         {
-            if (AERON_SUBSCRIPTION_TETHER_RESTING == tetherable_position->state)
+            if (!aeron_driver_subscribable_is_active_state(tetherable_position->state))
             {
-                subscribable->resting_count--;
+                subscribable->inactive_count--;
             }
 
             subscribable->remove_position_hook_func(subscribable->clientd, tetherable_position->value_addr);
@@ -4032,33 +4033,44 @@ int aeron_driver_conductor_link_subscribable(
 void aeron_driver_subscribable_state(
     aeron_subscribable_t *subscribable,
     aeron_tetherable_position_t *tetherable_position,
-    aeron_subscription_tether_state_t state,
-    int64_t now_ns)
+    const aeron_subscription_tether_state_t state,
+    int64_t now_ns,
+    int32_t stream_id,
+    int32_t session_id,
+    aeron_untethered_subscription_state_change_func_t log_func)
 {
-    if (tetherable_position->state != state)
+    aeron_subscription_tether_state_t old_state = tetherable_position->state;
+    if (state != old_state)
     {
-        if (AERON_SUBSCRIPTION_TETHER_RESTING == state)
+        if (!aeron_driver_subscribable_is_active_state(state))
         {
-            subscribable->resting_count++;
+            subscribable->inactive_count++;
         }
-        else if (AERON_SUBSCRIPTION_TETHER_RESTING == tetherable_position->state)
+        else if (!aeron_driver_subscribable_is_active_state(old_state))
         {
-            subscribable->resting_count--;
+            subscribable->inactive_count--;
         }
     }
 
     tetherable_position->state = state;
     tetherable_position->time_of_last_update_ns = now_ns;
+
+    log_func(tetherable_position, now_ns, old_state, state, stream_id, session_id);
 }
 
 size_t aeron_driver_subscribable_working_position_count(aeron_subscribable_t *subscribable)
 {
-    return subscribable->length - subscribable->resting_count;
+    return subscribable->length - subscribable->inactive_count;
 }
 
 bool aeron_driver_subscribable_has_working_positions(aeron_subscribable_t *subscribable)
 {
-    return subscribable->resting_count < subscribable->length;
+    return subscribable->length > subscribable->inactive_count;
+}
+
+bool aeron_driver_subscribable_is_active_state(aeron_subscription_tether_state_t state)
+{
+    return state != AERON_SUBSCRIPTION_TETHER_RESTING && state != AERON_SUBSCRIPTION_TETHER_CLOSED;
 }
 
 void aeron_driver_conductor_unlink_subscribable(aeron_subscription_link_t *link, aeron_subscribable_t *subscribable)
@@ -4441,7 +4453,7 @@ int aeron_driver_conductor_on_add_ipc_subscription(
     link->client_id = command->correlated.client_id;
     link->registration_id = command->correlated.correlation_id;
     link->is_reliable = true;
-    link->is_rejoin = true;
+    link->is_rejoin = params.is_rejoin;
     link->is_response = params.is_response;
     link->group = AERON_INFER;
     link->is_sparse = params.is_sparse;
@@ -5282,7 +5294,7 @@ int aeron_driver_conductor_on_add_receive_ipc_destination(
     link->client_id = command->correlated.client_id;
     link->registration_id = mds_subscription_link->registration_id;
     link->is_reliable = true;
-    link->is_rejoin = true;
+    link->is_rejoin = params.is_rejoin;
     link->is_response = false;
     link->group = AERON_INFER;
     link->is_sparse = params.is_sparse;

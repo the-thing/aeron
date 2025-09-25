@@ -2176,6 +2176,9 @@ static const char *dissect_tether_state(aeron_subscription_tether_state_t state)
         case AERON_SUBSCRIPTION_TETHER_RESTING:
             return "RESTING";
 
+        case AERON_SUBSCRIPTION_TETHER_CLOSED:
+            return "CLOSED";
+
         default:
             return "unknown tether state";
     }

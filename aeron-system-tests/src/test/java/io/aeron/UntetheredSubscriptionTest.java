@@ -450,7 +450,6 @@ class UntetheredSubscriptionTest
     @InterruptAfter(10)
     void shouldNotRejoinAfterRestingIfRejoinIsFalse(final String channel)
     {
-        TestMediaDriver.notSupportedOnCMediaDriver("not implemented");
         launch(channel);
 
         final AtomicInteger unavailableImageCount = new AtomicInteger();
