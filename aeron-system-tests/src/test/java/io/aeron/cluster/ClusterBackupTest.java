@@ -639,11 +639,11 @@ class ClusterBackupTest
     {
         final TestCluster cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
+        cluster.awaitLeader();
 
         cluster.connectClient();
         final int initialMessageCount = 100_000; // minimum number of messages to trigger the bug
-        cluster.sendMessages(initialMessageCount);
-        cluster.awaitServicesMessageCount(initialMessageCount);
+        cluster.sendAndAwaitMessages(initialMessageCount);
 
         final TestBackupNode backupNode = cluster.startClusterBackupNode(
             true, new NullCredentialsSupplier(), ClusterBackup.SourceType.FOLLOWER, catchupPort);
@@ -651,10 +651,7 @@ class ClusterBackupTest
         backupNode.close();
 
         final int delta = 1000;
-        cluster.sendMessages(delta);
-
-        cluster.awaitServicesMessageCount(initialMessageCount + delta);
-        cluster.awaitResponseMessageCount(initialMessageCount + delta);
+        cluster.sendAndAwaitMessages(delta, initialMessageCount + delta);
 
         cluster.startClusterBackupNode(
             false, new NullCredentialsSupplier(), ClusterBackup.SourceType.FOLLOWER, catchupPort);
