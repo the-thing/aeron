@@ -99,17 +99,6 @@ final class ClusterSession implements ClusterClientSession
     public void close(final Aeron aeron, final ErrorHandler errorHandler)
     {
         disconnect(aeron, errorHandler);
-        if (NULL_VALUE != counterRegistrationId)
-        {
-            aeron.asyncRemoveCounter(counterRegistrationId);
-            counterRegistrationId = NULL_VALUE;
-        }
-        else
-        {
-            CloseHelper.close(errorHandler, counter);
-            counter = null;
-        }
-
         state(State.CLOSED);
     }
 
@@ -235,6 +224,16 @@ final class ClusterSession implements ClusterClientSession
         {
             CloseHelper.close(errorHandler, responsePublication);
             responsePublication = null;
+        }
+        if (NULL_VALUE != counterRegistrationId)
+        {
+            aeron.asyncRemoveCounter(counterRegistrationId);
+            counterRegistrationId = NULL_VALUE;
+        }
+        else
+        {
+            CloseHelper.close(errorHandler, counter);
+            counter = null;
         }
     }
 
