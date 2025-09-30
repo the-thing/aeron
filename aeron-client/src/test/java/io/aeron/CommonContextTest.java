@@ -34,9 +34,27 @@ import java.nio.file.Path;
 
 import static io.aeron.CommonContext.FALLBACK_LOGGER_PROP_NAME;
 import static java.nio.ByteBuffer.allocateDirect;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.AdditionalMatchers.and;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.endsWith;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.startsWith;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.withSettings;
 
 class CommonContextTest
 {
@@ -156,7 +174,7 @@ class CommonContextTest
     {
         final File markFile = tempDir.resolve("mark.dat").toFile();
         final DistinctErrorLog errorLog =
-            new DistinctErrorLog(new UnsafeBuffer(allocateDirect(10 * 1024)), SystemEpochClock.INSTANCE);
+            new DistinctErrorLog(new UnsafeBuffer(allocateDirect(16 * 1024)), SystemEpochClock.INSTANCE);
         assertTrue(errorLog.record(new Exception("Just to test")));
         final PrintStream logger = mock(PrintStream.class);
         final String errorFilePrefix = "my-file-";
