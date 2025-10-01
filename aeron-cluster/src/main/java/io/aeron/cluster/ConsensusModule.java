@@ -790,15 +790,13 @@ public final class ConsensusModule implements AutoCloseable
         public static final String AUTHORISATION_SERVICE_SUPPLIER_PROP_NAME =
             "aeron.cluster.authorisation.service.supplier";
 
-        static final AuthorisationService ALLOW_ONLY_BACKUP_QUERIES = (protocolId, actionId, type, encodedPrincipal) ->
-            MessageHeaderDecoder.SCHEMA_ID == protocolId && BackupQueryDecoder.TEMPLATE_ID == actionId;
-
         /**
-         * Default {@link AuthorisationServiceSupplier} that returns {@link AuthorisationService} that forbids all
-         * command from being executed (i.e. {@link AuthorisationService#DENY_ALL}).
+         * Default {@link AuthorisationServiceSupplier} that returns an {@link AuthorisationService} that
+         * allows the commands necessary for Cluster Backup and Aeron Cluster Standby.
+         * ({@link AllowBackupAndStandbyAuthorisationService}).
          */
         public static final AuthorisationServiceSupplier DEFAULT_AUTHORISATION_SERVICE_SUPPLIER =
-            () -> ALLOW_ONLY_BACKUP_QUERIES;
+            () -> AllowBackupAndStandbyAuthorisationService.INSTANCE;
 
         /**
          * Size in bytes of the error buffer for the cluster.
