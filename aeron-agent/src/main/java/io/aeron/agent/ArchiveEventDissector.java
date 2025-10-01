@@ -87,6 +87,8 @@ final class ArchiveEventDissector
     private static final ControlResponseDecoder CONTROL_RESPONSE_DECODER = new ControlResponseDecoder();
     private static final RecordingSignalEventDecoder RECORDING_SIGNAL_EVENT_DECODER = new RecordingSignalEventDecoder();
     private static final ReplayTokenRequestDecoder REPLAY_TOKEN_REQUEST_DECODER = new ReplayTokenRequestDecoder();
+    private static final MaxRecordedPositionRequestDecoder MAX_RECORDED_POSITION_REQUEST_DECODER =
+        new MaxRecordedPositionRequestDecoder();
 
     private ArchiveEventDissector()
     {
@@ -419,6 +421,15 @@ final class ArchiveEventDissector
                     HEADER_DECODER.blockLength(),
                     HEADER_DECODER.version());
                 appendReplayToken(builder);
+                break;
+
+            case CMD_IN_MAX_RECORDED_POSITION:
+                MAX_RECORDED_POSITION_REQUEST_DECODER.wrap(
+                    buffer,
+                    offset + encodedLength,
+                    HEADER_DECODER.blockLength(),
+                    HEADER_DECODER.version());
+                appendMaxRecordedPosition(builder);
                 break;
 
             default:
@@ -790,6 +801,13 @@ final class ArchiveEventDissector
         builder.append(": controlSessionId=").append(RECORDING_POSITION_REQUEST_DECODER.controlSessionId())
             .append(" correlationId=").append(RECORDING_POSITION_REQUEST_DECODER.correlationId())
             .append(" recordingId=").append(RECORDING_POSITION_REQUEST_DECODER.recordingId());
+    }
+
+    private static void appendMaxRecordedPosition(final StringBuilder builder)
+    {
+        builder.append(": controlSessionId=").append(MAX_RECORDED_POSITION_REQUEST_DECODER.controlSessionId())
+            .append(" correlationId=").append(MAX_RECORDED_POSITION_REQUEST_DECODER.correlationId())
+            .append(" recordingId=").append(MAX_RECORDED_POSITION_REQUEST_DECODER.recordingId());
     }
 
     private static void appendTruncateRecording(final StringBuilder builder)

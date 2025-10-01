@@ -16,6 +16,7 @@
 package io.aeron.agent;
 
 import io.aeron.archive.codecs.ListRecordingRequestDecoder;
+import io.aeron.archive.codecs.MaxRecordedPositionRequestEncoder;
 import io.aeron.archive.codecs.MessageHeaderEncoder;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
@@ -29,20 +30,39 @@ import org.junit.jupiter.params.provider.ValueSource;
 import java.time.temporal.ChronoUnit;
 
 import static io.aeron.agent.AgentTests.verifyLogHeader;
-import static io.aeron.agent.ArchiveEventCode.*;
+import static io.aeron.agent.ArchiveEventCode.CATALOG_RESIZE;
+import static io.aeron.agent.ArchiveEventCode.CMD_IN_MAX_RECORDED_POSITION;
+import static io.aeron.agent.ArchiveEventCode.CMD_OUT_RESPONSE;
+import static io.aeron.agent.ArchiveEventCode.CONTROL_SESSION_STATE_CHANGE;
+import static io.aeron.agent.ArchiveEventCode.RECORDING_SIGNAL;
+import static io.aeron.agent.ArchiveEventCode.REPLAY_SESSION_ERROR;
+import static io.aeron.agent.ArchiveEventCode.REPLICATION_SESSION_DONE;
+import static io.aeron.agent.ArchiveEventCode.REPLICATION_SESSION_STATE_CHANGE;
 import static io.aeron.agent.ArchiveEventEncoder.replicationSessionDoneLength;
 import static io.aeron.agent.ArchiveEventEncoder.replicationSessionStateChangeLength;
 import static io.aeron.agent.ArchiveEventLogger.CONTROL_REQUEST_EVENTS;
-import static io.aeron.agent.CommonEventEncoder.*;
+import static io.aeron.agent.CommonEventEncoder.LOG_HEADER_LENGTH;
+import static io.aeron.agent.CommonEventEncoder.MAX_CAPTURE_LENGTH;
+import static io.aeron.agent.CommonEventEncoder.STATE_SEPARATOR;
 import static io.aeron.agent.EventConfiguration.MAX_EVENT_LENGTH;
 import static io.aeron.archive.codecs.MessageHeaderEncoder.ENCODED_LENGTH;
 import static java.nio.ByteBuffer.allocateDirect;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
-import static org.agrona.BitUtil.*;
-import static org.agrona.concurrent.ringbuffer.RecordDescriptor.*;
-import static org.agrona.concurrent.ringbuffer.RingBufferDescriptor.*;
+import static org.agrona.BitUtil.CACHE_LINE_LENGTH;
+import static org.agrona.BitUtil.SIZE_OF_INT;
+import static org.agrona.BitUtil.SIZE_OF_LONG;
+import static org.agrona.BitUtil.align;
+import static org.agrona.concurrent.ringbuffer.RecordDescriptor.ALIGNMENT;
+import static org.agrona.concurrent.ringbuffer.RecordDescriptor.HEADER_LENGTH;
+import static org.agrona.concurrent.ringbuffer.RecordDescriptor.encodedMsgOffset;
+import static org.agrona.concurrent.ringbuffer.RecordDescriptor.lengthOffset;
+import static org.agrona.concurrent.ringbuffer.RingBufferDescriptor.HEAD_CACHE_POSITION_OFFSET;
+import static org.agrona.concurrent.ringbuffer.RingBufferDescriptor.TAIL_POSITION_OFFSET;
+import static org.agrona.concurrent.ringbuffer.RingBufferDescriptor.TRAILER_LENGTH;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.INCLUDE;
 
@@ -327,6 +347,44 @@ class ArchiveEventLoggerTest
             " replicationId=" + replicationId + " srcRecordingId=" + srcRecordingId +
             " dstRecordingId=" + dstRecordingId + " position=" + position +
             " " + oldState.name() + " -> " + newState.name() + " reason=\"" + reason + "\"";
+
+        assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
+    }
+
+    @Test
+    void logMaxRecordedPosition()
+    {
+        final ArchiveEventCode eventCode = CMD_IN_MAX_RECORDED_POSITION;
+        ArchiveComponentLogger.ENABLED_EVENTS.add(eventCode);
+
+        final long controlSessionId = 0x777777;
+        final long recordingId = -99999999999999123L;
+        final long controlId = 0x11111111;
+
+        final int srcOffset = 64;
+        final MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
+        final MaxRecordedPositionRequestEncoder maxRecordedPositionRequestEncoder =
+            new MaxRecordedPositionRequestEncoder()
+                .wrapAndApplyHeader(srcBuffer, srcOffset, messageHeaderEncoder)
+                .controlSessionId(controlSessionId)
+                .recordingId(recordingId)
+                .correlationId(controlId);
+
+        final int length = maxRecordedPositionRequestEncoder.encodedLength() + messageHeaderEncoder.encodedLength();
+        final int recordOffset = 1024;
+        logBuffer.putLong(CAPACITY + TAIL_POSITION_OFFSET, recordOffset);
+
+        logger.logControlRequest(srcBuffer, srcOffset, length);
+
+        verifyLogHeader(logBuffer, recordOffset, eventCode.toEventCodeId(), length, length);
+
+        final StringBuilder sb = new StringBuilder();
+        ArchiveEventDissector.dissectControlRequest(eventCode, logBuffer, encodedMsgOffset(recordOffset), sb);
+
+        final String expectedMessagePattern =
+            """
+                \\[[0-9]+\\.[0-9]+] ARCHIVE: CMD_IN_MAX_RECORDED_POSITION \\[32/32]:\
+                 controlSessionId=7829367 correlationId=286331153 recordingId=-99999999999999123""";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }
