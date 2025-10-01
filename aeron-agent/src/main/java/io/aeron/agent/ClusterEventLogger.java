@@ -637,6 +637,53 @@ public final class ClusterEventLogger
     }
 
     /**
+     * Log the appending of a session open event to the log.
+     *
+     * @param memberId         member (leader) publishing the event.
+     * @param sessionId        session id of the session be closed.
+     * @param leadershipTermId current leadership term id.
+     * @param logPosition      when session was opened.
+     * @param timestamp        the current timestamp.
+     * @param timeUnit         units for the timestamp.
+     */
+    public void logAppendSessionOpen(
+        final int memberId,
+        final long sessionId,
+        final long leadershipTermId,
+        final long logPosition,
+        final long timestamp,
+        final TimeUnit timeUnit)
+    {
+        final int length = appendSessionOpenLength(timeUnit);
+        final int captureLength = captureLength(length);
+        final int encodedLength = encodedLength(captureLength);
+        final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
+        final int index = ringBuffer.tryClaim(APPEND_SESSION_OPEN.toEventCodeId(), encodedLength);
+
+        if (index > 0)
+        {
+            try
+            {
+                ClusterEventEncoder.encodeAppendSessionOpen(
+                    (UnsafeBuffer)ringBuffer.buffer(),
+                    index,
+                    captureLength,
+                    length,
+                    memberId,
+                    sessionId,
+                    leadershipTermId,
+                    logPosition,
+                    timestamp,
+                    timeUnit);
+            }
+            finally
+            {
+                ringBuffer.commit(index);
+            }
+        }
+    }
+
+    /**
      * Log the receiving of a termination position event.
      *
      * @param memberId            that received the termination position.

@@ -20,7 +20,7 @@ import org.agrona.AsciiEncoding;
 /**
  * Utility methods for loggers.
  */
-public class LogUtil
+final class LogUtil
 {
     private static final long NANOS_PER_SECOND = 1_000_000_000;
     private static final long NANOS_PER_MICROSECOND = 1_000;
@@ -31,7 +31,7 @@ public class LogUtil
      * @param builder       to render the timestamp too.
      * @param timestampNs   the nanosecond timestamp.
      */
-    public static void appendTimestamp(final StringBuilder builder, final long timestampNs)
+    static void appendTimestamp(final StringBuilder builder, final long timestampNs)
     {
         final long seconds = timestampNs / NANOS_PER_SECOND;
         final long nanos = timestampNs - seconds * NANOS_PER_SECOND;

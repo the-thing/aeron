@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_CLOSE;
+import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_OPEN;
 import static io.aeron.agent.ClusterEventCode.ELECTION_STATE_CHANGE;
 import static io.aeron.agent.ClusterEventCode.NEW_ELECTION;
 import static io.aeron.agent.ClusterEventCode.ROLE_CHANGE;
@@ -90,7 +91,13 @@ class ClusterLoggingAgentTest
     {
         testClusterEventsLogging(
             "all",
-            EnumSet.of(ROLE_CHANGE, STATE_CHANGE, ELECTION_STATE_CHANGE, NEW_ELECTION, APPEND_SESSION_CLOSE));
+            EnumSet.of(
+                ROLE_CHANGE,
+                STATE_CHANGE,
+                ELECTION_STATE_CHANGE,
+                NEW_ELECTION,
+                APPEND_SESSION_OPEN,
+                APPEND_SESSION_CLOSE));
     }
 
     @Test
@@ -251,6 +258,7 @@ class ClusterLoggingAgentTest
                 }
 
                 case APPEND_SESSION_CLOSE:
+                {
                     final int offset = index + LOG_HEADER_LENGTH + 3 * SIZE_OF_LONG + SIZE_OF_INT;
                     final String closeReason = buffer.getStringAscii(offset);
                     if ("CLIENT_ACTION".equals(closeReason))
@@ -258,6 +266,17 @@ class ClusterLoggingAgentTest
                         WAIT_LIST.remove(eventCode);
                     }
                     break;
+                }
+
+                case APPEND_SESSION_OPEN:
+                {
+                    final int offset = index + LOG_HEADER_LENGTH + SIZE_OF_LONG;
+                    if (buffer.getLong(offset + SIZE_OF_LONG) > buffer.getLong(offset))
+                    {
+                        WAIT_LIST.remove(eventCode);
+                    }
+                    break;
+                }
 
                 default:
                     WAIT_LIST.remove(eventCode);

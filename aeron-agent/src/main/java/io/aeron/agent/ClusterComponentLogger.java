@@ -116,6 +116,13 @@ public class ClusterComponentLogger implements ComponentLogger
 
         tempBuilder = addEventInstrumentation(
             tempBuilder,
+            APPEND_SESSION_CLOSE,
+            "ConsensusModuleAgent",
+            ClusterInterceptor.AppendSessionOpen.class,
+            "logAppendSessionOpen");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
             CLUSTER_BACKUP_STATE_CHANGE,
             "ClusterBackupAgent",
             ClusterInterceptor.ClusterBackupStateChange.class,

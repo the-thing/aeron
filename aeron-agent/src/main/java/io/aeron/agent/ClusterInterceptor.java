@@ -268,6 +268,21 @@ class ClusterInterceptor
         }
     }
 
+    static class AppendSessionOpen
+    {
+        @Advice.OnMethodEnter
+        static void logAppendSessionOpen(
+            final int memberId,
+            final long sessionId,
+            final long leadershipTermId,
+            final long logPosition,
+            final long timestamp,
+            final TimeUnit timeUnit)
+        {
+            LOGGER.logAppendSessionOpen(memberId, sessionId, leadershipTermId, logPosition, timestamp, timeUnit);
+        }
+    }
+
     static class ClusterBackupStateChange
     {
         @Advice.OnMethodEnter

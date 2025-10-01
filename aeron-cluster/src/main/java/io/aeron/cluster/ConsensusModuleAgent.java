@@ -2240,6 +2240,16 @@ final class ConsensusModuleAgent
     {
     }
 
+    private static void logAppendSessionOpen(
+        final int memberId,
+        final long id,
+        final long leadershipTermId,
+        final long logPosition,
+        final long timestamp,
+        final TimeUnit timeUnit)
+    {
+    }
+
     private static void logAppendSessionClose(
         final int memberId,
         final long id,
@@ -2776,6 +2786,13 @@ final class ConsensusModuleAgent
                         if (session.appendSessionToLogAndSendOpen(
                             logPublisher, egressPublisher, leadershipTermId, memberId, nowNs, clusterClock.time()))
                         {
+                            logAppendSessionOpen(
+                                memberId,
+                                session.id(),
+                                leadershipTermId,
+                                session.openedLogPosition(),
+                                nowNs,
+                                clusterTimeUnit);
                             if (session.id() >= nextCommittedSessionId)
                             {
                                 nextCommittedSessionId = session.id() + 1;

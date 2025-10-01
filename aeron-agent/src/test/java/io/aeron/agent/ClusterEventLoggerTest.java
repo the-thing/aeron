@@ -550,12 +550,56 @@ class ClusterEventLoggerTest
         assertEquals(timeUnit.name(), logBuffer.getStringAscii(index, LITTLE_ENDIAN));
 
         final StringBuilder sb = new StringBuilder();
-        ClusterEventDissector.dissectAppendCloseSession(
+        ClusterEventDissector.dissectAppendSessionClose(
             APPEND_SESSION_CLOSE, logBuffer, encodedMsgOffset(offset), sb);
 
         final String expectedMessagePattern = "\\[[0-9]+\\.[0-9]+] CLUSTER: APPEND_SESSION_CLOSE " +
             "\\[55/55]: memberId=829374 sessionId=289374 closeReason=TIMEOUT leadershipTermId=2039842 " +
             "timestamp=29384 timeUnit=MILLISECONDS";
+
+        assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
+    }
+
+    @Test
+    void logAppendSessionOpen()
+    {
+        final int offset = ALIGNMENT + 4;
+        logBuffer.putLong(CAPACITY + TAIL_POSITION_OFFSET, offset);
+
+        final int memberId = 829374;
+        final long sessionId = 289374L;
+        final long leadershipTermId = 2039842L;
+        final long logPosition = 4L * 1024 * 1024 * 1024;
+        final long timestamp = 29384;
+        final TimeUnit timeUnit = MILLISECONDS;
+
+        logger.logAppendSessionOpen(memberId, sessionId, leadershipTermId, logPosition, timestamp, timeUnit);
+
+        final int length = 4 * SIZE_OF_LONG + SIZE_OF_INT + (SIZE_OF_INT + timeUnit.name().length());
+
+        verifyLogHeader(logBuffer, offset, APPEND_SESSION_OPEN.toEventCodeId(), length, length);
+        int index = encodedMsgOffset(offset) + LOG_HEADER_LENGTH;
+
+        assertEquals(sessionId, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(leadershipTermId, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(logPosition, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(timestamp, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(memberId, logBuffer.getInt(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT;
+        assertEquals(timeUnit.name(), logBuffer.getStringAscii(index, LITTLE_ENDIAN));
+
+        final StringBuilder sb = new StringBuilder();
+        ClusterEventDissector.dissectAppendSessionOpen(
+            APPEND_SESSION_OPEN, logBuffer, encodedMsgOffset(offset), sb);
+
+        final String expectedMessagePattern = """
+            \\[[0-9]+\\.[0-9]+] CLUSTER: APPEND_SESSION_OPEN \
+            \\[52/52]: memberId=829374 sessionId=289374 leadershipTermId=2039842 logPosition=4294967296 \
+            timestamp=29384 timeUnit=MILLISECONDS""";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }
