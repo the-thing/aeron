@@ -88,6 +88,47 @@ public class ClusterComponentLogger implements ComponentLogger
 
         tempBuilder = addEventInstrumentation(
             tempBuilder,
+            CLUSTER_BACKUP_STATE_CHANGE,
+            "ClusterBackupAgent",
+            ClusterInterceptor.ClusterBackupStateChange.class,
+            "logStateChange");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
+            CLUSTER_SESSION_STATE_CHANGE,
+            "ClusterSession",
+            ClusterInterceptor.ClusterSession.class,
+            "logStateChange");
+
+        tempBuilder = addClusterConsensusModuleAgentInstrumentation(tempBuilder);
+
+        return tempBuilder;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public void reset()
+    {
+        ENABLED_EVENTS.clear();
+    }
+
+    private static EnumSet<ClusterEventCode> getClusterEventCodes(final String enabledEventCodes)
+    {
+        return parseEventCodes(
+            ClusterEventCode.class,
+            enabledEventCodes,
+            SPECIAL_EVENTS,
+            ClusterEventCode::get,
+            ClusterEventCode::valueOf);
+    }
+
+    @SuppressWarnings("MethodLength")
+    private static AgentBuilder addClusterConsensusModuleAgentInstrumentation(final AgentBuilder agentBuilder)
+    {
+        AgentBuilder tempBuilder = agentBuilder;
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
             REPLAY_NEW_LEADERSHIP_TERM,
             "ConsensusModuleAgent",
             ClusterInterceptor.ReplayNewLeadershipTerm.class,
@@ -121,41 +162,6 @@ public class ClusterComponentLogger implements ComponentLogger
             ClusterInterceptor.AppendSessionOpen.class,
             "logAppendSessionOpen");
 
-        tempBuilder = addEventInstrumentation(
-            tempBuilder,
-            CLUSTER_BACKUP_STATE_CHANGE,
-            "ClusterBackupAgent",
-            ClusterInterceptor.ClusterBackupStateChange.class,
-            "logStateChange"
-        );
-
-        tempBuilder = addClusterConsensusModuleAgentInstrumentation(tempBuilder);
-
-        return tempBuilder;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public void reset()
-    {
-        ENABLED_EVENTS.clear();
-    }
-
-    private static EnumSet<ClusterEventCode> getClusterEventCodes(final String enabledEventCodes)
-    {
-        return parseEventCodes(
-            ClusterEventCode.class,
-            enabledEventCodes,
-            SPECIAL_EVENTS,
-            ClusterEventCode::get,
-            ClusterEventCode::valueOf);
-    }
-
-
-    private static AgentBuilder addClusterConsensusModuleAgentInstrumentation(final AgentBuilder agentBuilder)
-    {
-        AgentBuilder tempBuilder = agentBuilder;
         tempBuilder = addEventInstrumentation(
             tempBuilder,
             STATE_CHANGE,

@@ -140,8 +140,14 @@ public enum ClusterEventCode implements EventCode
      *
      * @since 1.49.0
      */
-    APPEND_SESSION_OPEN(23, ClusterEventDissector::dissectAppendSessionOpen);
+    APPEND_SESSION_OPEN(23, ClusterEventDissector::dissectAppendSessionOpen),
 
+    /**
+     * Event for {@code ClusterSession} state changes.
+     *
+     * @since 1.49.0
+     */
+    CLUSTER_SESSION_STATE_CHANGE(24, ClusterEventDissector::dissectClusterSessionStateChange);
 
     static final int EVENT_CODE_TYPE = EventCodeType.CLUSTER.getTypeCode();
     private static final ClusterEventCode[] EVENT_CODE_BY_ID;

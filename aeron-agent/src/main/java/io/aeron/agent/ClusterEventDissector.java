@@ -656,4 +656,34 @@ final class ClusterEventDissector
         builder.append(" reason=");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
     }
+
+    static void dissectClusterSessionStateChange(
+        final ClusterEventCode eventCode,
+        final MutableDirectBuffer buffer,
+        final int offset,
+        final StringBuilder builder)
+    {
+        int absoluteOffset = offset;
+        absoluteOffset += dissectLogHeader(CONTEXT, eventCode, buffer, absoluteOffset, builder);
+
+        final long sessionId = buffer.getLong(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_LONG;
+        final int memberId = buffer.getInt(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+
+        builder.append(": memberId=").append(memberId);
+        builder.append(" sessionId=").append(sessionId);
+
+        builder.append(" action=");
+        absoluteOffset += buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+
+        builder.append(" ");
+        absoluteOffset += buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+
+        builder.append(" reason=\"");
+        buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        builder.append("\"");
+    }
 }

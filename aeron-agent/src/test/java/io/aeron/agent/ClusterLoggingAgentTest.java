@@ -51,6 +51,7 @@ import java.util.function.Supplier;
 
 import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_CLOSE;
 import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_OPEN;
+import static io.aeron.agent.ClusterEventCode.CLUSTER_SESSION_STATE_CHANGE;
 import static io.aeron.agent.ClusterEventCode.ELECTION_STATE_CHANGE;
 import static io.aeron.agent.ClusterEventCode.NEW_ELECTION;
 import static io.aeron.agent.ClusterEventCode.ROLE_CHANGE;
@@ -97,7 +98,8 @@ class ClusterLoggingAgentTest
                 ELECTION_STATE_CHANGE,
                 NEW_ELECTION,
                 APPEND_SESSION_OPEN,
-                APPEND_SESSION_CLOSE));
+                APPEND_SESSION_CLOSE,
+                CLUSTER_SESSION_STATE_CHANGE));
     }
 
     @Test
@@ -272,6 +274,20 @@ class ClusterLoggingAgentTest
                 {
                     final int offset = index + LOG_HEADER_LENGTH + SIZE_OF_LONG;
                     if (buffer.getLong(offset + SIZE_OF_LONG) > buffer.getLong(offset))
+                    {
+                        WAIT_LIST.remove(eventCode);
+                    }
+                    break;
+                }
+
+                case CLUSTER_SESSION_STATE_CHANGE:
+                {
+                    final int offset = index + LOG_HEADER_LENGTH + SIZE_OF_LONG + SIZE_OF_INT;
+                    final String action = buffer.getStringAscii(offset);
+                    final String stateTransition = buffer.getStringAscii(offset + SIZE_OF_INT + action.length());
+                    final String reason = buffer.getStringAscii(
+                        offset + SIZE_OF_INT + action.length() + SIZE_OF_INT + stateTransition.length());
+                    if ("CLIENT_ACTION".equals(reason))
                     {
                         WAIT_LIST.remove(eventCode);
                     }

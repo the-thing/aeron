@@ -992,7 +992,6 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
         }
     }
 
-    @SuppressWarnings("unused")
     private void logStateChange(
         final State oldState,
         final State newState,
@@ -1005,7 +1004,6 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
         //System.out.println("ReplicationSession: " + oldState + " -> " + newState + " replicationId=" + replicationId);
     }
 
-    @SuppressWarnings("unused")
     private void logReplicationSessionDone(
         final long controlSessionId,
         final long replicationId,

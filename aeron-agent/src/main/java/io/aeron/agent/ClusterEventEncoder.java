@@ -126,6 +126,13 @@ final class ClusterEventEncoder
         return stateTransitionStringLength(from, to) + SIZE_OF_INT;
     }
 
+    static <A extends Enum<A>, S extends Enum<S>> int clusterSessionStateChangeLength(
+        final A action, final S from, final S to, final String reason)
+    {
+        return SIZE_OF_LONG + SIZE_OF_INT + stateTransitionStringLength(from, to) + SIZE_OF_INT +
+            enumName(action).length() + SIZE_OF_INT + reason.length() + SIZE_OF_INT;
+    }
+
     static <E extends Enum<E>> int encodeElectionStateChange(
         final UnsafeBuffer encodingBuffer,
         final int offset,
@@ -813,5 +820,33 @@ final class ClusterEventEncoder
         encodeTrailingString(encodingBuffer, bodyOffset + bodyLength, captureLength - bodyLength, reason);
 
         return logHeaderLength + bodyLength;
+    }
+
+    static <A extends Enum<A>, S extends Enum<S>> void encodeClusterSessionStateChange(
+        final UnsafeBuffer encodingBuffer,
+        final int offset,
+        final int captureLength,
+        final int length,
+        final int memberId,
+        final long sessionId,
+        final A action,
+        final S from,
+        final S to,
+        final String reason)
+    {
+        int encodedLength = encodeLogHeader(encodingBuffer, offset, captureLength, length);
+
+        encodingBuffer.putLong(offset + encodedLength, sessionId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_LONG;
+
+        encodingBuffer.putInt(offset + encodedLength, memberId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_INT;
+
+        encodedLength += encodingBuffer.putStringAscii(offset + encodedLength, enumName(action), LITTLE_ENDIAN);
+
+        encodedLength += CommonEventEncoder.encodeStateChange(encodingBuffer, offset + encodedLength, from, to);
+
+        encodeTrailingString(
+            encodingBuffer, offset + encodedLength, captureLength + LOG_HEADER_LENGTH - encodedLength, reason);
     }
 }

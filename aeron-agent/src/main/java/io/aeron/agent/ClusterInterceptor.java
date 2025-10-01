@@ -383,4 +383,19 @@ class ClusterInterceptor
             LOGGER.logNewElection(memberId, leadershipTermId, logPosition, appendPosition, reason);
         }
     }
+
+    static class ClusterSession
+    {
+        @Advice.OnMethodEnter
+        static <A extends Enum<A>, S extends Enum<S>> void logStateChange(
+            final int memberId,
+            final long sessionId,
+            final A action,
+            final S oldState,
+            final S newState,
+            final String reason)
+        {
+            LOGGER.logClusterSessionStateChange(memberId, sessionId, action, oldState, newState, reason);
+        }
+    }
 }

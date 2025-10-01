@@ -30,8 +30,38 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import static io.aeron.agent.AgentTests.verifyLogHeader;
-import static io.aeron.agent.ClusterEventCode.*;
-import static io.aeron.agent.ClusterEventEncoder.*;
+import static io.aeron.agent.ClusterEventCode.APPEND_POSITION;
+import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_CLOSE;
+import static io.aeron.agent.ClusterEventCode.APPEND_SESSION_OPEN;
+import static io.aeron.agent.ClusterEventCode.CANVASS_POSITION;
+import static io.aeron.agent.ClusterEventCode.CATCHUP_POSITION;
+import static io.aeron.agent.ClusterEventCode.CLUSTER_SESSION_STATE_CHANGE;
+import static io.aeron.agent.ClusterEventCode.COMMIT_POSITION;
+import static io.aeron.agent.ClusterEventCode.ELECTION_STATE_CHANGE;
+import static io.aeron.agent.ClusterEventCode.NEW_ELECTION;
+import static io.aeron.agent.ClusterEventCode.NEW_LEADERSHIP_TERM;
+import static io.aeron.agent.ClusterEventCode.REPLAY_NEW_LEADERSHIP_TERM;
+import static io.aeron.agent.ClusterEventCode.REPLICATION_ENDED;
+import static io.aeron.agent.ClusterEventCode.REQUEST_VOTE;
+import static io.aeron.agent.ClusterEventCode.SERVICE_ACK;
+import static io.aeron.agent.ClusterEventCode.STANDBY_SNAPSHOT_NOTIFICATION;
+import static io.aeron.agent.ClusterEventCode.STATE_CHANGE;
+import static io.aeron.agent.ClusterEventCode.STOP_CATCHUP;
+import static io.aeron.agent.ClusterEventCode.TERMINATION_ACK;
+import static io.aeron.agent.ClusterEventCode.TERMINATION_POSITION;
+import static io.aeron.agent.ClusterEventCode.TRUNCATE_LOG_ENTRY;
+import static io.aeron.agent.ClusterEventEncoder.MAX_REASON_LENGTH;
+import static io.aeron.agent.ClusterEventEncoder.canvassPositionLength;
+import static io.aeron.agent.ClusterEventEncoder.clusterSessionStateChangeLength;
+import static io.aeron.agent.ClusterEventEncoder.electionStateChangeLength;
+import static io.aeron.agent.ClusterEventEncoder.newElectionLength;
+import static io.aeron.agent.ClusterEventEncoder.newLeaderShipTermLength;
+import static io.aeron.agent.ClusterEventEncoder.replayNewLeadershipTermEventLength;
+import static io.aeron.agent.ClusterEventEncoder.replicationEndedLength;
+import static io.aeron.agent.ClusterEventEncoder.serviceAckLength;
+import static io.aeron.agent.ClusterEventEncoder.standbySnapshotNotificationLength;
+import static io.aeron.agent.ClusterEventEncoder.terminationAckLength;
+import static io.aeron.agent.ClusterEventEncoder.terminationPositionLength;
 import static io.aeron.agent.CommonEventEncoder.LOG_HEADER_LENGTH;
 import static io.aeron.agent.CommonEventEncoder.STATE_SEPARATOR;
 import static io.aeron.agent.CommonEventEncoder.enumName;
@@ -923,6 +953,54 @@ class ClusterEventLoggerTest
         final String expectedMessagePattern =
             "\\[[0-9]+\\.[0-9]+] CLUSTER: NEW_ELECTION \\[59/59]: memberId=42 " +
             "leadershipTermId=8 logPosition=9827342 appendPosition=342384382 reason=why an election was started";
+
+        assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
+    }
+
+    @Test
+    void logClusterSessionStateChange()
+    {
+        final int memberId = 7;
+        final long sessionId = -47238947;
+        final ChronoUnit action = ChronoUnit.WEEKS;
+        final TimeUnit from = TimeUnit.NANOSECONDS;
+        final TimeUnit to = TimeUnit.HOURS;
+        final String reason = "state changed somehow";
+        final int offset = 16;
+        logBuffer.putLong(CAPACITY + TAIL_POSITION_OFFSET, offset);
+
+        final int encodedLength = clusterSessionStateChangeLength(action, from, to, reason);
+
+        logger.logClusterSessionStateChange(
+            memberId, sessionId, action, from, to, reason);
+
+        verifyLogHeader(
+            logBuffer,
+            offset,
+            CLUSTER_SESSION_STATE_CHANGE.toEventCodeId(),
+            encodedLength,
+            encodedLength);
+
+        int index = encodedMsgOffset(offset) + LOG_HEADER_LENGTH;
+        assertEquals(sessionId, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(memberId, logBuffer.getInt(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT;
+        assertEquals(action.name(), logBuffer.getStringAscii(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT + action.name().length();
+        final String expectedStateTransition = from + " -> " + to;
+        assertEquals(expectedStateTransition, logBuffer.getStringAscii(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT + expectedStateTransition.length();
+        assertEquals(reason, logBuffer.getStringAscii(index, LITTLE_ENDIAN));
+
+        final StringBuilder sb = new StringBuilder();
+        ClusterEventDissector.dissectClusterSessionStateChange(
+            CLUSTER_SESSION_STATE_CHANGE, logBuffer, encodedMsgOffset(offset), sb);
+
+        final String expectedMessagePattern =
+            """
+                \\[[0-9]+\\.[0-9]+] CLUSTER: CLUSTER_SESSION_STATE_CHANGE \\[74/74]: memberId=7 \
+                sessionId=-47238947 action=WEEKS NANOSECONDS -> HOURS reason=\"state changed somehow\"""";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }

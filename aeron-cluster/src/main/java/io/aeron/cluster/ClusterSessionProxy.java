@@ -48,7 +48,7 @@ final class ClusterSessionProxy implements SessionProxy
     {
         if (egressPublisher.sendChallenge(clusterSession, encodedChallenge))
         {
-            clusterSession.state(CHALLENGED);
+            clusterSession.state(CHALLENGED, "challenged");
             return true;
         }
 
@@ -65,6 +65,7 @@ final class ClusterSessionProxy implements SessionProxy
 
     public void reject()
     {
-        clusterSession.reject(EventCode.AUTHENTICATION_REJECTED, ConsensusModule.Configuration.SESSION_REJECTED_MSG);
+        clusterSession.reject(
+            EventCode.AUTHENTICATION_REJECTED, ConsensusModule.Configuration.SESSION_REJECTED_MSG, null);
     }
 }

@@ -961,4 +961,53 @@ public final class ClusterEventLogger
             }
         }
     }
+
+    /**
+     * Log a state change event for a cluster session.
+     *
+     * @param <A>       type representing the action.
+     * @param <S>       type representing the state change.
+     * @param memberId  of the current cluster node.
+     * @param sessionId of the session.
+     * @param action    action.
+     * @param oldState  before the change.
+     * @param newState  after the change.
+     * @param reason    for the change.
+     */
+    public <A extends Enum<A>, S extends Enum<S>> void logClusterSessionStateChange(
+        final int memberId,
+        final long sessionId,
+        final A action,
+        final S oldState,
+        final S newState,
+        final String reason)
+    {
+        final int length = clusterSessionStateChangeLength(action, oldState, newState, reason);
+        final int captureLength = captureLength(length);
+        final int encodedLength = encodedLength(captureLength);
+        final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
+        final int index = ringBuffer.tryClaim(CLUSTER_SESSION_STATE_CHANGE.toEventCodeId(), encodedLength);
+
+        if (index > 0)
+        {
+            try
+            {
+                encodeClusterSessionStateChange(
+                    (UnsafeBuffer)ringBuffer.buffer(),
+                    index,
+                    captureLength,
+                    length,
+                    memberId,
+                    sessionId,
+                    action,
+                    oldState,
+                    newState,
+                    reason);
+            }
+            finally
+            {
+                ringBuffer.commit(index);
+            }
+        }
+    }
 }
