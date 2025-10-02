@@ -57,6 +57,7 @@
 #include "c/aeron_archive_client/purgeSegmentsRequest.h"
 #include "c/aeron_archive_client/attachSegmentsRequest.h"
 #include "c/aeron_archive_client/migrateSegmentsRequest.h"
+#include "c/aeron_archive_client/updateChannelRequest.h"
 
 int64_t aeron_archive_proxy_offer_once(aeron_archive_proxy_t *archive_proxy, size_t length);
 
@@ -1011,6 +1012,30 @@ bool aeron_archive_proxy_migrate_segments(
     return aeron_archive_proxy_offer(
         archive_proxy,
         aeron_archive_client_migrateSegmentsRequest_encoded_length(&codec));
+}
+
+bool aeron_archive_proxy_update_channel(
+        aeron_archive_proxy_t *archive_proxy,
+        int64_t correlation_id,
+        int64_t recording_id,
+        const char *new_channel)
+{
+    struct aeron_archive_client_updateChannelRequest codec;
+    struct aeron_archive_client_messageHeader hdr;
+
+    aeron_archive_client_updateChannelRequest_wrap_and_apply_header(
+            &codec,
+            (char *)archive_proxy->buffer,
+            0,
+            AERON_ARCHIVE_PROXY_REQUEST_BUFFER_LENGTH,
+            &hdr);
+    aeron_archive_client_updateChannelRequest_set_controlSessionId(&codec, archive_proxy->control_session_id);
+    aeron_archive_client_updateChannelRequest_set_correlationId(&codec, correlation_id);
+    aeron_archive_client_updateChannelRequest_set_recordingId(&codec, recording_id);
+    aeron_archive_client_updateChannelRequest_put_channel(&codec, new_channel, strlen(new_channel));
+
+    return aeron_archive_proxy_offer(
+            archive_proxy, aeron_archive_client_updateChannelRequest_encoded_length(&codec));
 }
 
 /* ************* */

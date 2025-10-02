@@ -615,6 +615,8 @@ typedef struct recording_descriptor_consumer_clientd_stct
     const char *original_channel = nullptr;
     std::set<std::int32_t> session_ids;
     aeron_archive_recording_descriptor_t last_descriptor;
+    char last_descriptor_stripped_channel[AERON_URI_MAX_LENGTH];
+    char last_descriptor_source_identity[512];
 }
 recording_descriptor_consumer_clientd_t;
 
@@ -642,13 +644,15 @@ static void recording_descriptor_consumer(
     }
     if (nullptr != cd->original_channel)
     {
-        EXPECT_EQ(strlen(cd->original_channel), strlen(descriptor->original_channel));
+        EXPECT_EQ(strlen(cd->original_channel), descriptor->original_channel_length);
         EXPECT_STREQ(cd->original_channel, descriptor->original_channel);
     }
 
     cd->session_ids.insert(descriptor->session_id);
 
     memcpy(&cd->last_descriptor, descriptor, sizeof(aeron_archive_recording_descriptor_t));
+    strcpy(cd->last_descriptor_stripped_channel, descriptor->stripped_channel);
+    strcpy(cd->last_descriptor_source_identity, descriptor->source_identity);
 }
 
 struct SubscriptionDescriptor
@@ -4060,4 +4064,75 @@ TEST_F(AeronCArchiveTest, shouldSendClientInfoToArchive)
         .append(" commit=").append(aeron_archive_client_version_git_sha());
     EXPECT_NE(std::string::npos, label.find(expected));
     EXPECT_NE(std::string::npos, label.find(std::string("archiveId=").append(std::to_string(actualArchiveId))));
+}
+
+TEST_F(AeronCArchiveTest, shouldUpdateChannel)
+{
+    int32_t session_id;
+    int64_t stop_position;
+
+    recording_signal_consumer_clientd_t rsc_cd;
+
+    connect(&rsc_cd);
+
+    char publication_channel[AERON_URI_MAX_LENGTH];
+    {
+        aeron_uri_string_builder_t builder;
+
+        aeron_uri_string_builder_init_new(&builder);
+
+        aeron_uri_string_builder_put(&builder, AERON_URI_STRING_BUILDER_MEDIA_KEY, "udp");
+        aeron_uri_string_builder_put(&builder, AERON_UDP_CHANNEL_ENDPOINT_KEY, "localhost:3333");
+        aeron_uri_string_builder_put_int32(&builder, AERON_URI_TERM_LENGTH_KEY, TERM_LENGTH);
+        aeron_uri_string_builder_put_int32(&builder, AERON_URI_MTU_LENGTH_KEY, MTU_LENGTH);
+
+        aeron_uri_string_builder_sprint(&builder, publication_channel, sizeof(publication_channel));
+        aeron_uri_string_builder_close(&builder);
+    }
+
+    aeron_publication_t *publication;
+    ASSERT_EQ_ERR(0, aeron_archive_add_recorded_publication(
+            &publication,
+            m_archive,
+            publication_channel,
+            m_recordingStreamId));
+
+    session_id = aeron_publication_session_id(publication);
+
+    setupCounters(session_id);
+
+    int64_t targetPosition = TERM_LENGTH;
+    offerMessagesToPosition(publication, targetPosition);
+    stop_position = aeron_publication_position(publication);
+    waitUntilCaughtUp(stop_position);
+
+    const char *newChannel = "aeron:ipc?alias=test42|rejoin=false|mtu=8k|term-length=1m|pub-wnd=512k|ttl=6";
+    ASSERT_EQ_ERR(0, aeron_archive_update_channel(m_archive, m_recording_id_from_counter, newChannel));
+
+    recording_descriptor_consumer_clientd_t clientd;
+    clientd.verify_recording_id = true;
+    clientd.recording_id = m_recording_id_from_counter;
+    clientd.verify_stream_id = true;
+    clientd.stream_id = m_recordingStreamId;
+    clientd.original_channel = newChannel;
+
+    int32_t count;
+    ASSERT_EQ_ERR(0, aeron_archive_list_recording(
+            &count,
+            m_archive,
+            m_recording_id_from_counter,
+            recording_descriptor_consumer,
+            &clientd));
+    EXPECT_EQ(1, count);
+
+    aeron_uri_t uri = {};
+    EXPECT_EQ(0, aeron_uri_parse(strlen(clientd.last_descriptor_stripped_channel), clientd.last_descriptor_stripped_channel, &uri));
+
+    EXPECT_STREQ(nullptr, aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_URI_PUBLICATION_WINDOW_KEY));
+    EXPECT_STREQ(nullptr, aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_URI_TERM_LENGTH_KEY));
+    EXPECT_STREQ(nullptr, aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_URI_MTU_LENGTH_KEY));
+    EXPECT_STREQ("test42", aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_URI_ALIAS_KEY));
+    EXPECT_STREQ("6", aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_UDP_CHANNEL_TTL_KEY));
+    EXPECT_STREQ("false", aeron_uri_find_param_value(&uri.params.ipc.additional_params, AERON_URI_REJOIN_KEY));
+    aeron_uri_close(&uri);
 }

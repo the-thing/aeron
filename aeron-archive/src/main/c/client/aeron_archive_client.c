@@ -1989,6 +1989,36 @@ int aeron_archive_migrate_segments(
     return rc;
 }
 
+int aeron_archive_update_channel(aeron_archive_t *aeron_archive, int64_t recording_id, const char *new_channel)
+{
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
+    aeron_mutex_lock(&aeron_archive->lock);
+
+    int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
+    int rc;
+
+    if (!aeron_archive_proxy_update_channel(
+            aeron_archive->archive_proxy,
+            correlation_id,
+            recording_id,
+            new_channel))
+    {
+        AERON_APPEND_ERR("%s", "");
+        rc = -1;
+    }
+    else
+    {
+        rc = aeron_archive_poll_for_response(
+                NULL,
+                aeron_archive,
+                "AeronArchive::updateChannel",
+                correlation_id);
+    }
+
+    aeron_mutex_unlock(&aeron_archive->lock);
+    return rc;
+}
+
 int64_t aeron_archive_segment_file_base_position(
     int64_t start_position,
     int64_t position,

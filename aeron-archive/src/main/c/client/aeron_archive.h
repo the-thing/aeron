@@ -1164,6 +1164,16 @@ int aeron_archive_migrate_segments(
     int64_t dst_recording_id);
 
 /**
+ * Update the channel for a recording, i.e. replace original and stripped channel information in the catalog.
+ *
+ * @param aeron_archive the archive client
+ * @param recording_id the id of the recording.
+ * @param new_channel to use in the catalogue.
+ * @return 0 for success, -1 for failure
+ */
+int aeron_archive_update_channel(aeron_archive_t *aeron_archive, int64_t recording_id, const char *new_channel);
+
+/**
  * Position of the recorded stream at the base of a segment file.
  * <p>
  * If a recording starts within a term then the base position can be before the recording started.

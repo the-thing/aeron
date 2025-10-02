@@ -238,4 +238,10 @@ bool aeron_archive_proxy_migrate_segments(
     int64_t src_recording_id,
     int64_t dst_recording_id);
 
+bool aeron_archive_proxy_update_channel(
+    aeron_archive_proxy_t *archive_proxy,
+    int64_t correlation_id,
+    int64_t recording_id,
+    const char *new_channel);
+
 #endif //AERON_ARCHIVE_PROXY_H

@@ -1269,6 +1269,23 @@ public:
     }
 
     /**
+     * Update the channel for a recording, i.e. replace original and stripped channel information in the catalog.
+     *
+     * @param recordingId the recording id to update.
+     * @param newChannel  to use in the catalogue.
+     */
+    inline void updateChannel(std::int64_t recordingId, std::string newChannel)
+    {
+        if (aeron_archive_update_channel(
+            m_aeron_archive_t,
+            recordingId,
+            newChannel.c_str()) < 0)
+        {
+            ARCHIVE_MAP_ERRNO_TO_SOURCED_EXCEPTION_AND_THROW;
+        }
+    }
+
+    /**
      * Position of the recorded stream at the base of a segment file.
      * <p>
      * If a recording starts within a term then the base position can be before the recording started.

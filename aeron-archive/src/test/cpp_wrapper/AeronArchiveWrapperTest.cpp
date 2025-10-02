@@ -2497,3 +2497,58 @@ TEST_F(AeronArchiveWrapperTest, shouldDetachAndReattachSegments)
 
     ASSERT_EQ(aeronArchive->getStartPosition(recordingId), 0);
 }
+
+TEST_F(AeronArchiveWrapperTest, shouldUpdateChannel)
+{
+    YieldingIdleStrategy idle;
+
+    std::shared_ptr<AeronArchive> aeronArchive = AeronArchive::connect(m_context);
+
+    auto publicationChannel = ChannelUriStringBuilder()
+        .media("udp")
+        .endpoint("localhost:3333")
+        .termLength(TERM_LENGTH)
+        .mtu(MTU_LENGTH)
+        .build();
+
+    auto publication = aeronArchive->addRecordedPublication(publicationChannel, m_recordingStreamId);
+
+    int32_t sessionId = publication->sessionId();
+
+    CountersReader &countersReader = aeronArchive->context().aeron()->countersReader();
+    const std::int32_t counterId = getRecordingCounterId(sessionId, countersReader);
+    int64_t recordingId = RecordingPos::getRecordingId(countersReader, counterId);
+
+    int64_t targetPosition = (SEGMENT_LENGTH * 5L) + 1;
+    offerMessagesToPosition(*publication, targetPosition);
+
+    int64_t stopPosition = publication->position();
+
+    while (countersReader.getCounterValue(counterId) < stopPosition)
+    {
+        idle.idle();
+    }
+
+    const char *newChannel = "aeron:udp?alias=zzz|term-length=1g|mtu=2484|ttl=3|reliable=true|pub-wnd=1m|rejoin=false";
+    aeronArchive->updateChannel(recordingId, newChannel);
+
+    std::string original_channel = std::string("");
+    std::string stripped_channel = std::string("");
+    std::int32_t count = aeronArchive->listRecording(
+            recordingId,
+            [&](const RecordingDescriptor &recordingDescriptor)
+            {
+                original_channel.append(recordingDescriptor.m_originalChannel);
+                stripped_channel.append(recordingDescriptor.m_strippedChannel);
+            });
+
+    EXPECT_EQ(count, 1);
+    EXPECT_EQ(std::string(newChannel), original_channel);
+    EXPECT_NE(std::string(newChannel), stripped_channel);
+    EXPECT_NE(std::string::npos, stripped_channel.find("alias=zzz"));
+    EXPECT_NE(std::string::npos, stripped_channel.find("ttl=3"));
+    EXPECT_NE(std::string::npos, stripped_channel.find("rejoin=false"));
+    EXPECT_EQ(std::string::npos, stripped_channel.find("mtu=2484"));
+    EXPECT_EQ(std::string::npos, stripped_channel.find("term-length=1g"));
+    EXPECT_EQ(std::string::npos, stripped_channel.find("reliable=true"));
+}
