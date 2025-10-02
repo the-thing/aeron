@@ -273,12 +273,12 @@ public final class DriverEventLogger
     /**
      * Log an untethered subscription state change.
      *
+     * @param <E>            type of the event.
      * @param oldState       before the change.
      * @param newState       after the change.
      * @param subscriptionId to which the change applies.
      * @param streamId       of the image.
      * @param sessionId      of the image.
-     * @param <E>            type of the event.
      */
     public <E extends Enum<E>> void logUntetheredSubscriptionStateChange(
         final E oldState, final E newState, final long subscriptionId, final int streamId, final int sessionId)

@@ -30,17 +30,40 @@ import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.agrona.BitUtil.SIZE_OF_INT;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
 
-final class CommonEventEncoder
+/**
+ * Helper class for encoding log events.
+ */
+public final class CommonEventEncoder
 {
-    static final int LOG_HEADER_LENGTH = 16;
-    static final int MAX_CAPTURE_LENGTH = MAX_EVENT_LENGTH - LOG_HEADER_LENGTH;
-    static final String STATE_SEPARATOR = " -> ";
+    /**
+     * Length of log header in bytes.
+     */
+    public static final int LOG_HEADER_LENGTH = 16;
+
+    /**
+     * Max capture length.
+     */
+    public static final int MAX_CAPTURE_LENGTH = MAX_EVENT_LENGTH - LOG_HEADER_LENGTH;
+
+    /**
+     * State transition separator.
+     */
+    public static final String STATE_SEPARATOR = " -> ";
 
     private CommonEventEncoder()
     {
     }
 
-    static int encodeLogHeader(
+    /**
+     * Encode event log header.
+     *
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param captureLength  capture length.
+     * @param length         original length.
+     * @return header length in bytes.
+     */
+    public static int encodeLogHeader(
         final MutableDirectBuffer encodingBuffer, final int offset, final int captureLength, final int length)
     {
         return internalEncodeLogHeader(encodingBuffer, offset, captureLength, length, SystemNanoClock.INSTANCE);
@@ -79,7 +102,15 @@ final class CommonEventEncoder
         return encodedLength;
     }
 
-    static int encodeSocketAddress(
+    /**
+     * Encode {@link InetSocketAddress} address.
+     *
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param address        to encode.
+     * @return encoded length in bytes.
+     */
+    public static int encodeSocketAddress(
         final UnsafeBuffer encodingBuffer, final int offset, final InetSocketAddress address)
     {
         int encodedLength = 0;
@@ -103,7 +134,15 @@ final class CommonEventEncoder
         return encodedLength;
     }
 
-    static int encodeInetAddress(
+    /**
+     * Encode {@link InetAddress} address.
+     *
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param address        to encode.
+     * @return encoded length in bytes.
+     */
+    public static int encodeInetAddress(
         final UnsafeBuffer encodingBuffer, final int offset, final InetAddress address)
     {
         int encodedLength = 0;
@@ -131,7 +170,16 @@ final class CommonEventEncoder
         return encodedLength;
     }
 
-    static int encodeTrailingString(
+    /**
+     * Encode string at the end of the log event.
+     *
+     * @param encodingBuffer    log buffer.
+     * @param offset            in the log buffer.
+     * @param remainingCapacity till end of the event.
+     * @param value             to encode.
+     * @return encoded length in bytes.
+     */
+    public static int encodeTrailingString(
         final UnsafeBuffer encodingBuffer, final int offset, final int remainingCapacity, final String value)
     {
         final int maxLength = remainingCapacity - SIZE_OF_INT;
@@ -148,7 +196,18 @@ final class CommonEventEncoder
         }
     }
 
-    static int encode(
+    /**
+     * Encode binary event.
+     *
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param captureLength  capture length.
+     * @param length         original length.
+     * @param srcBuffer      containing binary message.
+     * @param srcOffset      where source event begins.
+     * @return encoded length in bytes.
+     */
+    public static int encode(
         final UnsafeBuffer encodingBuffer,
         final int offset,
         final int captureLength,
@@ -161,7 +220,17 @@ final class CommonEventEncoder
         return encodedLength + captureLength;
     }
 
-    static <E extends Enum<E>> int encodeStateChange(
+    /**
+     * Encode state transition.
+     *
+     * @param <E>            enum type.
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param from           previous state.
+     * @param to             new state.
+     * @return encoded length in bytes.
+     */
+    public static <E extends Enum<E>> int encodeStateChange(
         final UnsafeBuffer encodingBuffer, final int offset, final E from, final E to)
     {
         int encodedLength = 0;
@@ -181,7 +250,19 @@ final class CommonEventEncoder
         return encodedLength;
     }
 
-    static <E extends Enum<E>> int encodeTrailingStateChange(
+    /**
+     * Encode state transition at the end.
+     *
+     * @param <E>                  enum type.
+     * @param encodingBuffer       log buffer.
+     * @param offset               in the log buffer.
+     * @param runningEncodedLength running     encoding length.
+     * @param captureLength        capture length.
+     * @param from                 previous state.
+     * @param to                   new state.
+     * @return encoded length in bytes.
+     */
+    public static <E extends Enum<E>> int encodeTrailingStateChange(
         final UnsafeBuffer encodingBuffer,
         final int offset,
         final int runningEncodedLength,
@@ -205,38 +286,84 @@ final class CommonEventEncoder
         return encodedLength;
     }
 
-    static int captureLength(final int length)
+    /**
+     * Returns capture length.
+     *
+     * @param length to compute.
+     * @return capture length in bytes capped at {@link #MAX_CAPTURE_LENGTH}.
+     */
+    public static int captureLength(final int length)
     {
         return min(length, MAX_CAPTURE_LENGTH);
     }
 
-    static int encodedLength(final int captureLength)
+    /**
+     * Returns full encoded length for given the capture length.
+     *
+     * @param captureLength capture length.
+     * @return encoded length in bytes.
+     */
+    public static int encodedLength(final int captureLength)
     {
         return LOG_HEADER_LENGTH + captureLength;
     }
 
-    static int socketAddressLength(final InetSocketAddress address)
+    /**
+     * Compute encoded length for {@link InetSocketAddress}.
+     *
+     * @param address to encode.
+     * @return length in bytes.
+     */
+    public static int socketAddressLength(final InetSocketAddress address)
     {
         return SIZE_OF_INT + inetAddressLength(address.getAddress());
     }
 
-    static int inetAddressLength(final InetAddress address)
+    /**
+     * Compute encoded length for {@link InetAddress}.
+     *
+     * @param address to encode.
+     * @return length in bytes.
+     */
+    public static int inetAddressLength(final InetAddress address)
     {
         return SIZE_OF_INT + (null != address ? address.getAddress().length : 0);
     }
 
-    static int trailingStringLength(final String s, final int maxLength)
+    /**
+     * Compute encoded length for trailing string.
+     *
+     * @param value     new state.
+     * @param maxLength max length.
+     * @return length in bytes.
+     */
+    public static int trailingStringLength(final String value, final int maxLength)
     {
-        return SIZE_OF_INT + min(s.length(), maxLength);
+        return SIZE_OF_INT + min(value.length(), maxLength);
     }
 
-    static <E extends Enum<E>> int stateTransitionStringLength(final E from, final E to)
+    /**
+     * Compute state transition encoded length in bytes.
+     *
+     * @param <E>  type of the enum.
+     * @param from old state.
+     * @param to   new state.
+     * @return length in bytes.
+     */
+    public static <E extends Enum<E>> int stateTransitionStringLength(final E from, final E to)
     {
         return SIZE_OF_INT + enumName(from).length() + STATE_SEPARATOR.length() + enumName(to).length();
     }
 
-    static <E extends Enum<E>> String enumName(final E state)
+    /**
+     * Null-safe name for the enum.
+     *
+     * @param <E>   type of the enum.
+     * @param value value to return name for.
+     * @return name or {@code "null"} if {@code null == value}
+     */
+    public static <E extends Enum<E>> String enumName(final E value)
     {
-        return null == state ? "null" : state.name();
+        return null == value ? "null" : value.name();
     }
 }

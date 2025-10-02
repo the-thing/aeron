@@ -20,11 +20,22 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.aeron.agent.CommonEventEncoder.*;
+import static io.aeron.agent.CommonEventEncoder.LOG_HEADER_LENGTH;
+import static io.aeron.agent.CommonEventEncoder.encodeLogHeader;
+import static io.aeron.agent.CommonEventEncoder.encodeTrailingStateChange;
+import static io.aeron.agent.CommonEventEncoder.encodeTrailingString;
+import static io.aeron.agent.CommonEventEncoder.enumName;
+import static io.aeron.agent.CommonEventEncoder.stateTransitionStringLength;
+import static io.aeron.agent.CommonEventEncoder.trailingStringLength;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
-import static org.agrona.BitUtil.*;
+import static org.agrona.BitUtil.SIZE_OF_BYTE;
+import static org.agrona.BitUtil.SIZE_OF_INT;
+import static org.agrona.BitUtil.SIZE_OF_LONG;
 
-final class ClusterEventEncoder
+/**
+ * Cluster event encoder.
+ */
+public final class ClusterEventEncoder
 {
     static final int MAX_REASON_LENGTH = 300;
 
@@ -104,7 +115,20 @@ final class ClusterEventEncoder
         return (SIZE_OF_LONG * 9) + (SIZE_OF_INT * 4) + SIZE_OF_BYTE;
     }
 
-    static <E extends Enum<E>> int encodeStateChange(
+    /**
+     * Encode state transition.
+     *
+     * @param <E>            state type.
+     * @param encodingBuffer log buffer.
+     * @param offset         in the log buffer.
+     * @param captureLength  capture length.
+     * @param length         original length.
+     * @param memberId       member id.
+     * @param from           old state.
+     * @param to             new state.
+     * @return encoded length in bytes.
+     */
+    public static <E extends Enum<E>> int encodeStateChange(
         final UnsafeBuffer encodingBuffer,
         final int offset,
         final int captureLength,
@@ -121,7 +145,15 @@ final class ClusterEventEncoder
         return encodeTrailingStateChange(encodingBuffer, offset, encodedLength, captureLength, from, to);
     }
 
-    static <E extends Enum<E>> int stateChangeLength(final E from, final E to)
+    /**
+     * Compute encoded length for {@link #encodeStateChange(UnsafeBuffer, int, int, int, int, Enum, Enum)}.
+     *
+     * @param <E>  state type.
+     * @param from old state.
+     * @param to   new state.
+     * @return encoded length in bytes.
+     */
+    public static <E extends Enum<E>> int stateChangeLength(final E from, final E to)
     {
         return stateTransitionStringLength(from, to) + SIZE_OF_INT;
     }

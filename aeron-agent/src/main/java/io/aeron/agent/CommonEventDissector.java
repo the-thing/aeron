@@ -28,7 +28,10 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 import static org.agrona.BitUtil.SIZE_OF_INT;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
 
-final class CommonEventDissector
+/**
+ * Helper class to dissect log events.
+ */
+public final class CommonEventDissector
 {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = ofPattern("uuuu-MM-dd HH:mm:ss.SSSZ");
 
@@ -36,7 +39,15 @@ final class CommonEventDissector
     {
     }
 
-    static void dissectLogStartMessage(
+    /**
+     * Parse log start message.
+     *
+     * @param timestampNs timestamp in nanos.
+     * @param timestampMs timestamp in millis.
+     * @param zone        timezone.
+     * @param builder     for the dissected message.
+     */
+    public static void dissectLogStartMessage(
         final long timestampNs, final long timestampMs, final ZoneId zone, final StringBuilder builder)
     {
         LogUtil.appendTimestamp(builder, timestampNs);
@@ -44,7 +55,17 @@ final class CommonEventDissector
             .append(DATE_TIME_FORMATTER.format(ofInstant(ofEpochMilli(timestampMs), zone)));
     }
 
-    static int dissectLogHeader(
+    /**
+     * Dissect event header.
+     *
+     * @param context for the event.
+     * @param code    event type.
+     * @param buffer  log buffer.
+     * @param offset  where log event starts.
+     * @param builder for the dissected message.
+     * @return length in bytes.
+     */
+    public static int dissectLogHeader(
         final String context,
         final Enum<?> code,
         final MutableDirectBuffer buffer,
@@ -75,7 +96,16 @@ final class CommonEventDissector
         return encodedLength;
     }
 
-    static int dissectSocketAddress(final MutableDirectBuffer buffer, final int offset, final StringBuilder builder)
+    /**
+     * Dissect {@code java.net.InetSocketAddress} address.
+     *
+     * @param buffer  log buffer.
+     * @param offset  where log event starts.
+     * @param builder for the dissected message.
+     * @return length in bytes.
+     */
+    public static int dissectSocketAddress(
+        final MutableDirectBuffer buffer, final int offset, final StringBuilder builder)
     {
         int encodedLength = 0;
         final int port = buffer.getInt(offset + encodedLength, LITTLE_ENDIAN);
@@ -88,7 +118,16 @@ final class CommonEventDissector
         return encodedLength;
     }
 
-    static int dissectInetAddress(final MutableDirectBuffer buffer, final int offset, final StringBuilder builder)
+    /**
+     * Dissect {@link java.net.InetAddress} address.
+     *
+     * @param buffer  log buffer.
+     * @param offset  where log event starts.
+     * @param builder for the dissected message.
+     * @return length in bytes.
+     */
+    public static int dissectInetAddress(
+        final MutableDirectBuffer buffer, final int offset, final StringBuilder builder)
     {
         int encodedLength = 0;
 

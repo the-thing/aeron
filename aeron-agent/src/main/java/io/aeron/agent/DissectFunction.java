@@ -23,7 +23,7 @@ import org.agrona.MutableDirectBuffer;
  * @param <T> the type of the event
  */
 @FunctionalInterface
-interface DissectFunction<T>
+public interface DissectFunction<T>
 {
     /**
      * Dissect an event and serialise it to a {@link StringBuilder}.
