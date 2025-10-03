@@ -50,10 +50,10 @@ along with additional information such as client version. Cluster will add a new
 cluster-session: name=test client version=1.49.0-SNAPSHOT commit=4ac30af55a sourceIdentity=127.0.0.1:54444 sessionId=325223904 - clusterId=0
 ----
 
-* *[Breaking]* `org.agrona.concurrent.ShutdownSignalBarrier` changes in https://github.com/aeron-io/agrona/releases/tag/2.3.0[Agrona 2.3.0].
+* **[Breaking]** `org.agrona.concurrent.ShutdownSignalBarrier` changes in https://github.com/aeron-io/agrona/releases/tag/2.3.0[Agrona 2.3.0].
 Please read the corresponding release notes on how to upgrade.
 
-* *[Breaking]* `ClusteredServiceContainer.Context.shutdownSignalBarrier`, `ConsensusModule.Context.shutdownSignalBarrier`
+* **[Breaking]** `ClusteredServiceContainer.Context.shutdownSignalBarrier`, `ConsensusModule.Context.shutdownSignalBarrier`
 and `ClusterBackup.Context.shutdownSignalBarrier` methods were removed and replaced with an explicit `ShutdownSignalBarrier`.
 +
 For example this is how `ConsensusModule#main` changed:
@@ -120,7 +120,7 @@ away, i.e. treat those events as normal client termination.
 * **[Client]** Read `mtu` from the log buffer metadata only once.
 * **[Client]** Provide additional context when log buffer cannot be mapped.
 * **[Client]** Add `InternalApi` annotation.
-* [Client/C++ Wrapper] Add missing assignment operator to match the copy constructor.
+* **[Client/C++ Wrapper]** Add missing assignment operator to match the copy constructor.
 * **[Client/C]** Send `CLIENT_CLOSE` command to media driver when aeron is closing. (https://github.com/aeron-io/aeron/pull/1837[#1837])
 * **[Client/C]** Fix client build to properly resolve `-DHAVE_BSDSTDLIB_H -DHAVE_ARC4RANDOM`.
 * **[Cluster]** Update the default AuthorisationService to allow requests necessary for Cluster Standby. (https://github.com/aeron-io/aeron/pull/1870[#1870])
