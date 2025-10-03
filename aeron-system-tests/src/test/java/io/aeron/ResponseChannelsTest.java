@@ -64,6 +64,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(InterruptingTestCallback.class)
 public class ResponseChannelsTest
 {
+    private static final int DEFAULT_TERM_LENGTH = 512 * 1024;
     private static final String REQUEST_ENDPOINT = "localhost:10000";
     private static final int REQUEST_STREAM_ID = 10000;
     private static final String RESPONSE_CONTROL = "localhost:10001";
@@ -81,7 +82,8 @@ public class ResponseChannelsTest
         final MediaDriver.Context context = new MediaDriver.Context()
             .aeronDirectoryName(generateRandomDirName())
             .dirDeleteOnShutdown(true)
-            .publicationTermBufferLength(LogBufferDescriptor.TERM_MIN_LENGTH)
+            .publicationTermBufferLength(DEFAULT_TERM_LENGTH)
+            .ipcTermBufferLength(DEFAULT_TERM_LENGTH)
             .threadingMode(ThreadingMode.SHARED);
 
         driver1 = TestMediaDriver.launch(
@@ -852,9 +854,10 @@ public class ResponseChannelsTest
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @ValueSource(ints = { 256 * 1024, 1024 * 1024, 16 * 1024 * 1024, DEFAULT_TERM_LENGTH })
     @InterruptAfter(15)
-    void shouldUseLargerTermLengthWhenUsingPrototype()
+    void shouldUseSpecifiedTermLengthWhenUsingPrototype(final int termLength)
     {
         try (Aeron server = Aeron.connect(new Aeron.Context().aeronDirectoryName(driver1.aeronDirectoryName()));
             Aeron client = Aeron.connect(new Aeron.Context().aeronDirectoryName(driver1.aeronDirectoryName()));
@@ -866,26 +869,32 @@ public class ResponseChannelsTest
             Subscription subRsp = client.addSubscription(
                 "aeron:udp?control-mode=response|control=localhost:10002", RESPONSE_STREAM_ID);
             Publication pubReq = client.addPublication(
-                "aeron:udp?endpoint=localhost:10001|response-correlation-id=" + subRsp.registrationId(),
+                "aeron:udp?endpoint=localhost:10001|term-length=128k|response-correlation-id=" +
+                    subRsp.registrationId(),
                 REQUEST_STREAM_ID))
         {
             protoRspPub.revokeOnClose();
+            assertEquals(LogBufferDescriptor.TERM_MIN_LENGTH, protoRspPub.termBufferLength());
 
             Tests.awaitConnected(subReq);
             Tests.awaitConnected(pubReq);
             Objects.requireNonNull(subRsp);
 
-            // TODO set different term lengths, and then verify things
-
             final Image image = subReq.imageAtIndex(0);
-            final String url = "aeron:udp?control-mode=response|control=localhost:10002|response-correlation-id=" +
+            assertEquals(pubReq.termBufferLength(), image.termBufferLength());
+            String url = "aeron:udp?control-mode=response|control=localhost:10002|response-correlation-id=" +
                 image.correlationId();
+            if (DEFAULT_TERM_LENGTH != termLength)
+            {
+                url += "|term-length=" + termLength;
+            }
 
             try (Publication pubRsp = server.addPublication(url, RESPONSE_STREAM_ID))
             {
-                //System.err.println(" :: " + pubRsp.termBufferLength());
                 Tests.awaitConnected(subRsp);
                 Tests.awaitConnected(pubRsp);
+                assertEquals(termLength, pubRsp.termBufferLength());
+                assertEquals(termLength, subRsp.imageAtIndex(0).termBufferLength());
             }
         }
     }
