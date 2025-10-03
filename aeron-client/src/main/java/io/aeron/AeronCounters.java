@@ -535,6 +535,8 @@ public final class AeronCounters
 
     /**
      * The type id of the {@link Counter} used for tracking Archive clients.
+     *
+     * @since 1.49.0.
      */
     @AeronCounter
     public static final int ARCHIVE_CONTROL_SESSION_TYPE_ID = 113;
@@ -791,6 +793,8 @@ public final class AeronCounters
 
     /**
      * The type id of the {@link Counter} used for tracking Cluster clients.
+     *
+     * @since 1.49.0.
      */
     @AeronCounter
     public static final int CLUSTER_SESSION_TYPE_ID = 241;
@@ -973,8 +977,8 @@ public final class AeronCounters
         {
             throw new ConfigurationException(
                 "The type for counterId=" + counterId +
-                ", typeId=" + counterTypeId +
-                " does not match the expected=" + expectedCounterTypeId);
+                    ", typeId=" + counterTypeId +
+                    " does not match the expected=" + expectedCounterTypeId);
         }
     }
 
