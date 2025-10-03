@@ -171,4 +171,4 @@ bound to reduce the chance of the returning publication not being connected and 
 * **[Java]** Upgrade to `Shadow` 9.2.2.
 * **[Java]** Upgrade to `Versions` 0.53.0.
 * **[C]** Upgrade to `CMake` 4.1.2.
-* **[C]** Update to `HDR Histogram` 0.11.9.
+* **[C]** Upgrade to `HDR Histogram` 0.11.9.
