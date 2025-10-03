@@ -1,0 +1,174 @@
+= Aeron Releases
+
+== https://github.com/aeron-io/aeron/releases/tag/1.49.0[1.49.0] - 2025-10-03
+
+=== New & Noteworthy
+
+* **[Driver]** Support for IPC media was added to response channels. (https://github.com/aeron-io/aeron/issues/1761[#1761])
++
+The feature works exactly the same as for UDP media but does not require `control` endpoint to be specified.
++
+For an example see
+https://github.com/aeron-io/aeron/blob/da9fffbd44676ed0a7d4bc0d874dbec2211dbc0f/aeron-system-tests/src/test/java/io/aeron/ResponseChannelsTest.java#L204-L272[ResponseChannelsTest#shouldConnectResponsePublicationUsingImageAndIpc].
+
+* **[Driver]** Add support for `response-correlation-id=prototype` to allow pre-creating response publications to
+reserve and hold onto a local port. (https://github.com/aeron-io/aeron/pull/1863[#1863])
++
+For usage example see https://github.com/aeron-io/aeron/blob/807e947a511147d17561ce305b6d82f46624e4fd/aeron-system-tests/src/test/java/io/aeron/ResponseChannelsTest.java[ResponseChannelsTest].
+
+* **[Driver]** Add API to create counters asynchronously.
++
+Counters can now be created asynchronously using `Aeron.asyncAddCounter` and `Aeron.asyncAddStaticCounter` methods.
+Created counter is returned by the `Aeron.getCounter` method. There is also `Aeron.asyncRemoveCounter` to asynchronously
+remove counter by `registrationId`.
++
+For usage example see
+https://github.com/aeron-io/aeron/blob/807e947a511147d17561ce305b6d82f46624e4fd/aeron-system-tests/src/test/java/io/aeron/CounterTest.java#L523[CounterTest#shouldAddCounterAsynchronously],
+https://github.com/aeron-io/aeron/blob/807e947a511147d17561ce305b6d82f46624e4fd/aeron-system-tests/src/test/java/io/aeron/CounterTest.java#L561[CounterTest#shouldAddCounterAsynchronouslyUsingLabelAndTypeId]
+and
+https://github.com/aeron-io/aeron/blob/807e947a511147d17561ce305b6d82f46624e4fd/aeron-system-tests/src/test/java/io/aeron/CounterTest.java#L592[CounterTest#shouldAddStaticCounterAsynchronously].
+
+* **[Archive]** Named Archive clients.
++
+Client name can be specified using `AeronArchive.Context.clientName(java.lang.String)` API or
+`aeron.archive.client.name` system property. Once specified the name will be sent to the Archive with connect request
+along with additional information such as client version. Archive will add a new `control-session` counter
+(`typeId=113`) for each connected client:
++
+----
+control-session: name=test client 5 version=1.49.0-SNAPSHOT commit=e79ebfa4ff sourceIdentity=127.0.0.1:51360 sessionId=1083930759 - archiveId=519
+----
+
+* **[Cluster]** Named Cluster clients.
++
+Client name can be specified using `AeronCluster.Context.clientName(java.lang.String)` API or
+`aeron.cluster.client.name` system property. Once specified the name will be sent to the Cluster with connect request
+along with additional information such as client version. Cluster will add a new `cluster-session` counter
+(`typeId=241`) for each connected client:
++
+----
+cluster-session: name=test client version=1.49.0-SNAPSHOT commit=4ac30af55a sourceIdentity=127.0.0.1:54444 sessionId=325223904 - clusterId=0
+----
+
+* *[Breaking]* `org.agrona.concurrent.ShutdownSignalBarrier` changes in https://github.com/aeron-io/agrona/releases/tag/2.3.0[Agrona 2.3.0].
+Please read the corresponding release notes on how to upgrade.
+
+* *[Breaking]* `ClusteredServiceContainer.Context.shutdownSignalBarrier`, `ConsensusModule.Context.shutdownSignalBarrier`
+and `ClusterBackup.Context.shutdownSignalBarrier` methods were removed and replaced with an explicit `ShutdownSignalBarrier`.
++
+For example this is how `ConsensusModule#main` changed:
++
+- Before:
++
+[source,java]
+----
+public static void main(final String[] args)
+{
+    loadPropertiesFiles(args);
+
+    try (ConsensusModule consensusModule = launch())
+    {
+        consensusModule.context().shutdownSignalBarrier().await();
+        System.out.println("Shutdown ConsensusModule...");
+    }
+}
+----
++
+- After:
++
+[source,java]
+----
+public static void main(final String[] args)
+{
+    loadPropertiesFiles(args);
+
+    try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier();
+        ConsensusModule ignored = launch(new Context().terminationHook(barrier::signalAll)))
+    {
+        barrier.await();
+        System.out.println("Shutdown ConsensusModule...");
+    }
+}
+----
+
+* **[Breaking]** Aeron jars no longer provide OSGI metadata as `bnd` plugin was removed, because it breaks
+compatibility with Gradle 9.1 and causes self-dependency via `baseline` task.
+
+=== Changelog
+* **[Agent]** Make agent classes accessible outside of `io.aeron.agent` package.
+* **[Agent]** Fix `CMD_IN_MAX_RECORDED_POSITION` logging.
+* **[Agent]** Add `CLUSTER_SESSION_STATE_CHANGE` log event.
+* **[Agent]** Add `APPEND_SESSION_OPEN` log event.
+* **[Agent]** Remove `ADD_PASSIVE_MEMBER` log event.
+* **[Agent/C]** Remove extraneous `]` suffix from log messages `CMD_IN_REMOVE_PUBLICATION`, `CMD_IN_REMOVE_SUBSCRIPTION` and `CMD_IN_REMOVE_COUNTER`.
+* **[Agent/C]** Fix `UNTETHERED_SUBSCRIPTION_STATE_CHANGE` logging, i.e. log previous state and add missing logging to `aeron_publication_image`.
+* **[Archive]** Allow for the archive to update the channel for a specific recording.
+* **[Archive]** Return an error code when replaying and stopping an empty recording. (https://github.com/aeron-io/aeron/pull/1854[#1854])
+* **[Archive]** Capture abort reason in `RecordingSession`.
+* **[Archive]** Add additional "length" that will replay the data available, but not follow a live recording. Add more
+appropriately named constants and update javadoc.
+* **[Archive]** Ensure `AeronArchive.State.CLOSED` is used when `AeronArchive` instance is closed.
+* **[Archive/C]** Close uri string builders upon error when concluding `aeron_archive_context`.
+* **[Archive]** Adjust aliases on Archive streams for easier debugging.
+* **[Archive/Driver/Cluster]** Lower `cycle threshold` for core components to `1ms` by default.
+* **[Archive]** Add `ALLOW_ALL` and `DENY_ALL` authorisation supplier options for the Archive.
+* **[Archive/C]** Add aeron_archive_wrapper's own sources to the `target_include_directories`.
+* **[Archive]** Do not log a warning when control response publication is disconnected or a control request image is going
+away, i.e. treat those events as normal client termination.
+* **[Archive]** Copy `response-endpoint`, `ttl` and `stream-id` URI parameters from the original channel definition when creating recordings and replays.
+* **[Client]** Add Sequencer counter types.
+* **[Client]** Read `mtu` from the log buffer metadata only once.
+* **[Client]** Provide additional context when log buffer cannot be mapped.
+* **[Client]** Add `InternalApi` annotation.
+* [Client/C++ Wrapper] Add missing assignment operator to match the copy constructor.
+* **[Client/C]** Send `CLIENT_CLOSE` command to media driver when aeron is closing. (https://github.com/aeron-io/aeron/pull/1837[#1837])
+* **[Client/C]** Fix client build to properly resolve `-DHAVE_BSDSTDLIB_H -DHAVE_ARC4RANDOM`.
+* **[Cluster]** Update the default AuthorisationService to allow requests necessary for Cluster Standby. (https://github.com/aeron-io/aeron/pull/1870[#1870])
+* **[Cluster]** Handle exception during snapshot, i.e. continue running if exception is non-terminal.
+* **[Cluster]** Remove more references to membership changes/passive members/dynamic join.
+* **[Cluster]** Re-create ingress publication upon redirect from a follower while connecting to the Cluster.
+* **[Cluster]** Ensures proper handling when ingress publication is closed but not null. (https://github.com/aeron-io/aeron/pull/1861[#1861])
+* **[Cluster]** Add more context for transitioning from `FOLLOWER_LOG_REPLAY` state.
+* **[Cluster]** Add more context to `unexpected commit position` events.
+* **[Cluster]** Add context to `unexpected commit position from new leader` event.
+* **[Cluster]** Service snapshot time now includes time to serialize sessions and connect to the Archive.
+* **[Cluster]** Only log `APPEND_SESSION_CLOSE` upon successful append to the log + reduce slow cycle frequency caused by
+failed append attempts.
+* **[Cluster]** Within the ClusterToolOperator bind the adapter before the publication and await for the subscription to be
+bound to reduce the chance of the returning publication not being connected and rejecting the return message.
+* **[Cluster]** Prevent standby replicated snapshots getting stuck if the address on the standby entry is invalid.
+* **[Cluster]** Add `ALLOW_ALL` and `DENY_ALL` authorisation supplier options for the Cluster.
+* **[Driver]** Fix incorrect update frequency in PublisherPos javadoc. (https://github.com/aeron-io/aeron/pull/1867[#1867])
+* **[Driver]** Untethered subscriptions are closed after `LINGER` if `rejoin=false` is specified.
+* **[Driver]** Correctly handle connection status updates for untethered IPC subscribers.
+* **[Driver/C]** Ensure `rcv-naks-sent` counter is cleaned up if publication image creation fails.
+* **[Driver/C]** Prevent sending empty NAK message upon initial connection to the publisher.
+* **[Driver]** Set absolute minimum value for NAK unicast delay at `1us` and use it as a default value.
+* **[Driver]** Ignore NAKs with zero length and treat NAKs with negative length as invalid packets.
+* **[Driver/C]** Fix `untethered_linger_timeout_ns` parsing and validation. Remove `1us` min value that was applied when parsing untethered timeouts.
+* **[Driver]** Validate `untetheredLingerTimeoutNs` not below `timerIntervalNs`.
+* **[Driver/C]** Update documented NAK defaults.
+* **[Driver/Java]** Do not overwrite `imageConnections` on every received packet.
+* **[Driver/Java]** Stop processing errors when a receiver is found.
+* **[Driver/Java]** Include `SIZE_OF_INT` in `keyLength` when allocating `ChannelEndpointStatus` counters. (https://github.com/aeron-io/aeron/pull/1844[#1844])
+* **[Driver]** Add an ability to fetch next available session id from the media driver.
+* **[Driver/C]** Fix system counter creation, i.e. assign `registrationId` and unset `ownerId` fields.
+* **[Driver]** Add `Control protocol version` system counter.
+* **[Driver/Java]** Detect `Address in use` errors synchronously when creating endpoints, issue https://github.com/aeron-io/aeron/issues/1830[#1830]. (https://github.com/aeron-io/aeron/pull/1842[#1842])
+* **[Driver/C]** Error handling fixes for destination and endpoint creation.
+* **[Driver/Java]** Handle more cases of `NumberFormatException` while parsing publication parameters.
+* **[CI]** Add JDK 25.
+* **[CI]** Add `Clang` 21 to the build matrix.
+* **[CI]** Build on Rocky 9.
+* **[Java]** Network Partition Testing. (https://github.com/aeron-io/aeron/pull/1858/[#1858])
+* **[Java]** Upgrade to https://github.com/aeron-io/agrona/releases/tag/2.3.0[Agrona 2.3.0].
+* **[Java]** Upgrade to https://github.com/aeron-io/simple-binary-encoding/releases/tag/1.36.0[SBE 1.36.0].
+* **[Java]** Upgrade to `Gradle` 9.1.0.
+* **[Java]** Upgrade to `ByteBuddy` 1.17.7.
+* **[Java]** Upgrade to `Checkstyle` 11.1.0.
+* **[Java]** Upgrade to `JUnit` 6.0.0.
+* **[Java]** Upgrade to `Mockito` 5.20.0.
+* **[Java]** Upgrade to `Shadow` 9.2.2.
+* **[Java]** Upgrade to `Versions` 0.53.0.
+* **[C]** Upgrade to `CMake` 4.1.2.
+* **[C]** Update to `HDR Histogram` 0.11.9.
