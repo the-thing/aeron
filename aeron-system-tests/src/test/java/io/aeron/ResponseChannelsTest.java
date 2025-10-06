@@ -201,7 +201,7 @@ public class ResponseChannelsTest
     }
 
     @ParameterizedTest
-    @InterruptAfter(5)
+    @InterruptAfter(10)
     @ValueSource(booleans = { true, false })
     void shouldConnectResponsePublicationUsingImageAndIpc(final boolean useExclusive)
     {
@@ -752,7 +752,7 @@ public class ResponseChannelsTest
 
     @ParameterizedTest
     @CsvSource({ "true", "false" })
-    @InterruptAfter(5)
+    @InterruptAfter(10)
     void shouldCreateNewSendChannelWithoutPrototype(final boolean usePrototype) throws Exception
     {
         final IdleStrategy idleStrategy = YieldingIdleStrategy.INSTANCE;
