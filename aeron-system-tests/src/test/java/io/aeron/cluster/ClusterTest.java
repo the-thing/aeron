@@ -2808,6 +2808,59 @@ class ClusterTest
         assertEquals(sessionIdsByNode[0], sessionIdsByNode[2]);
     }
 
+    @Test
+    @InterruptAfter(40)
+    void shouldAsyncConnectWhenMediaDriverUsesInvokerModeAndUsesImplicitAeronClient()
+    {
+        cluster = aCluster().withStaticNodes(3).start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        assertEquals(1, leader.consensusModule().context().electionCounter().get());
+
+        final long leadershipTermId = leader.consensusModule().context().leadershipTermIdCounter().get();
+        assertNotEquals(-1, leadershipTermId);
+
+        final List<TestNode> followers = cluster.followers();
+
+        for (final TestNode follower : followers)
+        {
+            assertEquals(1, follower.consensusModule().context().electionCounter().get());
+            assertEquals(leadershipTermId, follower.consensusModule().context().leadershipTermIdCounter().get());
+        }
+
+        final MediaDriver.Context mediaDriverContext = cluster.clientMediaDriverCtx()
+                .threadingMode(ThreadingMode.INVOKER);
+
+        try (MediaDriver mediaDriver = MediaDriver.launch(mediaDriverContext))
+        {
+            final AeronCluster.Context clientContext = cluster.clientCtx();
+            clientContext.aeronDirectoryName(mediaDriver.aeronDirectoryName());
+
+            AeronCluster.AsyncConnect asyncConnect = AeronCluster.asyncConnect(clientContext.clone());
+            AeronCluster client = null;
+
+            while (client == null)
+            {
+                try
+                {
+                    client = asyncConnect.poll();
+                }
+                catch (final RuntimeException e)
+                {
+                    asyncConnect.close();
+                    asyncConnect = AeronCluster.asyncConnect(clientContext.clone());
+                }
+
+                mediaDriver.sharedAgentInvoker().invoke();
+
+                Tests.yield();
+            }
+
+            CloseHelper.quietClose(client);
+        }
+    }
+
     private long readSnapshot(final TestNode node)
     {
         final long recordingId;

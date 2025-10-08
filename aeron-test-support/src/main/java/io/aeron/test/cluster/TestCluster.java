@@ -632,7 +632,28 @@ public final class TestCluster implements AutoCloseable
 
     public AeronCluster.Context clientCtx()
     {
-        return new AeronCluster.Context().ingressChannel(ingressChannel).egressChannel(egressChannel);
+        final AeronCluster.Context context = new AeronCluster.Context().ingressChannel(ingressChannel).egressChannel(egressChannel);
+        setIngressEndpoints(context);
+
+        return context;
+    }
+
+    public MediaDriver.Context clientMediaDriverCtx()
+    {
+        final String aeronDirName = CommonContext.getAeronDirectoryName();
+
+        final MediaDriver.Context ctx = new MediaDriver.Context()
+                .threadingMode(ThreadingMode.INVOKER)
+                .dirDeleteOnStart(true)
+                .dirDeleteOnShutdown(false)
+                .aeronDirectoryName(aeronDirName)
+                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
+                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
+                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
+                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs)
+                .enableExperimentalFeatures(useResponseChannels);
+
+        return ctx;
     }
 
     public AeronCluster connectClient()
@@ -703,17 +724,7 @@ public final class TestCluster implements AutoCloseable
         {
             dataCollector.add(Paths.get(aeronDirName));
 
-            final MediaDriver.Context ctx = new MediaDriver.Context()
-                .threadingMode(ThreadingMode.INVOKER)
-                .dirDeleteOnStart(true)
-                .dirDeleteOnShutdown(false)
-                .aeronDirectoryName(aeronDirName)
-                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
-                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
-                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
-                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs)
-                .enableExperimentalFeatures(useResponseChannels);
-
+            final MediaDriver.Context ctx = clientMediaDriverCtx();
             clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
         }
 
