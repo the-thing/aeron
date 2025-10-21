@@ -63,6 +63,7 @@ class PublicationRevokeTest
     final SystemTestWatcher watcher = new SystemTestWatcher();
 
     private final MediaDriver.Context driverContext = new MediaDriver.Context()
+        .aeronDirectoryName(CommonContext.generateRandomDirName())
         .ipcTermBufferLength(TERM_BUFFER_LENGTH)
         .publicationTermBufferLength(TERM_BUFFER_LENGTH)
         .publicationConnectionTimeoutNs(MILLISECONDS.toNanos(300))
@@ -90,10 +91,10 @@ class PublicationRevokeTest
 
     private void launch()
     {
-        driver = TestMediaDriver.launch(driverContext, watcher);
+        driver = TestMediaDriver.launch(driverContext.clone(), watcher);
         watcher.dataCollector().add(driver.context().aeronDirectory());
 
-        client = Aeron.connect(clientContext.clone());
+        client = Aeron.connect(clientContext.clone().aeronDirectoryName(driver.aeronDirectoryName()));
 
         countersReader = client.countersReader();
 
@@ -102,19 +103,14 @@ class PublicationRevokeTest
 
     private void launch2()
     {
-        final MediaDriver.Context driverBContext = driverContext.clone();
-        driverBContext.aeronDirectoryName(driverContext.aeronDirectoryName() + "B");
-
-        driver = TestMediaDriver.launch(driverContext, watcher);
+        driver = TestMediaDriver.launch(driverContext.clone(), watcher);
         watcher.dataCollector().add(driver.context().aeronDirectory());
-        driverB = TestMediaDriver.launch(driverBContext, watcher);
+        driverB = TestMediaDriver.launch(
+            driverContext.clone().aeronDirectoryName(CommonContext.generateRandomDirName()), watcher);
         watcher.dataCollector().add(driverB.context().aeronDirectory());
 
-        final Aeron.Context clientBContext = clientContext.clone();
-        clientBContext.aeronDirectoryName(driverBContext.aeronDirectoryName());
-
-        client = Aeron.connect(clientContext.clone());
-        clientB = Aeron.connect(clientBContext);
+        client = Aeron.connect(clientContext.clone().aeronDirectoryName(driver.aeronDirectoryName()));
+        clientB = Aeron.connect(clientContext.clone().aeronDirectoryName(driverB.aeronDirectoryName()));
 
         countersReader = client.countersReader();
         countersReaderB = clientB.countersReader();
