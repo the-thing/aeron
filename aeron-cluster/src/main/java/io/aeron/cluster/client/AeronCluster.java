@@ -1364,6 +1364,7 @@ public final class AeronCluster implements AutoCloseable
     public static final class Context implements Cloneable
     {
         private static final VarHandle IS_CONCLUDED_VH;
+
         static
         {
             try
@@ -2482,15 +2483,29 @@ public final class AeronCluster implements AutoCloseable
 
         private void updateMembers()
         {
+            leaderMemberId = egressPoller.leaderMemberId();
+            final MemberIngress oldLeader = memberByIdMap.remove(leaderMemberId);
+
             CloseHelper.close(ingressPublication);
+            ingressPublication = null;
             CloseHelper.closeAll(memberByIdMap.values());
 
-            leaderMemberId = egressPoller.leaderMemberId();
             memberByIdMap = parseIngressEndpoints(ctx, egressPoller.detail());
 
-            final MemberIngress leader = memberByIdMap.get(leaderMemberId);
-            leader.createIngressPublication();
-            ingressPublication = leader.publication;
+            final MemberIngress newLeader = memberByIdMap.get(leaderMemberId);
+            if (null != oldLeader &&
+                newLeader.endpoint.equals(oldLeader.endpoint) &&
+                null != oldLeader.publication &&
+                !oldLeader.publication.isClosed())
+            {
+                ingressPublication = newLeader.publication = oldLeader.publication;
+            }
+            else
+            {
+                CloseHelper.close(oldLeader);
+                newLeader.createIngressPublication();
+                ingressPublication = newLeader.publication;
+            }
 
             state(State.AWAIT_PUBLICATION_CONNECTED);
         }

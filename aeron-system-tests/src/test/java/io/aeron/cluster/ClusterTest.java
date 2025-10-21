@@ -66,6 +66,7 @@ import io.aeron.test.cluster.ClusterTests;
 import io.aeron.test.cluster.TestCluster;
 import io.aeron.test.cluster.TestNode;
 import io.aeron.test.driver.TestMediaDriver;
+import org.agrona.AsciiEncoding;
 import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -97,6 +98,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
 import java.util.zip.CRC32;
@@ -104,6 +106,7 @@ import java.util.zip.CRC32;
 import static io.aeron.AeronCounters.CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID;
 import static io.aeron.AeronCounters.CLUSTER_SNAPSHOT_COUNTER_TYPE_ID;
 import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
+import static io.aeron.CommonContext.REJOIN_PARAM_NAME;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.cluster.client.AeronCluster.SESSION_HEADER_LENGTH;
 import static io.aeron.cluster.service.Cluster.Role.FOLLOWER;
@@ -145,6 +148,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SlowTest
 @ExtendWith({ EventLogExtension.class, InterruptingTestCallback.class })
@@ -2873,7 +2877,7 @@ class ClusterTest
 
     @Test
     @InterruptAfter(30)
-    void clientShouldHandleRedirectResponseDuringConnectPhase()
+    void clientShouldHandleRedirectResponseDuringConnectPhaseWithASubsetOfNodesConfigured()
     {
         cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
@@ -2903,6 +2907,84 @@ class ClusterTest
             assertEquals(
                 leaderIngressEndpoint,
                 ChannelUri.parse(ingressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "valid", "invalid", "wrong port" })
+    @InterruptAfter(30)
+    void clientShouldReuseLeaderPublicationIfValidDuringRedirectHandling(final String mode)
+    {
+        cluster = aCluster().withStaticNodes(5).withClusterId(2).withAppointedLeader(4).start();
+        systemTestWatcher.cluster(cluster);
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("endpoint=invalid"));
+
+        final TestNode leader = cluster.awaitLeader();
+        final String leaderIngressEndpoint =
+            ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
+
+        final StringBuilder ingressEndpoints = new StringBuilder();
+        for (final TestNode node : cluster.followers())
+        {
+            ingressEndpoints.append(node.memberId()).append("=")
+                .append(ingressEndpoint(cluster.clusterId(), node.memberId(), cluster.memberCount())).append(",");
+        }
+
+        ingressEndpoints.append(leader.memberId()).append("=");
+        final int separatorIndex = leaderIngressEndpoint.indexOf(':');
+        switch (mode)
+        {
+            case "valid":
+                ingressEndpoints.append(leaderIngressEndpoint);
+                break;
+            case "invalid":
+                ingressEndpoints
+                    .append("invalid")
+                    .append(leaderIngressEndpoint, separatorIndex, leaderIngressEndpoint.length());
+                break;
+            case "wrong port":
+                ingressEndpoints
+                    .append(leaderIngressEndpoint, 0, separatorIndex + 1)
+                    .append(AsciiEncoding.parseIntAscii(
+                        leaderIngressEndpoint,
+                        separatorIndex + 1,
+                        leaderIngressEndpoint.length() - separatorIndex - 1) + 1111);
+                break;
+            default:
+                fail("unknown mode: " + mode);
+        }
+
+        final TestMediaDriver clientDriver = cluster.startClientMediaDriver();
+
+        final ConsensusModule.Context leaderConsensusModule = leader.consensusModule().context();
+        final AtomicInteger availableImageCount = new AtomicInteger();
+        final AtomicInteger unAvailableImageCount = new AtomicInteger();
+        final ChannelUri ingressChannel = ChannelUri.parse(leaderConsensusModule.ingressChannel());
+        ingressChannel.put(ENDPOINT_PARAM_NAME, leaderIngressEndpoint);
+        ingressChannel.put(REJOIN_PARAM_NAME, "false");
+        try (Aeron leaderClient = Aeron.connect(
+            new Aeron.Context().aeronDirectoryName(leader.mediaDriver().aeronDirectoryName()));
+            Subscription ingressSubscription = leaderClient.addSubscription(
+                ingressChannel.toString(),
+                leaderConsensusModule.ingressStreamId(),
+                (image) -> availableImageCount.getAndIncrement(),
+                (image) -> unAvailableImageCount.getAndIncrement());
+            AeronCluster aeronCluster = AeronCluster.connect(new AeronCluster.Context()
+                .aeronDirectoryName(clientDriver.aeronDirectoryName())
+                .ingressChannel("aeron:udp?alias=ingress")
+                .ingressEndpoints(ingressEndpoints.toString())
+                .egressChannel("aeron:udp?endpoint=localhost:0|alias=redirect-test")))
+        {
+            final Publication ingressPublication = aeronCluster.ingressPublication();
+            assertNotNull(ingressPublication);
+            Tests.awaitConnected(ingressPublication);
+            Tests.awaitConnected(ingressSubscription);
+
+            assertEquals(
+                leaderIngressEndpoint,
+                ChannelUri.parse(ingressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+            assertEquals(1, availableImageCount.get());
+            assertEquals(0, unAvailableImageCount.get());
         }
     }
 
