@@ -433,19 +433,6 @@ public final class CTestMediaDriver implements TestMediaDriver
             "aeron.event.log",
             "admin"));
         environment.put("AERON_EVENT_LOG_DISABLE", System.getProperty("aeron.event.log.disable", ""));
-
-        final String driverAgentPath = System.getProperty(DRIVER_AGENT_PATH_PROP_NAME);
-        if (null == driverAgentPath)
-        {
-            return;
-        }
-
-        final File driverAgent = new File(driverAgentPath);
-        if (!driverAgent.exists())
-        {
-            throw new RuntimeException(
-                "Unable to find driver agent file at: " + DRIVER_AGENT_PATH_PROP_NAME + "=" + driverAgentPath);
-        }
     }
 
     private static void setTransportSecurity(final HashMap<String, String> environment)
