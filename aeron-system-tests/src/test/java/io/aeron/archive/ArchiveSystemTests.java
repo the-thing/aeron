@@ -22,12 +22,14 @@ import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.codecs.RecordingSignal;
+import io.aeron.archive.status.RecordingPos;
 import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.LogBufferDescriptor;
 import io.aeron.test.Tests;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.collections.MutableInteger;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.status.CountersReader;
 
 import java.util.function.Supplier;
 
@@ -170,7 +172,7 @@ class ArchiveSystemTests
         final UnsafeBuffer message = new UnsafeBuffer(new byte[1024]);
         message.setMemory(0, message.capacity(), (byte)'x');
 
-        long recordingId;
+        final long recordingId;
         final long position;
         long halfWayPosition = Aeron.NULL_VALUE;
 
@@ -187,6 +189,11 @@ class ArchiveSystemTests
 
         try (Publication publication = aeronArchive.addRecordedPublication(channel, streamId))
         {
+            final CountersReader countersReader = aeronArchive.context().aeron().countersReader();
+            final int counterId = Tests.awaitRecordingCounterId(
+                    countersReader, publication.sessionId(), aeronArchive.archiveId());
+            recordingId = RecordingPos.getRecordingId(countersReader, counterId);
+
             int messageCount = totalMessageCount;
             while (messageCount > 0)
             {
@@ -200,6 +207,7 @@ class ArchiveSystemTests
                 }
                 else
                 {
+                    aeronArchive.checkForErrorResponse();
                     Tests.yield();
                 }
             }
@@ -207,23 +215,15 @@ class ArchiveSystemTests
             position = publication.position();
             assertNotEquals(0, position);
 
-            while (-1 == (recordingId = aeronArchive.findLastMatchingRecording(
-                0, "aeron:ipc", publication.streamId(), publication.sessionId())))
+            while (countersReader.getCounterValue(counterId) < position)
             {
                 Tests.yield();
             }
 
-            while (aeronArchive.getRecordingPosition(recordingId) < position)
-            {
-                Tests.yield();
-            }
+            testRecordingSignalConsumer.reset();
         }
 
-        while (testRecordingSignalConsumer.signal != RecordingSignal.STOP)
-        {
-            aeronArchive.pollForRecordingSignals();
-            Tests.yield();
-        }
+        awaitSignal(aeronArchive, testRecordingSignalConsumer, recordingId, RecordingSignal.STOP);
 
         return new RecordingResult(position, halfWayPosition, recordingId, streamId);
     }
