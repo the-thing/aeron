@@ -124,6 +124,7 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 87;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
+        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         context.isIngressExclusive(true);
@@ -138,7 +139,10 @@ class AeronClusterAsyncConnectTest
         assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
-        assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
+        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
+
+        assertNull(asyncConnect.poll());
+        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
         asyncConnect.close();
         final InOrder inOrder = inOrder(aeron, subscription, context);
@@ -158,6 +162,7 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 42;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
+        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         context.isIngressExclusive(false);
@@ -175,9 +180,13 @@ class AeronClusterAsyncConnectTest
         assertNull(asyncConnect.poll());
         assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
+        assertNull(asyncConnect.poll());
+        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
+
         asyncConnect.close();
         verify(publication, only()).close();
-        verify(subscription, only()).close();
+        verify(subscription).tryResolveChannelEndpointPort();
+        verify(subscription).close();
         verify(context).close();
         verify(aeron, never()).asyncRemovePublication(publicationId);
         verify(aeron, never()).asyncRemoveSubscription(subscriptionId);
@@ -189,6 +198,7 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 42;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
+        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         final int insgressStreamId = 878;
@@ -201,7 +211,7 @@ class AeronClusterAsyncConnectTest
         when(aeron.asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20000", insgressStreamId))
             .thenReturn(publicationId1);
         when(aeron.getExclusivePublication(publicationId1)).thenReturn(null, publication1);
-        final long publicationId2 = Aeron.NULL_VALUE;
+        final long publicationId2 = 8;
         when(aeron.asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20001", insgressStreamId))
             .thenReturn(publicationId2);
         final long publicationId3 = 573495;
@@ -218,31 +228,34 @@ class AeronClusterAsyncConnectTest
         for (int i = 0; i < iterations; i++)
         {
             assertNull(asyncConnect.poll());
-            assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
+            assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
         }
 
         verify(aeron, atMostOnce())
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20000", insgressStreamId);
-        verify(aeron, times(iterations))
+        verify(aeron, atMostOnce())
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20001", insgressStreamId);
         verify(aeron, atMostOnce())
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20002", insgressStreamId);
         verify(aeron, times(2)).getExclusivePublication(publicationId1);
-        verify(aeron, times(iterations)).getExclusivePublication(publicationId2);
-        verify(aeron, times(iterations)).getExclusivePublication(publicationId3);
+        verify(aeron, times(iterations - 1)).getExclusivePublication(publicationId2);
+        verify(aeron, times(iterations - 1)).getExclusivePublication(publicationId3);
 
         asyncConnect.close();
 
-        verify(subscription, only()).close();
-        verify(publication1, only()).close();
+        verify(subscription).tryResolveChannelEndpointPort();
+        verify(subscription).close();
+        verify(publication1, times(8)).isConnected();
+        verify(publication1).close();
         verify(context).close();
         verify(aeron, atMostOnce()).asyncRemovePublication(publicationId3);
         verify(aeron, never()).asyncRemoveSubscription(subscriptionId);
         verify(aeron, never()).asyncRemovePublication(publicationId1);
-        verify(aeron, never()).asyncRemovePublication(publicationId2);
+        verify(aeron).asyncRemovePublication(publicationId2);
     }
 
     @Test
+    @SuppressWarnings("MethodLength")
     public void shouldConnectViaIngressChannel()
     {
         final long subscriptionId = 42;
@@ -270,6 +283,9 @@ class AeronClusterAsyncConnectTest
         final String responseChannel = "aeron:udp?endpoint=localhost:8888";
         when(subscription.tryResolveChannelEndpointPort()).thenReturn(responseChannel);
         when(publication.isConnected()).thenReturn(true);
+
+        assertNull(asyncConnect.poll());
+        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
         assertEquals(SEND_MESSAGE, asyncConnect.state());
