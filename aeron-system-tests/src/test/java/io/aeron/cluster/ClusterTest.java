@@ -243,7 +243,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeader();
+        final TestNode leader = cluster.awaitLeaderAndClosedElection();
 
         cluster.takeStandbySnapshot(leader);
         cluster.awaitNeutralControlToggle(leader);
@@ -263,7 +263,7 @@ class ClusterTest
             .start();
 
         systemTestWatcher.cluster(cluster);
-        cluster.awaitLeader();
+        cluster.awaitLeaderAndClosedElection();
 
         cluster.node(0).validateOnElectionState(0);
         cluster.node(1).validateOnElectionState(0);
@@ -277,12 +277,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeader();
-
-        TestCluster.awaitElectionClosed(leader);
-        final List<TestNode> followers = cluster.followers();
-        TestCluster.awaitElectionClosed(followers.get(0));
-        TestCluster.awaitElectionClosed(followers.get(1));
+        cluster.awaitLeaderAndClosedElection();
 
         cluster.terminationsExpected(true);
         cluster.connectClient();
@@ -297,10 +292,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeader();
-        final List<TestNode> followers = cluster.followers();
-        TestCluster.awaitElectionClosed(followers.get(0));
-        TestCluster.awaitElectionClosed(followers.get(1));
+        final TestNode leader = cluster.awaitLeaderAndClosedElection();
 
         cluster.node(0).isTerminationExpected(true);
         cluster.node(1).isTerminationExpected(true);
@@ -315,7 +307,7 @@ class ClusterTest
 
         cluster.stopAllNodes();
         cluster.restartAllNodes(false);
-        final TestNode leader2 = cluster.awaitLeader();
+        final TestNode leader2 = cluster.awaitLeaderAndClosedElection();
         final long leadershipTermId = leader2.consensusModule().context().leadershipTermIdCounter().get();
         assertEquals(2, cluster.followers().size());
         for (final TestNode follower : cluster.followers())
