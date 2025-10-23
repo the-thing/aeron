@@ -1,5 +1,5 @@
 ARG VERSION="9"
-FROM rockylinux:${VERSION} as builder
+FROM rockylinux:${VERSION} AS builder
 
 ARG GCC_VERSION="13"
 
@@ -31,5 +31,5 @@ RUN adduser --uid $USER_ID --system --create-home --gid $GROUP_ID athena
 USER athena
 WORKDIR /opt/aeron
 
-FROM builder as essentials-test
+FROM builder AS essentials-test
 ENTRYPOINT scl enable "gcc-toolset-${GCC_VERSION}" -- cppbuild/cppbuild --c-warnings-as-errors --cxx-warnings-as-errors --package
