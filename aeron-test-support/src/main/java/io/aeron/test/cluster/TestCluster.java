@@ -1084,7 +1084,7 @@ public final class TestCluster implements AutoCloseable
         return findLeader(NULL_VALUE);
     }
 
-    public TestNode awaitLeader(final int skipIndex)
+    public TestNode awaitLeaderWithoutElectionTerminationCheck(final int skipIndex)
     {
         final Supplier<String> message = () -> Arrays.stream(nodes)
             .map((node) -> null != node ? node.index() + " " + node.role() + " " + node.electionState() : "null")
@@ -1095,6 +1095,13 @@ public final class TestCluster implements AutoCloseable
         {
             await(10, message);
         }
+
+        return leaderNode;
+    }
+
+    public TestNode awaitLeader(final int skipIndex)
+    {
+        final TestNode leaderNode = awaitLeaderWithoutElectionTerminationCheck(skipIndex);
 
         for (final TestNode node : nodes)
         {

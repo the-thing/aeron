@@ -107,7 +107,7 @@ class ClusterNetworkPartitionTest
         cluster.sendMessages(50); // will be sent to the old leader
         Tests.await(() -> firstLeader.appendPosition() > initialLeaderLogPosition);
 
-        final TestNode secondLeader = cluster.awaitLeader(firstLeader.index());
+        final TestNode secondLeader = cluster.awaitLeaderWithoutElectionTerminationCheck(firstLeader.index());
         assertNotEquals(firstLeader.index(), secondLeader.index());
 
         cluster.awaitNodeState(firstLeader, (n) -> n.electionState() == ElectionState.CANVASS);
