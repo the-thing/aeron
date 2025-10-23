@@ -43,11 +43,31 @@ import org.mockito.stubbing.Answer;
 
 import java.util.concurrent.TimeUnit;
 
-import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.*;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.AWAIT_PUBLICATION_CONNECTED;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.CONCLUDE_CONNECT;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.CREATE_EGRESS_SUBSCRIPTION;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.CREATE_INGRESS_PUBLICATIONS;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.POLL_RESPONSE;
+import static io.aeron.cluster.client.AeronCluster.AsyncConnect.State.SEND_MESSAGE;
 import static io.aeron.protocol.DataHeaderFlyweight.BEGIN_AND_END_FLAGS;
 import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.atMostOnce;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.only;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class AeronClusterAsyncConnectTest
 {
@@ -124,7 +144,6 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 87;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
-        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         context.isIngressExclusive(true);
@@ -139,10 +158,7 @@ class AeronClusterAsyncConnectTest
         assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
-        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
-
-        assertNull(asyncConnect.poll());
-        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
+        assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         asyncConnect.close();
         final InOrder inOrder = inOrder(aeron, subscription, context);
@@ -162,7 +178,6 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 42;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
-        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         context.isIngressExclusive(false);
@@ -178,15 +193,14 @@ class AeronClusterAsyncConnectTest
         assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
-        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
+        assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
         assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
         asyncConnect.close();
         verify(publication, only()).close();
-        verify(subscription).tryResolveChannelEndpointPort();
-        verify(subscription).close();
+        verify(subscription, only()).close();
         verify(context).close();
         verify(aeron, never()).asyncRemovePublication(publicationId);
         verify(aeron, never()).asyncRemoveSubscription(subscriptionId);
@@ -198,7 +212,6 @@ class AeronClusterAsyncConnectTest
         final long subscriptionId = 42;
         when(aeron.asyncAddSubscription(context.egressChannel(), context.egressStreamId())).thenReturn(subscriptionId);
         final Subscription subscription = mock(Subscription.class);
-        when(subscription.tryResolveChannelEndpointPort()).thenReturn("responseChannel");
         when(aeron.getSubscription(subscriptionId)).thenReturn(subscription);
 
         final int insgressStreamId = 878;
@@ -211,7 +224,7 @@ class AeronClusterAsyncConnectTest
         when(aeron.asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20000", insgressStreamId))
             .thenReturn(publicationId1);
         when(aeron.getExclusivePublication(publicationId1)).thenReturn(null, publication1);
-        final long publicationId2 = 8;
+        final long publicationId2 = Aeron.NULL_VALUE;
         when(aeron.asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20001", insgressStreamId))
             .thenReturn(publicationId2);
         final long publicationId3 = 573495;
@@ -228,30 +241,28 @@ class AeronClusterAsyncConnectTest
         for (int i = 0; i < iterations; i++)
         {
             assertNull(asyncConnect.poll());
-            assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
+            assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
         }
 
         verify(aeron, atMostOnce())
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20000", insgressStreamId);
-        verify(aeron, atMostOnce())
+        verify(aeron, times(iterations))
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20001", insgressStreamId);
         verify(aeron, atMostOnce())
             .asyncAddExclusivePublication("aeron:udp?endpoint=localhost:20002", insgressStreamId);
         verify(aeron, times(2)).getExclusivePublication(publicationId1);
-        verify(aeron, times(iterations - 1)).getExclusivePublication(publicationId2);
-        verify(aeron, times(iterations - 1)).getExclusivePublication(publicationId3);
+        verify(aeron, times(iterations)).getExclusivePublication(publicationId2);
+        verify(aeron, times(iterations)).getExclusivePublication(publicationId3);
 
         asyncConnect.close();
 
-        verify(subscription).tryResolveChannelEndpointPort();
-        verify(subscription).close();
-        verify(publication1, times(8)).isConnected();
-        verify(publication1).close();
+        verify(subscription, only()).close();
+        verify(publication1, only()).close();
         verify(context).close();
         verify(aeron, atMostOnce()).asyncRemovePublication(publicationId3);
         verify(aeron, never()).asyncRemoveSubscription(subscriptionId);
         verify(aeron, never()).asyncRemovePublication(publicationId1);
-        verify(aeron).asyncRemovePublication(publicationId2);
+        verify(aeron, never()).asyncRemovePublication(publicationId2);
     }
 
     @Test
@@ -278,14 +289,14 @@ class AeronClusterAsyncConnectTest
         assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
+        assertEquals(CREATE_INGRESS_PUBLICATIONS, asyncConnect.state());
+
+        assertNull(asyncConnect.poll());
         assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
         final String responseChannel = "aeron:udp?endpoint=localhost:8888";
         when(subscription.tryResolveChannelEndpointPort()).thenReturn(responseChannel);
         when(publication.isConnected()).thenReturn(true);
-
-        assertNull(asyncConnect.poll());
-        assertEquals(AWAIT_PUBLICATION_CONNECTED, asyncConnect.state());
 
         assertNull(asyncConnect.poll());
         assertEquals(SEND_MESSAGE, asyncConnect.state());
@@ -360,5 +371,4 @@ class AeronClusterAsyncConnectTest
         inOrder.verify(context).close();
         inOrder.verifyNoMoreInteractions();
     }
-
 }
