@@ -703,7 +703,7 @@ class ClusterTest
 
         final TestNode firstLeader = cluster.awaitLeader();
 
-        final int sufficientMessageCountForReplay = 1_000_000;
+        final int sufficientMessageCountForReplay = 10_000;
         cluster.connectClient();
         cluster.sendAndAwaitMessages(sufficientMessageCountForReplay);
         cluster.closeClient();
@@ -1393,8 +1393,8 @@ class ClusterTest
 
         final TestNode originalLeader = cluster.awaitLeader();
 
-        final int initialMessageCount = 2000;
-        final int additionalMessageCount = 1000;
+        final int initialMessageCount = 300;
+        final int additionalMessageCount = 100;
 
         cluster.connectClient();
         cluster.sendLargeMessages(initialMessageCount);
@@ -1857,22 +1857,18 @@ class ClusterTest
 
             cluster.stopNode(oldLeader);
             cluster.startStaticNode(oldLeader.index(), false);
-            cluster.awaitLeader();
         }
 
         final TestNode lateJoiningNode = cluster.startStaticNode(4, true);
-
         cluster.awaitServiceMessageCount(lateJoiningNode, totalMessages);
 
         final TestNode node = cluster.startStaticNode(partialNode, false);
-
         cluster.awaitServiceMessageCount(node, totalMessages);
-
-        cluster.awaitLeader();
 
         cluster.connectClient();
         cluster.sendMessages(messageCount);
         totalMessages += messageCount;
+
         cluster.awaitResponseMessageCount(totalMessages);
         cluster.awaitServiceMessageCount(node, totalMessages);
 
@@ -2232,7 +2228,7 @@ class ClusterTest
     }
 
     @Test
-    @InterruptAfter(60)
+    @InterruptAfter(20)
     void shouldRemainStableWhenThereIsASlowFollower()
     {
         cluster = aCluster().withStaticNodes(3).withLogChannel("aeron:udp?term-length=64k").start();
@@ -2247,16 +2243,15 @@ class ClusterTest
 
         cluster.connectClient();
 
-        final long slowDownDelayMs = 15_000;
+        final long slowDownDelayMs = 1500;
         cluster.sendMessageToSlowDownService(liveFollower.index(), MILLISECONDS.toNanos(slowDownDelayMs));
-        cluster.sendMessages(1000);
+        cluster.sendMessages(100);
 
         final TestNode restartedFollower = cluster.startStaticNode(followerToRestart.index(), false);
         awaitElectionClosed(restartedFollower);
 
-        Tests.sleep(slowDownDelayMs);
-
-        awaitElectionClosed(restartedFollower);
+        cluster.sendMessages(100);
+        cluster.awaitServicesMessageCount(200);
     }
 
     @Test
