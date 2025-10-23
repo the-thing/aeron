@@ -15,12 +15,39 @@
  */
 package io.aeron.cluster.client;
 
-import io.aeron.*;
+import io.aeron.Aeron;
+import io.aeron.AeronCounters;
+import io.aeron.ChannelUri;
+import io.aeron.CommonContext;
+import io.aeron.ControlledFragmentAssembler;
+import io.aeron.DirectBufferVector;
+import io.aeron.FragmentAssembler;
+import io.aeron.Image;
+import io.aeron.Publication;
+import io.aeron.Subscription;
 import io.aeron.cluster.ConsensusModule;
-import io.aeron.cluster.codecs.*;
+import io.aeron.cluster.codecs.AdminRequestEncoder;
+import io.aeron.cluster.codecs.AdminRequestType;
+import io.aeron.cluster.codecs.AdminResponseCode;
+import io.aeron.cluster.codecs.AdminResponseDecoder;
+import io.aeron.cluster.codecs.ChallengeResponseEncoder;
+import io.aeron.cluster.codecs.EventCode;
+import io.aeron.cluster.codecs.MessageHeaderDecoder;
+import io.aeron.cluster.codecs.MessageHeaderEncoder;
+import io.aeron.cluster.codecs.NewLeaderEventDecoder;
+import io.aeron.cluster.codecs.SessionCloseRequestEncoder;
+import io.aeron.cluster.codecs.SessionConnectRequestEncoder;
+import io.aeron.cluster.codecs.SessionEventDecoder;
+import io.aeron.cluster.codecs.SessionKeepAliveEncoder;
+import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
+import io.aeron.cluster.codecs.SessionMessageHeaderEncoder;
 import io.aeron.config.Config;
 import io.aeron.config.DefaultType;
-import io.aeron.exceptions.*;
+import io.aeron.exceptions.AeronException;
+import io.aeron.exceptions.ConcurrentConcludeException;
+import io.aeron.exceptions.ConfigurationException;
+import io.aeron.exceptions.RegistrationException;
+import io.aeron.exceptions.TimeoutException;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.ControlledFragmentHandler;
 import io.aeron.logbuffer.Header;
@@ -28,10 +55,20 @@ import io.aeron.security.AuthenticationException;
 import io.aeron.security.CredentialsSupplier;
 import io.aeron.security.NullCredentialsSupplier;
 import io.aeron.version.Versioned;
-import org.agrona.*;
+import org.agrona.AsciiEncoding;
+import org.agrona.CloseHelper;
+import org.agrona.DirectBuffer;
+import org.agrona.ErrorHandler;
+import org.agrona.ExpandableArrayBuffer;
+import org.agrona.SemanticVersion;
+import org.agrona.Strings;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.collections.Int2ObjectHashMap;
-import org.agrona.concurrent.*;
+import org.agrona.concurrent.AgentInvoker;
+import org.agrona.concurrent.BackoffIdleStrategy;
+import org.agrona.concurrent.IdleStrategy;
+import org.agrona.concurrent.NanoClock;
+import org.agrona.concurrent.UnsafeBuffer;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -2295,16 +2332,54 @@ public final class AeronCluster implements AutoCloseable
         {
             if (null == ctx.ingressEndpoints())
             {
-                ingressRegistrationId = asyncAddIngressPublication(ctx, ctx.ingressChannel(), ctx.ingressStreamId());
+                if (null == ingressPublication)
+                {
+                    if (NULL_VALUE == ingressRegistrationId)
+                    {
+                        ingressRegistrationId =
+                            asyncAddIngressPublication(ctx, ctx.ingressChannel(), ctx.ingressStreamId());
+                    }
+
+                    try
+                    {
+                        ingressPublication = getIngressPublication(ctx, ingressRegistrationId);
+                    }
+                    catch (final RegistrationException ex)
+                    {
+                        ingressRegistrationId = NULL_VALUE;
+                        throw ex;
+                    }
+                }
+                else
+                {
+                    ingressRegistrationId = NULL_VALUE;
+                    state(State.AWAIT_PUBLICATION_CONNECTED);
+                }
             }
             else
             {
+                int count = 0;
                 for (final MemberIngress member : memberByIdMap.values())
                 {
-                    member.asyncAddPublication();
+                    if (null != member.publication || null != member.publicationException)
+                    {
+                        count++;
+                    }
+                    else
+                    {
+                        if (NULL_VALUE == member.registrationId)
+                        {
+                            member.asyncAddPublication();
+                        }
+                        member.asyncGetPublication();
+                    }
+                }
+
+                if (memberByIdMap.size() == count)
+                {
+                    state(State.AWAIT_PUBLICATION_CONNECTED);
                 }
             }
-            state(State.AWAIT_PUBLICATION_CONNECTED);
         }
 
         private void awaitPublicationConnected()
@@ -2318,41 +2393,18 @@ public final class AeronCluster implements AutoCloseable
             {
                 if (null == ingressPublication)
                 {
-                    if (NULL_VALUE != ingressRegistrationId)
+                    for (final MemberIngress member : memberByIdMap.values())
                     {
-                        ingressPublication = getIngressPublication(ctx, ingressRegistrationId);
-                        if (null != ingressPublication)
+                        if (null == member.publication && NULL_VALUE != member.registrationId)
                         {
-                            ingressRegistrationId = NULL_VALUE;
+                            member.asyncGetPublication();
                         }
-                    }
-                    else
-                    {
-                        for (final MemberIngress member : memberByIdMap.values())
-                        {
-                            if (null == member.publication && NULL_VALUE != member.registrationId)
-                            {
-                                try
-                                {
-                                    member.publication = getIngressPublication(ctx, member.registrationId);
-                                    if (null != member.publication)
-                                    {
-                                        member.registrationId = NULL_VALUE;
-                                    }
-                                }
-                                catch (final RegistrationException ex)
-                                {
-                                    member.publicationException = ex;
-                                    member.registrationId = NULL_VALUE;
-                                }
-                            }
 
-                            if (null != member.publication && member.publication.isConnected())
-                            {
-                                ingressPublication = member.publication;
-                                prepareConnectRequest();
-                                break;
-                            }
+                        if (null != member.publication && member.publication.isConnected())
+                        {
+                            ingressPublication = member.publication;
+                            prepareConnectRequest();
+                            break;
                         }
                     }
                 }
@@ -2537,6 +2589,23 @@ public final class AeronCluster implements AutoCloseable
 
             registrationId = asyncAddIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
             publication = null;
+        }
+
+        void asyncGetPublication()
+        {
+            try
+            {
+                publication = getIngressPublication(ctx, registrationId);
+                if (null != publication)
+                {
+                    registrationId = NULL_VALUE;
+                }
+            }
+            catch (final RegistrationException ex)
+            {
+                publicationException = ex;
+                registrationId = NULL_VALUE;
+            }
         }
 
         public void close()
