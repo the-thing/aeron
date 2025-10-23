@@ -118,7 +118,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public final class TestCluster implements AutoCloseable
 {
-    static final int SEGMENT_FILE_LENGTH = 16 * 1024 * 1024;
+    static final int SEGMENT_FILE_LENGTH = 128 * 1024;
     static final long CATALOG_CAPACITY = 128 * 1024;
 
     static final String LOG_CHANNEL = "aeron:udp?term-length=512k|alias=raft";

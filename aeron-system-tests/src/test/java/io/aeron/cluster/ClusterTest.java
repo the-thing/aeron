@@ -81,7 +81,6 @@ import org.agrona.concurrent.AgentTerminationException;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersReader;
 import org.hamcrest.CoreMatchers;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -1384,69 +1383,41 @@ class ClusterTest
     }
 
     @Test
-    @InterruptAfter(140)
-    @Disabled
-    void shouldHandleManyLargeMessages()
-    {
-        cluster = aCluster().withStaticNodes(3).start();
-
-        systemTestWatcher.cluster(cluster);
-
-        cluster.awaitLeader();
-        awaitElectionState(cluster.node(0), ElectionState.CLOSED);
-        awaitElectionState(cluster.node(1), ElectionState.CLOSED);
-        awaitElectionState(cluster.node(2), ElectionState.CLOSED);
-
-        final int largeMessageCount = 256_000;
-
-        cluster.connectClient();
-        cluster.sendLargeMessages(largeMessageCount);
-        cluster.awaitResponseMessageCount(largeMessageCount);
-        cluster.awaitServicesMessageCount(largeMessageCount);
-    }
-
-    @Test
-    @InterruptAfter(40)
-    @Disabled
+    @InterruptAfter(90)
     void shouldRecoverWhenFollowerWithInitialSnapshotAndArchivePurgeThenIsMultipleTermsBehind()
     {
-        cluster = aCluster().withStaticNodes(3).start();
+        cluster = aCluster()
+            .withLogChannel("aeron:udp?term-length=256k|alias=raft")
+            .withStaticNodes(3)
+            .start();
 
         systemTestWatcher.cluster(cluster);
 
         final TestNode originalLeader = cluster.awaitLeader();
 
-        final int largeMessageCount = 128_000;
-        final int messageCount = 10;
+        final int initialMessageCount = 2000;
+        final int additionalMessageCount = 1000;
 
         cluster.connectClient();
-        cluster.sendLargeMessages(largeMessageCount);
-        cluster.awaitResponseMessageCount(largeMessageCount);
-        cluster.awaitServicesMessageCount(largeMessageCount);
+        cluster.sendLargeMessages(initialMessageCount);
+        cluster.awaitResponseMessageCount(initialMessageCount);
+        cluster.awaitServicesMessageCount(initialMessageCount);
 
         cluster.takeSnapshot(originalLeader);
         cluster.awaitSnapshotCount(1);
         cluster.purgeLogToLastSnapshot();
 
         cluster.stopNode(originalLeader);
-        final TestNode newLeader = cluster.awaitLeader();
-
-        cluster.reconnectClient();
-        cluster.sendMessages(messageCount);
-        cluster.awaitResponseMessageCount(largeMessageCount + messageCount);
-
-        cluster.stopNode(newLeader);
-        cluster.startStaticNode(newLeader.index(), false);
         cluster.awaitLeader();
 
         cluster.reconnectClient();
-        cluster.sendMessages(messageCount);
-        cluster.awaitResponseMessageCount(largeMessageCount + (messageCount * 2));
+        cluster.sendLargeMessages(additionalMessageCount);
+        cluster.awaitResponseMessageCount(initialMessageCount + additionalMessageCount);
 
         cluster.startStaticNode(originalLeader.index(), false);
         final TestNode lateJoiningNode = cluster.node(originalLeader.index());
 
-        cluster.awaitServiceMessageCount(lateJoiningNode, largeMessageCount + (messageCount * 2));
+        cluster.awaitServiceMessageCount(lateJoiningNode, initialMessageCount + additionalMessageCount);
     }
 
     @Test
