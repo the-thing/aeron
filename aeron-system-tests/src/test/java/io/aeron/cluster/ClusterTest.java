@@ -240,7 +240,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
 
         cluster.takeStandbySnapshot(leader);
         cluster.awaitNeutralControlToggle(leader);
@@ -260,7 +260,7 @@ class ClusterTest
             .start();
 
         systemTestWatcher.cluster(cluster);
-        cluster.awaitLeaderAndClosedElection();
+        cluster.awaitLeader();
 
         cluster.node(0).validateOnElectionState(0);
         cluster.node(1).validateOnElectionState(0);
@@ -274,7 +274,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        cluster.awaitLeaderAndClosedElection();
+        cluster.awaitLeader();
 
         cluster.terminationsExpected(true);
         cluster.connectClient();
@@ -289,7 +289,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
 
         cluster.node(0).isTerminationExpected(true);
         cluster.node(1).isTerminationExpected(true);
@@ -304,7 +304,7 @@ class ClusterTest
 
         cluster.stopAllNodes();
         cluster.restartAllNodes(false);
-        final TestNode leader2 = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader2 = cluster.awaitLeader();
         final long leadershipTermId = leader2.consensusModule().context().leadershipTermIdCounter().get();
         assertEquals(2, cluster.followers().size());
         for (final TestNode follower : cluster.followers())
@@ -978,7 +978,7 @@ class ClusterTest
         }
 
         cluster.awaitNewLeadershipEvent(1);
-        cluster.awaitLeaderAndClosedElection();
+        cluster.awaitLeader();
         cluster.followers(2);
     }
 
@@ -2479,7 +2479,7 @@ class ClusterTest
         }
 
         follower2 = cluster.startStaticNode(follower2.index(), false);
-        leader = cluster.awaitLeaderAndClosedElection();
+        leader = cluster.awaitLeader();
         follower1 = cluster.followers().stream()
             .filter(f -> follower1Id == f.consensusModule().context().clusterMemberId())
             .findFirst()
@@ -2801,7 +2801,7 @@ class ClusterTest
         systemTestWatcher.cluster(cluster);
 
         // wait for cluster to hold election
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
 
         // Original client - should always be allowed
         final AeronCluster client = cluster.connectClient();
@@ -2842,7 +2842,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         final String leaderIngressEndpoint =
             ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
 
@@ -2879,7 +2879,7 @@ class ClusterTest
         systemTestWatcher.cluster(cluster);
         systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("endpoint=invalid"));
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         final String leaderIngressEndpoint =
             ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
 
@@ -2956,7 +2956,7 @@ class ClusterTest
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         final ConsensusModule.Context leaderContext = leader.consensusModule().context();
         final CountersReader leaderCounters = leaderContext.aeron().countersReader();
 
@@ -3012,7 +3012,7 @@ class ClusterTest
             .start();
 
         systemTestWatcher.cluster(cluster);
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         cluster.connectClient();
         cluster.sendMessages(5);
 
@@ -3054,7 +3054,7 @@ class ClusterTest
             .start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         cluster.connectClient();
         cluster.sendMessages(5);
 
@@ -3096,7 +3096,7 @@ class ClusterTest
             .start();
         systemTestWatcher.cluster(cluster);
 
-        final TestNode leader = cluster.awaitLeaderAndClosedElection();
+        final TestNode leader = cluster.awaitLeader();
         cluster.connectClient();
         cluster.sendMessages(5);
 

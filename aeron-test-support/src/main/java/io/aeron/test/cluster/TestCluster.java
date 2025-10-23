@@ -1096,18 +1096,6 @@ public final class TestCluster implements AutoCloseable
             await(10, message);
         }
 
-        return leaderNode;
-    }
-
-    public TestNode awaitLeader()
-    {
-        return awaitLeader(NULL_VALUE);
-    }
-
-    public TestNode awaitLeaderAndClosedElection(final int nodeId)
-    {
-        final TestNode leader = awaitLeader(nodeId);
-
         for (final TestNode node : nodes)
         {
             if (null != node)
@@ -1116,12 +1104,12 @@ public final class TestCluster implements AutoCloseable
             }
         }
 
-        return leader;
+        return leaderNode;
     }
 
-    public TestNode awaitLeaderAndClosedElection()
+    public TestNode awaitLeader()
     {
-        return awaitLeaderAndClosedElection(NULL_VALUE);
+        return awaitLeader(NULL_VALUE);
     }
 
     public List<TestNode> followers()
