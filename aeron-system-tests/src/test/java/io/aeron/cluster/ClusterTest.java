@@ -1827,7 +1827,7 @@ class ClusterTest
     }
 
     @Test
-    @InterruptAfter(180)
+    @InterruptAfter(60)
     void shouldRecoverWhenFollowersIsMultipleTermsBehindFromEmptyLogAndPartialLogWithoutCommittedLogEntry()
     {
         cluster = aCluster().withStaticNodes(5).start(4);
@@ -1857,12 +1857,15 @@ class ClusterTest
 
             cluster.stopNode(oldLeader);
             cluster.startStaticNode(oldLeader.index(), false);
+            cluster.awaitLeader();
         }
 
         final TestNode lateJoiningNode = cluster.startStaticNode(4, true);
+        TestCluster.awaitElectionClosed(lateJoiningNode);
         cluster.awaitServiceMessageCount(lateJoiningNode, totalMessages);
 
         final TestNode node = cluster.startStaticNode(partialNode, false);
+        TestCluster.awaitElectionClosed(node);
         cluster.awaitServiceMessageCount(node, totalMessages);
 
         cluster.connectClient();
