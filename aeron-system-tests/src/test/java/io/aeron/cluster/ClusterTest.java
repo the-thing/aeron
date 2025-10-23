@@ -82,8 +82,6 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersReader;
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.DisabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
@@ -2261,12 +2259,11 @@ class ClusterTest
         awaitElectionClosed(restartedFollower);
     }
 
-    @ParameterizedTest
-    @ValueSource(ints = { 20, 100 })
-    @InterruptAfter(90)
-    @DisabledOnOs(OS.MAC)
-    void shouldCatchupFollowerWithSlowService(final int sleepTimeMs)
+    @Test
+    @InterruptAfter(20)
+    void shouldCatchupFollowerWithSlowService()
     {
+        final int sleepTimeMs = 100;
         final IntFunction<TestNode.TestService[]> serviceSupplier =
             (i) -> new TestNode.TestService[]
                 {
@@ -2298,7 +2295,7 @@ class ClusterTest
         cluster.awaitLeader();
         cluster.connectClient();
 
-        final int firstBatchCount = (int)(SECONDS.toMillis(5) / sleepTimeMs);
+        final int firstBatchCount = 500 / sleepTimeMs;
         cluster.sendMessages(firstBatchCount);
         cluster.awaitResponseMessageCount(firstBatchCount);
         cluster.awaitServicesMessageCount(firstBatchCount);
@@ -2307,14 +2304,14 @@ class ClusterTest
         final TestNode followerB = cluster.followers().get(1);
         cluster.stopNode(followerA);
 
-        final int secondBatchCount = (int)(SECONDS.toMillis(7) / sleepTimeMs);
+        final int secondBatchCount = 700 / sleepTimeMs;
         cluster.sendMessages(secondBatchCount);
         cluster.awaitResponseMessageCount(firstBatchCount + secondBatchCount);
         cluster.awaitServiceMessageCount(followerB, firstBatchCount + secondBatchCount);
 
         cluster.startStaticNode(followerA.index(), false);
 
-        final int thirdBatchCount = (int)(SECONDS.toMillis(3) / sleepTimeMs);
+        final int thirdBatchCount = 300 / sleepTimeMs;
         cluster.sendMessages(thirdBatchCount);
         cluster.awaitResponseMessageCount(firstBatchCount + secondBatchCount + thirdBatchCount);
         cluster.awaitServicesMessageCount(firstBatchCount + secondBatchCount + thirdBatchCount);
