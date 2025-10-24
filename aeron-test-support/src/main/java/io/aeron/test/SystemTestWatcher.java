@@ -285,7 +285,7 @@ public class SystemTestWatcher implements
         {
             if (null != error)
             {
-                System.out.println("*** Complete stack trace: ");
+                System.out.println("*** Complete stack trace (PID=" + SystemUtil.getPid() + "): ");
                 error.printStackTrace(System.out);
                 LangUtil.rethrowUnchecked(error);
             }
