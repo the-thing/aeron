@@ -20,6 +20,7 @@ import io.aeron.CommonContext;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.driver.MediaDriver;
+import io.aeron.logbuffer.LogBufferDescriptor;
 import io.aeron.samples.archive.RecordingDescriptor;
 import io.aeron.samples.archive.RecordingDescriptorCollector;
 import io.aeron.test.EventLogExtension;
@@ -60,11 +61,9 @@ public class ArchiveListRecordingsTest
     @BeforeEach
     void setUp()
     {
-        final int termLength = 64 * 1024;
-
         final MediaDriver.Context driverCtx = new MediaDriver.Context()
             .termBufferSparseFile(true)
-            .publicationTermBufferLength(termLength)
+            .publicationTermBufferLength(LogBufferDescriptor.TERM_MIN_LENGTH)
             .sharedIdleStrategy(YieldingIdleStrategy.INSTANCE)
             .spiesSimulateConnection(true)
             .dirDeleteOnStart(true);
@@ -76,7 +75,7 @@ public class ArchiveListRecordingsTest
             .fileSyncLevel(0)
             .deleteArchiveOnStart(true)
             .archiveDir(new File(SystemUtil.tmpDirName(), "archive-test"))
-            .segmentFileLength(1024 * 1024)
+            .segmentFileLength(LogBufferDescriptor.TERM_MIN_LENGTH)
             .idleStrategySupplier(YieldingIdleStrategy::new);
 
         driver = TestMediaDriver.launch(driverCtx, systemTestWatcher);
