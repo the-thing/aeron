@@ -70,6 +70,8 @@ cppbuild/Win32
 # JVM crash reports
 hs_err_pid*
 *.hprof
+*-gc.log
+*-crash.log
 
 # Archive and Cluster data from system tests
 /aeron-cluster/aeron-archive/
