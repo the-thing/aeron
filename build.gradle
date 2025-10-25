@@ -224,11 +224,11 @@ subprojects {
         testClassesDirs = testing.suites.test.sources.output.classesDirs
         classpath = testing.suites.test.sources.runtimeClasspath
 
-        def heapSize = '1g'
         def baseLogFileName = "${layout.buildDirectory.get()}/${layout.projectDirectory.asFile.getName()}-${test.name}-%p"
-        minHeapSize = heapSize
-        maxHeapSize = heapSize
-        jvmArgs("-XX:MaxDirectMemorySize=1g",
+        jvmArgs("-XX:MaxDirectMemorySize=2g",
+                "-Xms2048m",
+                "-Xmx2048m",
+                "-Xmn1536m",
                 "-XX:+CreateCoredumpOnCrash",
                 "-XX:+HeapDumpOnOutOfMemoryError",
                 "-XX:+CrashOnOutOfMemoryError",
