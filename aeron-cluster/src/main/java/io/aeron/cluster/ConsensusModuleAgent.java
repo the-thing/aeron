@@ -1174,7 +1174,7 @@ final class ConsensusModuleAgent
                 " this.leaderMemberId=" + leaderMember.id() +
                 " this.commitPosition=" + this.commitPosition.getWeak() +
                 " this.appendPosition=" +
-                (null != appendPosition && !appendPosition.isClosed() ? appendPosition.getWeak() : null) +
+                (null != appendPosition ? appendPosition.getWeak() : NULL_POSITION) +
                 " newLeadershipTermId=" + leadershipTermId +
                 " newLogPosition=" + logPosition +
                 " newLeaderMemberId=" + leaderMemberId + ")");
@@ -2057,12 +2057,18 @@ final class ConsensusModuleAgent
 
         if (ConsensusModule.State.ACTIVE == state || ConsensusModule.State.SUSPENDED == state)
         {
-            final int fragments = logAdapter.poll(Math.min(appendPosition.get(), limitPosition));
-            workCount += fragments;
-            if (fragments == 0 && logAdapter.image().isClosed())
+            if (null == appendPosition)
             {
                 throw new ClusterEvent(
-                    "unexpected image close during catchup: position=" + logAdapter.image().position());
+                    "unexpected recording stop during catchup: position=" + logAdapter.position());
+            }
+
+            final int fragments = logAdapter.poll(Math.min(appendPosition.get(), limitPosition));
+            workCount += fragments;
+            if (0 == fragments && logAdapter.isImageClosed())
+            {
+                throw new ClusterEvent(
+                    "unexpected image close during catchup: position=" + logAdapter.position());
             }
 
             final ExclusivePublication publication = election.leader().publication();
@@ -2077,7 +2083,7 @@ final class ConsensusModuleAgent
             throw new ClusterEvent(
                 "no catchup progress commitPosition=" + commitPosition.getWeak() + " limitPosition=" + limitPosition +
                 " lastAppendPosition=" + lastAppendPosition +
-                " appendPosition=" + (null != appendPosition ? appendPosition.get() : -1) +
+                " appendPosition=" + (null != appendPosition ? appendPosition.get() : NULL_POSITION) +
                 " logPosition=" + election.logPosition());
         }
 
@@ -3710,7 +3716,6 @@ final class ConsensusModuleAgent
 
             if (null != appendPosition && appendPosition.registrationId() == registrationId)
             {
-                appendPosition.close();
                 appendPosition = null;
                 logSubscriptionId = NULL_VALUE;
             }
