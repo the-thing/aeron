@@ -127,6 +127,10 @@ public final class TestCluster implements AutoCloseable
     static final String INGRESS_CHANNEL = "aeron:udp?term-length=128k|alias=ingress";
     static final long LEADER_HEARTBEAT_TIMEOUT_NS = TimeUnit.SECONDS.toNanos(1);
     static final long STARTUP_CANVASS_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS * 2;
+    static final long TERMINATION_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS;
+    static final long LEADER_HEARTBEAT_INTERVAL_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 100;
+    static final long ELECTION_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 10;
+    static final long ELECTION_STATUS_INTERVAL_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 100;
     public static final String CLUSTER_BASE_DIR_PROP_NAME = "aeron.test.system.cluster.base.dir";
 
     public static final String DEFAULT_NODE_MAPPINGS =
@@ -345,7 +349,11 @@ public final class TestCluster implements AutoCloseable
             .clusterMemberId(index)
             .clusterMembers(clusterMembers)
             .startupCanvassTimeoutNs(STARTUP_CANVASS_TIMEOUT_NS)
+            .terminationTimeoutNs(TERMINATION_TIMEOUT_NS)
             .leaderHeartbeatTimeoutNs(LEADER_HEARTBEAT_TIMEOUT_NS)
+            .leaderHeartbeatIntervalNs(LEADER_HEARTBEAT_INTERVAL_NS)
+            .electionTimeoutNs(ELECTION_TIMEOUT_NS)
+            .electionStatusIntervalNs(ELECTION_STATUS_INTERVAL_NS)
             .appointedLeaderId(appointedLeaderId)
             .clusterDir(new File(baseDirName, "consensus-module"))
             .ingressChannel(ingressChannel)
