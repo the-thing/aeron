@@ -57,9 +57,8 @@ jobs:
           echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
           Get-WmiObject -Class Win32_LogicalDisk | ? {$_. DriveType -eq 3} | select DeviceID, {$_.Size /1GB}, {$_.FreeSpace /1GB}
           $new_workspace = "D:/custom_workspace"
-          New-Item -Type Directory -Path $new_workspace
-          echo "GITHUB_WORKSPACE=$new_workspace" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "(after) env.GITHUB_WORKSPACE: $env:GITHUB_WORKSPACE"
+          New-Item -ItemType Directory -Path $new_workspace
+          New-Item -ItemType SymbolicLink -Path $env:GITHUB_WORKSPACE -Target $new_workspace
       - name: Checkout code
         uses: actions/checkout@v5
         with:
