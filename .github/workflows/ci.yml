@@ -49,6 +49,7 @@ jobs:
           echo "MAVEN_HOME: $env:MAVEN_HOME"
           echo "M2_HOME: $env:M2_HOME"
           echo "GRADLE_HOME: $env:GRADLE_HOME"
+          echo "GRADLE_USER_HOME: $env:GRADLE_USER_HOME"
           echo "PATH: $env:PATH"
           echo "env.RUNNER_TOOL_CACHE: $env:RUNNER_TOOL_CACHE"
           echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
