@@ -42,7 +42,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           $vhd_path = "D:\dev_drive.vhdx"
-          $vhd_size = 10GB
+          $vhd_size = 50GB
           New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru | New-Partition -UseMaximumSize -DriveLetter X
           Format-Volume -DriveLetter X -DevDrive -Full -Confirm:$false -Force
 
