@@ -41,7 +41,6 @@ jobs:
       - name: Print workspace and other dirs
         if: runner.os == 'Windows'
         run: |
-          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
           echo "env.GITHUB_WORKSPACE: $env:GITHUB_WORKSPACE"
           echo "github.workspace: ${{ github.workspace }}"
           echo "env.TMP: $env:TMP"
@@ -53,6 +52,7 @@ jobs:
           echo "PATH: $env:PATH"
           echo "env.RUNNER_TOOL_CACHE: $env:RUNNER_TOOL_CACHE"
           echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
+          echo "context.RUNNER_TEMP: ${{ env.RUNNER_TEMP }}"
           Get-WmiObject -Class Win32_LogicalDisk | ? {$_. DriveType -eq 3} | select DeviceID, {$_.Size /1GB}, {$_.FreeSpace /1GB}
           $new_workspace = "D:/custom_workspace"
           New-Item -ItemType Directory -Path $new_workspace
