@@ -58,7 +58,7 @@ jobs:
           New-Item -ItemType Directory -Path $new_workspace
           Remove-Item -Path $env:GITHUB_WORKSPACE -Recurse
           New-Item -ItemType SymbolicLink -Path $env:GITHUB_WORKSPACE -Target $new_workspace
-        working-directory: $env:RUNNER_TEMP
+        working-directory: $RUNNER_TEMP
       - name: Checkout code
         uses: actions/checkout@v5
         with:
