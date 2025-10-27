@@ -108,7 +108,7 @@ jobs:
           $new_size = ($current_size.SizeMax - 100 * 1024 * 1024)
           Resize-Partition -DiskNumber 1 -PartitionNumber 1 -Size ($new_size)
           New-Partition -DiskNumber 1 -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
-          mkdir T:/tmp_aeron_dir
+          New-Item -ItemType Directory -Path T:\tmp_aeron_dir
       - name: Enable core dumps (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -138,7 +138,11 @@ jobs:
         run: sudo diskutil eject tmp_aeron_dir
       - name: Remove small temp file system (Windows)
         if: always() && runner.os == 'Windows'
-        run: Remove-Partition -DriveLetter T -Confirm:$false
+        run: |
+          if (Test-Path "T:\tmp_aeron_dir")
+          {
+            Remove-Partition -DriveLetter T -Confirm:$false
+          }
       - name: Copy test logs
         id: copy_test_logs
         if: failure()
