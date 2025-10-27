@@ -43,8 +43,7 @@ jobs:
         run: |
           $vhd_path = "D:\dev_drive.vhdx"
           $vhd_size = 10GB
-          New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru
-          Get-Disk
+          New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru | Get-Disk
           
           $root_dir = "X:\fast_dir"
           New-Item -ItemType Directory -Path "$root_dir"
