@@ -61,13 +61,12 @@ jobs:
           New-Item -ItemType Directory -Path $new_tool_cache
           Remove-Item -Path $env:GITHUB_WORKSPACE -Recurse
           New-Item -ItemType SymbolicLink -Path $env:GITHUB_WORKSPACE -Target $new_workspace
-          New-Item -ItemType Directory -Path "$new_tool_cache/.m2"
-          New-Item -ItemType Directory -Path "$new_tool_cache/.gradle"
+          New-Item -ItemType Directory -Path "$new_tool_cache\.m2"
+          New-Item -ItemType Directory -Path "$new_tool_cache\.gradle"
           echo "TMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "TEMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "M2_HOME=$new_tool_cache/.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "GRADLE_USER_HOME=$new_tool_cache/.gradle" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "RUNNER_TOOL_CACHE=$new_tool_cache" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "M2_HOME=$new_tool_cache\.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "GRADLE_USER_HOME=$new_tool_cache\.gradle" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
         working-directory: "D:/a/_temp"
       - name: Checkout code
         uses: actions/checkout@v5
