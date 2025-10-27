@@ -60,7 +60,6 @@ jobs:
           New-Item -ItemType Directory -Path $new_workspace
           echo "What is stored in the workspace?"
           ls $env:GITHUB_WORKSPACE
-          New-Item -ItemType SymbolicLink -Path $env:GITHUB_WORKSPACE -Target $new_workspace
       - name: Checkout code
         uses: actions/checkout@v5
         with:
