@@ -47,9 +47,11 @@ jobs:
           New-Item -ItemType Directory -Path "$root_dir\temp"
           New-Item -ItemType Directory -Path "$root_dir\.m2"
           New-Item -ItemType Directory -Path "$root_dir\.gradle"
-         
-          echo "Removing $env:userprofile\.m2"
-          Remove-Item -Path "$env:userprofile\.m2" -Recurse
+          
+          if (Test-Path "$env:userprofile\.m2")
+          {
+            Remove-Item "$env:userprofile\.m2" -Recurse
+          }
           New-Item -ItemType SymbolicLink -Path "$env:userprofile\.m2" -Target "$root_dir\.m2"
           
           echo "Creating dirs..."
