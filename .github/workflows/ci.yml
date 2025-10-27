@@ -41,14 +41,15 @@ jobs:
       - name: Setup DevDrive (Windows)
         if: runner.os == 'Windows'
         run: |
-          Format-Volume -DriveLetter D -DevDrive -Force -Confirm:$false
+          $vhd_path = "D:\dev_drive.vhdx"
+          $vhd_size = 10GB
+          New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru | New-Partition -DriveLetter X -UseMaximumSize | Format-Volume -DriveLetter X -DevDrive -Confirm:$false -Force
           
-          $root_dir = "D:\fast_dir"
+          $root_dir = "X:\fast_dir"
           New-Item -ItemType Directory -Path "$root_dir"
           New-Item -ItemType Directory -Path "$root_dir\temp"
           New-Item -ItemType Directory -Path "$root_dir\.m2"
           New-Item -ItemType Directory -Path "$root_dir\.gradle"
-          New-Item -ItemType Directory -Path "$env.RUNNER_TEMP"
 
           if (Test-Path "$env:userprofile\.m2")
           {
