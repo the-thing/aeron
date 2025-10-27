@@ -42,6 +42,7 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "env.GITHUB_WORKSPACE: $env:GITHUB_WORKSPACE"
           echo "github.workspace: ${{ github.workspace }}"
           echo "env.TMP: $env:TMP"
           echo "env.TEMP: $env:TEMP"
