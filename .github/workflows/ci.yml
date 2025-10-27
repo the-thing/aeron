@@ -77,6 +77,7 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: ${{ matrix.java }}
+          settings-path: ${{ env.M2_HOME }}
       - name: Print after
         if: runner.os == 'Windows'
         run: |
