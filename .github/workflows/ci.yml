@@ -55,8 +55,8 @@ jobs:
           echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
           echo "context.RUNNER_TEMP: ${{ env.RUNNER_TEMP }}"
           Get-WmiObject -Class Win32_LogicalDisk | ? {$_. DriveType -eq 3} | select DeviceID, {$_.Size /1GB}, {$_.FreeSpace /1GB}
-          $new_workspace = "D:/custom_workspace"
-          $new_tool_cache = "D:/hosted_tool_cache"
+          $new_workspace = "D:\custom_workspace"
+          $new_tool_cache = "D:\hosted_tool_cache"
           New-Item -ItemType Directory -Path $new_workspace
           New-Item -ItemType Directory -Path $new_tool_cache
           Remove-Item -Path $env:GITHUB_WORKSPACE -Recurse
@@ -78,17 +78,6 @@ jobs:
           distribution: 'zulu'
           java-version: ${{ matrix.java }}
           settings-path: ${{ env.M2_HOME }}
-      - name: Print after
-        if: runner.os == 'Windows'
-        run: |
-          ls "D:/custom_workspace"
-          ls "D:/hosted_tool_cache"
-          echo "env.TMP: $env:TMP"
-          echo "env.TEMP: $env:TEMP"
-          echo "M2_HOME: $env:M2_HOME"
-          echo "GRADLE_USER_HOME: $env:GRADLE_USER_HOME"
-          echo "env.RUNNER_TOOL_CACHE: $env:RUNNER_TOOL_CACHE"
-          echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
       - name: Setup BUILD_JAVA_HOME & BUILD_JAVA_VERSION (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -106,8 +95,20 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: ${{ env.JAVA_VERSION }}
+          settings-path: ${{ env.M2_HOME }}
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Print after
+        if: runner.os == 'Windows'
+        run: |
+          ls "D:\custom_workspace"
+          ls "D:\hosted_tool_cache"
+          echo "env.TMP: $env:TMP"
+          echo "env.TEMP: $env:TEMP"
+          echo "M2_HOME: $env:M2_HOME"
+          echo "GRADLE_USER_HOME: $env:GRADLE_USER_HOME"
+          echo "env.RUNNER_TOOL_CACHE: $env:RUNNER_TOOL_CACHE"
+          echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
       - name: Setup small temp file system (Linux)
         if: runner.os == 'Linux'
         run: |
