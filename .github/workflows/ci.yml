@@ -62,6 +62,15 @@ jobs:
           echo "TEMP=$root_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "M2_HOME=$root_dir\.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "GRADLE_USER_HOME=$root_dir\.gradle" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          
+          $new_workspace = "$root_dir\workspace"
+          New-Item -ItemType Directory -Path "$new_workspace"
+          if (Test-Path "$env:GITHUB_WORKSPACE")
+          {
+            Remove-Item -Path "$env:GITHUB_WORKSPACE" -Recurse
+          }
+          New-Item -ItemType SymbolicLink -Path "$env:GITHUB_WORKSPACE" -Target "$new_workspace"
+        working-directory: "D:/a/_temp"
       - name: Setup small temp file system (Linux)
         if: runner.os == 'Linux'
         run: |
