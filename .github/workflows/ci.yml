@@ -52,6 +52,8 @@ jobs:
           echo "PATH: $env:PATH"
           echo "RUNNER_TOOL_CACHE: $RUNNER_TOOL_CACHE"
           echo "RUNNER_TEMP: $RUNNER_TEMP"
+          echo "env.RUNNER_TOOL_CACHE: $env:RUNNER_TOOL_CACHE"
+          echo "env.RUNNER_TEMP: $env:RUNNER_TEMP"
       - name: Checkout code
         uses: actions/checkout@v5
         with:
