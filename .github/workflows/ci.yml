@@ -50,6 +50,8 @@ jobs:
           echo "M2_HOME: $env:M2_HOME"
           echo "GRADLE_HOME: $env:GRADLE_HOME"
           echo "PATH: $env:PATH"
+          echo "RUNNER_TOOL_CACHE: $RUNNER_TOOL_CACHE"
+          echo "RUNNER_TEMP: $RUNNER_TEMP"
       - name: Checkout code
         uses: actions/checkout@v5
         with:
