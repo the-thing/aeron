@@ -58,8 +58,8 @@ jobs:
           Get-WmiObject -Class Win32_LogicalDisk | ? {$_. DriveType -eq 3} | select DeviceID, {$_.Size /1GB}, {$_.FreeSpace /1GB}
           $new_workspace = "D:/custom_workspace"
           New-Item -ItemType Directory -Path $new_workspace
-          echo "What is stored in the workspace?"
-          ls $env:GITHUB_WORKSPACE
+          Remove-Item -Path $env:GITHUB_WORKSPACE -Recurse
+          New-Item -ItemType SymbolicLink -Path $env:GITHUB_WORKSPACE -Target $new_workspace
       - name: Checkout code
         uses: actions/checkout@v5
         with:
