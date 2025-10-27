@@ -38,6 +38,18 @@ jobs:
         java: [ '17', '21', '25' ]
         os: ['ubuntu-24.04', 'windows-latest', 'macos-15']
     steps:
+      - name: Print workspace and other dirs
+        if: runner.os == 'Windows'
+        run: |
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          echo "github.workspace: ${{ github.workspace }}"
+          echo "env.TMP: $env:TMP"
+          echo "env.TEMP: $env:TEMP"
+          echo "JAVA_HOME: $env:JAVA_HOME"
+          echo "MAVEN_HOME: $env:MAVEN_HOME"
+          echo "M2_HOME: $env:M2_HOME"
+          echo "GRADLE_HOME: $env:GRADLE_HOME"
+          echo "PATH: $env:PATH"
       - name: Checkout code
         uses: actions/checkout@v5
         with:
