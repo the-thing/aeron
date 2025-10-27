@@ -45,7 +45,8 @@ jobs:
           $vhd_size = 10GB
           $vhd_disc = (New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru | Get-Disk)
           New-Partition -DiskNumber $vhd_disc.Number -UseMaximumSize -DriveLetter X
-          
+          Format-Volume -DriveLetter X -DevDrive -Full -Confirm:$false -Force
+
           $root_dir = "X:\fast_dir"
           New-Item -ItemType Directory -Path "$root_dir"
           New-Item -ItemType Directory -Path "$root_dir\temp"
