@@ -38,23 +38,24 @@ jobs:
         java: [ '17', '21', '25' ]
         os: ['ubuntu-24.04', 'windows-latest', 'macos-15']
     steps:
-      - name: Print workspace and other dirs
+      - name: Setup DevDrive (Windows)
         if: runner.os == 'Windows'
         run: |
-          echo "USERPROFILE: $env:userprofile"
+          Format-Volume -DriveLetter D -DevDrive -Force -Confirm:$false
+          
           $root_dir = "D:\fast_dir"
-          New-Item -ItemType Directory -Path $root_dir
+          New-Item -ItemType Directory -Path "$root_dir"
           New-Item -ItemType Directory -Path "$root_dir\temp"
           New-Item -ItemType Directory -Path "$root_dir\.m2"
           New-Item -ItemType Directory -Path "$root_dir\.gradle"
-          
+          New-Item -ItemType Directory -Path "$env.RUNNER_TEMP"
+
           if (Test-Path "$env:userprofile\.m2")
           {
             Remove-Item "$env:userprofile\.m2" -Recurse
           }
           New-Item -ItemType SymbolicLink -Path "$env:userprofile\.m2" -Target "$root_dir\.m2"
-          
-          echo "Creating dirs..."
+
           echo "TMP=$root_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "TEMP=$root_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "M2_HOME=$root_dir\.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
