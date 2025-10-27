@@ -38,39 +38,25 @@ jobs:
         java: [ '17', '21', '25' ]
         os: ['ubuntu-24.04', 'windows-latest', 'macos-15']
     steps:
-      - name: Setup DevDrive (Windows)
+      - name: Use faster temporary storage (Windows)
         if: runner.os == 'Windows'
         run: |
-          $vhd_path = "D:\dev_drive.vhdx"
-          $vhd_size = 50GB
-          New-VHD -Path $vhd_path -Dynamic -SizeBytes $vhd_size | Mount-VHD -Passthru | Initialize-Disk -Passthru | New-Partition -UseMaximumSize -DriveLetter X
-          Format-Volume -DriveLetter X -DevDrive -Full -Confirm:$false -Force
-
-          $root_dir = "X:\fast_dir"
-          New-Item -ItemType Directory -Path "$root_dir"
-          New-Item -ItemType Directory -Path "$root_dir\temp"
-          New-Item -ItemType Directory -Path "$root_dir\.m2"
-          New-Item -ItemType Directory -Path "$root_dir\.gradle"
+          $fast_dir = "D:\fast-dir"
+          New-Item -ItemType Directory -Path "$fast_dir"
+          New-Item -ItemType Directory -Path "$fast_dir\temp"
+          New-Item -ItemType Directory -Path "$fast_dir\.m2"
+          New-Item -ItemType Directory -Path "$fast_dir\.gradle"
 
           if (Test-Path "$env:userprofile\.m2")
           {
             Remove-Item "$env:userprofile\.m2" -Recurse
           }
-          New-Item -ItemType SymbolicLink -Path "$env:userprofile\.m2" -Target "$root_dir\.m2"
+          New-Item -ItemType SymbolicLink -Path "$env:userprofile\.m2" -Target "$fast_dir\.m2"
 
-          echo "TMP=$root_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "TEMP=$root_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "M2_HOME=$root_dir\.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "GRADLE_USER_HOME=$root_dir\.gradle" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
-          
-          $new_workspace = "$root_dir\workspace"
-          New-Item -ItemType Directory -Path "$new_workspace"
-          if (Test-Path "$env:GITHUB_WORKSPACE")
-          {
-            Remove-Item -Path "$env:GITHUB_WORKSPACE" -Recurse
-          }
-          New-Item -ItemType SymbolicLink -Path "$env:GITHUB_WORKSPACE" -Target "$new_workspace"
-        working-directory: "D:/a/_temp"
+          echo "TMP=$fast_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "TEMP=$fast_dir\temp" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "M2_HOME=$fast_dir\.m2" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "GRADLE_USER_HOME=$fast_dir\.gradle" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Setup small temp file system (Linux)
         if: runner.os == 'Linux'
         run: |
