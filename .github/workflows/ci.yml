@@ -84,6 +84,8 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           ls "D:\fast_dir"
+          ls "D:\fast_dir\.m2"
+          ls "D:\fast_dir\.gradle"
           echo "env.TMP: $env:TMP"
           echo "env.TEMP: $env:TEMP"
           echo "M2_HOME: $env:M2_HOME"
