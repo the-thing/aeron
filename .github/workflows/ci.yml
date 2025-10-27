@@ -42,7 +42,6 @@ jobs:
         if: runner.os == 'Windows'
         run: |
           echo "USERPROFILE: $env:userprofile"
-          ls "$env:userprofile\.m2"
           $root_dir = "D:\fast_dir"
           New-Item -ItemType Directory -Path $root_dir
           New-Item -ItemType Directory -Path "$root_dir\temp"
@@ -67,7 +66,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: ${{ matrix.java }}
-          settings-path: ${{ env.M2_HOME }}
       - name: Setup BUILD_JAVA_HOME & BUILD_JAVA_VERSION (Unix)
         if: runner.os != 'Windows'
         run: |
@@ -85,7 +83,6 @@ jobs:
         with:
           distribution: 'zulu'
           java-version: ${{ env.JAVA_VERSION }}
-          settings-path: ${{ env.M2_HOME }}
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
       - name: Print after
