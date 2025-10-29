@@ -126,11 +126,11 @@ public final class TestCluster implements AutoCloseable
     static final String EGRESS_CHANNEL = "aeron:udp?term-length=128k|endpoint=localhost:0|alias=egress";
     static final String INGRESS_CHANNEL = "aeron:udp?term-length=128k|alias=ingress";
     static final long LEADER_HEARTBEAT_TIMEOUT_NS = TimeUnit.SECONDS.toNanos(1);
+    static final long LEADER_HEARTBEAT_INTERVAL_NS = TimeUnit.MILLISECONDS.toNanos(100);
+    static final long ELECTION_TIMEOUT_NS = TimeUnit.MILLISECONDS.toNanos(500);
+    static final long ELECTION_STATUS_INTERVAL_NS = TimeUnit.MILLISECONDS.toNanos(100);
     static final long STARTUP_CANVASS_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS * 2;
     static final long TERMINATION_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS;
-    static final long LEADER_HEARTBEAT_INTERVAL_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 100;
-    static final long ELECTION_TIMEOUT_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 10;
-    static final long ELECTION_STATUS_INTERVAL_NS = LEADER_HEARTBEAT_TIMEOUT_NS / 100;
     public static final String CLUSTER_BASE_DIR_PROP_NAME = "aeron.test.system.cluster.base.dir";
 
     public static final String DEFAULT_NODE_MAPPINGS =
