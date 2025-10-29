@@ -15,7 +15,6 @@
  */
 package io.aeron.cluster;
 
-import io.aeron.Counter;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.archive.ArchiveThreadingMode;
@@ -28,9 +27,7 @@ import io.aeron.logbuffer.Header;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.TestContexts;
-import io.aeron.test.Tests;
 import io.aeron.test.cluster.ClusterTests;
-
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
@@ -41,11 +38,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InOrder;
 
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.isNull;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(InterruptingTestCallback.class)
 class ClusterWithNoServicesTest
@@ -104,14 +108,16 @@ class ClusterWithNoServicesTest
     {
         final CountDownLatch latch = new CountDownLatch(1);
 
-        clusteredMediaDriver = launchCluster(new TestConsensusModuleExtension(latch, LatchTrigger.SNAPSHOT_TAKEN));
+        final TestConsensusModuleExtension moduleExtension =
+            new TestConsensusModuleExtension(latch, LatchTrigger.SNAPSHOT_TAKEN);
+        clusteredMediaDriver = launchCluster(moduleExtension);
         aeronCluster = connectClient();
 
         final AtomicCounter controlToggle = getClusterControlToggle();
         assertTrue(ClusterControl.ToggleState.SNAPSHOT.toggle(controlToggle));
 
         latch.await();
-        awaitSnapshotCount(1);
+        assertEquals(1, moduleExtension.snapshotCount.get());
 
         ClusterTests.failOnClusterError();
     }
@@ -122,14 +128,16 @@ class ClusterWithNoServicesTest
     {
         final CountDownLatch latch = new CountDownLatch(1);
 
-        clusteredMediaDriver = launchCluster(new TestConsensusModuleExtension(latch, LatchTrigger.CLOSED));
+        final TestConsensusModuleExtension moduleExtension =
+            new TestConsensusModuleExtension(latch, LatchTrigger.CLOSED);
+        clusteredMediaDriver = launchCluster(moduleExtension);
         aeronCluster = connectClient();
 
         final AtomicCounter controlToggle = getClusterControlToggle();
         assertTrue(ClusterControl.ToggleState.SHUTDOWN.toggle(controlToggle));
 
-        awaitSnapshotCount(1);
         latch.await();
+        assertEquals(1, moduleExtension.snapshotCount.get());
 
         ClusterTests.failOnClusterError();
     }
@@ -140,14 +148,16 @@ class ClusterWithNoServicesTest
     {
         final CountDownLatch latch = new CountDownLatch(1);
 
-        clusteredMediaDriver = launchCluster(new TestConsensusModuleExtension(latch, LatchTrigger.CLOSED));
+        final TestConsensusModuleExtension moduleExtension =
+            new TestConsensusModuleExtension(latch, LatchTrigger.CLOSED);
+        clusteredMediaDriver = launchCluster(moduleExtension);
         aeronCluster = connectClient();
 
         final AtomicCounter controlToggle = getClusterControlToggle();
         assertTrue(ClusterControl.ToggleState.ABORT.toggle(controlToggle));
 
         latch.await();
-        assertEquals(0L, clusteredMediaDriver.consensusModule().context().snapshotCounter().get());
+        assertEquals(0, moduleExtension.snapshotCount.get());
 
         ClusterTests.failOnClusterError();
     }
@@ -196,19 +206,11 @@ class ClusterWithNoServicesTest
         return controlToggle;
     }
 
-    private void awaitSnapshotCount(final int snapshotCount)
-    {
-        final Counter snapshotCounter = clusteredMediaDriver.consensusModule().context().snapshotCounter();
-        while (snapshotCounter.get() < snapshotCount)
-        {
-            Tests.yield();
-        }
-    }
-
     static final class TestConsensusModuleExtension implements ConsensusModuleExtension
     {
         private final CountDownLatch latch;
         private final LatchTrigger latchTrigger;
+        final AtomicInteger snapshotCount = new AtomicInteger();
 
         TestConsensusModuleExtension(final CountDownLatch latch, final LatchTrigger latchTrigger)
         {
@@ -300,6 +302,7 @@ class ClusterWithNoServicesTest
 
         public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
         {
+            snapshotCount.getAndIncrement();
             if (LatchTrigger.SNAPSHOT_TAKEN == latchTrigger)
             {
                 latch.countDown();
