@@ -107,7 +107,7 @@ public final class Configuration
     public static final String RELIABLE_STREAM_PROP_NAME = "aeron.reliable.stream";
 
     /**
-     * Property name for boolean value of term buffers should be created sparse.
+     * Property name for boolean value if term buffers should be created sparse.
      */
     @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = false)
     public static final String TERM_BUFFER_SPARSE_FILE_PROP_NAME = "aeron.term.buffer.sparse.file";

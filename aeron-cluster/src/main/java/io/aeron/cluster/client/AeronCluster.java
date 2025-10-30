@@ -1543,7 +1543,7 @@ public final class AeronCluster implements AutoCloseable
         /**
          * Has the context had the {@link #conclude()} method called.
          *
-         * @return true of the {@link #conclude()} method has been called.
+         * @return true if the {@link #conclude()} method has been called.
          */
         public boolean isConcluded()
         {

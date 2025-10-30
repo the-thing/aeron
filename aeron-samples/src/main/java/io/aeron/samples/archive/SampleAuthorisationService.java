@@ -31,7 +31,7 @@ public class SampleAuthorisationService implements AuthorisationService
     /**
      * Create with a collection of principals that are allowed access to resources governed by this service.
      *
-     * @param allowedPrincipals the collection of principals allow to access servivce
+     * @param allowedPrincipals the collection of principals allowed to access service
      */
     public SampleAuthorisationService(final Collection<String> allowedPrincipals)
     {

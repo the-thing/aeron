@@ -61,7 +61,7 @@ public class TimeoutException extends AeronException
     }
 
     /**
-     * AerTimeouton exception with cause and provided {@link AeronException.Category}.
+     * Timeout exception with cause and provided {@link AeronException.Category}.
      *
      * @param cause    of the error.
      * @param category of the exception.

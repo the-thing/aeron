@@ -72,7 +72,7 @@ public class FrameDescriptor
     public static final byte END_FRAG_FLAG = (byte)0b0100_0000;
 
     /**
-     * End fragment of a frame.
+     * Unfragmented frame.
      */
     public static final byte UNFRAGMENTED = BEGIN_FRAG_FLAG | END_FRAG_FLAG;
 

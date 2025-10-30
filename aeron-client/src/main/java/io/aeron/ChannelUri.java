@@ -654,7 +654,7 @@ public final class ChannelUri
     }
 
     /**
-     * Take an endpoint with the format <code>host:port</code> and replace the port with a wilcard (<code>0</code>).
+     * Take an endpoint with the format <code>host:port</code> and replace the port with a wildcard (<code>0</code>).
      *
      * @param endpoint to replace with a wildcard.
      * @return  the transformed value.

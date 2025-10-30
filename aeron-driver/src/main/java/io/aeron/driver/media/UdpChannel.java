@@ -762,7 +762,7 @@ public final class UdpChannel
     }
 
     /**
-     * The length of the initial nak delay to be used by the LossDectector on this channel.
+     * The length of the initial nak delay to be used by the LossDetector on this channel.
      *
      * @return delay in nanoseconds or null if the value is not set.
      */

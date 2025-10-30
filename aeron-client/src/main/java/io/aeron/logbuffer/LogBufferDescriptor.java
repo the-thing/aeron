@@ -1552,7 +1552,7 @@ public class LogBufferDescriptor
      * Set the response correlation id in the metadata.
      *
      * @param metadataBuffer containing the meta data.
-     * @param value          the resonse correlation id to set.
+     * @param value          the response correlation id to set.
      */
     public static void responseCorrelationId(final UnsafeBuffer metadataBuffer, final long value)
     {
