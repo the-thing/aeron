@@ -1,6 +1,25 @@
 = Aeron Releases
 
-== https://github.com/aeron-io/aeron/releases/tag/1.49.0[1.49.0] - 2025-10-03
+== 1.49.1 (2025-11-01)
+
+* **[Cluster]** Cache resolved egress response channel while waiting for publication to connect.
+* **[Cluster]** Reuse existing leader ingress publication if it is still valid when receiving redirect response.
+* **[Cluster]** Make `AeronCluster.asyncConnect` fully asynchronous by using
+`Aeron#asyncAddExclusivePublication/asyncAddPublication` API when dealing with redirect requests in case no valid
+existing leader publication was found.
+* **[Cluster]** Protect against NPE during follower catchup if recording is stopped, because the leader transitions to a
+follower and stops sending log.
+* **[Driver/C]** Perform sender address re-resolution checks on a fixed schedule rather than awaiting next control
+polling cycle, i.e. align behavior with the `Sender#doWork` implementation.
+* **[Driver/Java]** Perform full name and address matching in driver name resolver. Add tests to ensure partial matches
+are not allowed. Remove allocations when matching neighbors by address.
+* **[Driver/C]** Fix segfault when invalid name resolver configuration is provided. Cleanup allocated resources to avoid
+leaking memory.
+* **[Driver/C]** Use `aeron_interface_parse_and_resolve` to resolve `aeron.driver.resolver.interface` parameter, i.e.
+skip the `aeron_find_interface` checks. This aligns the implementation with the `DriverNameResolver` in Java. Fix
+filtering out of self entries, i.e. use full name matching instead of a prefix match.
+
+== 1.49.0 (2025-10-03)
 
 === New & Noteworthy
 
@@ -176,3 +195,30 @@ bound to reduce the chance of the returning publication not being connected and 
 * **[Java]** Upgrade to `Versions` 0.53.0.
 * **[C]** Upgrade to `CMake` 4.1.2.
 * **[C]** Upgrade to `HDR Histogram` 0.11.9.
+
+== 1.48.7 (2025-11-01)
+
+* **[Driver/C]** Fix `UNTETHERED_SUBSCRIPTION_STATE_CHANGE` logging, i.e. log previous state and add missing logging to
+`aeron_publication_image`.
+* **[Driver/C]** Ensure `rcv-naks-sent` counter is cleaned up if publication image creation fails.
+* **[Driver/C]** Prevent sending empty NAK message upon initial connection to the publisher.
+* **[Driver/C]** Ignore NAKs with zero length and treat NAKs with negative length as invalid packets.
+* **[Driver/Java]** Ignore NAKs with zero length and treat NAKs with negative length as invalid packets.
+* **[Driver/Java]** Fix connectivity status handling in `NetworkPublication`, i.e. do not transition to `NOT_CONNECTED`
+when the last remote subscriber disconnects if there is at least one spy and spies simulate connection (`ssc=true`).
+* **[Driver/C]** Fix connectivity status handling in `aeron_network_publication`, i.e. do not transition to
+`NOT_CONNECTED` when the last remote subscriber disconnects if there is at least one spy and spies simulate connection
+(`ssc=true`).
+* **[Driver/Java]** Handle connection status updates for untethered IPC subscribers.
+* **[Driver/C]** Handle connection status updates for untethered IPC subscribers.
+* **[Agent/C]** Remove extraneous `]` suffix from `CMD_IN_REMOVE_PUBLICATION`, `CMD_IN_REMOVE_SUBSCRIPTION` and
+`CMD_IN_REMOVE_COUNTER` log events.
+* **[Driver/C]** Perform sender address re-resolution checks on a fixed schedule rather than awaiting next control
+polling cycle, i.e. align behavior with the `Sender#doWork` implementation.
+* **[Driver/Java]** Perform full name and address matching in driver name resolver. Add tests to ensure partial matches
+are not allowed. Remove allocations when matching neighbors by address.
+* **[Driver/C]** Fix segfault when invalid name resolver configuration is provided. Cleanup allocated resources to avoid
+leaking memory.
+* **[Driver/C]** Use `aeron_interface_parse_and_resolve` to resolve `aeron.driver.resolver.interface` parameter, i.e.
+skip the `aeron_find_interface` checks. This aligns the implementation with the `DriverNameResolver` in Java. Fix
+filtering out of self entries, i.e. use full name matching instead of a prefix match.
