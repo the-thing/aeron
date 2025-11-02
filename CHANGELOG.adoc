@@ -2,11 +2,8 @@
 
 == 1.49.1 (2025-11-01)
 
-* **[Cluster]** Cache resolved egress response channel while waiting for publication to connect.
-* **[Cluster]** Reuse existing leader ingress publication if it is still valid when receiving redirect response.
-* **[Cluster]** Make `AeronCluster.asyncConnect` fully asynchronous by using
-`Aeron#asyncAddExclusivePublication/asyncAddPublication` API when dealing with redirect requests in case no valid
-existing leader publication was found.
+* **[Cluster]** Optimize redirect handling in `AeronCluster`: reuse existing publication if available and use async API
+to connect to the leader otherwise.
 * **[Cluster]** Protect against NPE during follower catchup if recording is stopped, because the leader transitions to a
 follower and stops sending log.
 * **[Driver/C]** Perform sender address re-resolution checks on a fixed schedule rather than awaiting next control
