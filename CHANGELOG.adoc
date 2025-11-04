@@ -464,9 +464,9 @@ There is a new option to control how long untethered subscriptions will linger b
 * **[Cluster]** Prevent ConsensusModule's state (`nextSessionId`) diverging between leader and follower nodes when a session is rejected during the authentication phase. (https://github.com/aeron-io/aeron/pull/1774[#1774])
 * **[Cluster]** Only send TerminationAck to the leader that requested it. (https://github.com/aeron-io/aeron/pull/1797[#1797])
 * **[Cluster]** Use separate fragment assemblers for IPC and UDP inputs.
-* [Client: C] Do not update image list change number when retaining/releasing images as those can be called from a client conductor thread.
-* [Client: C{plus}{plus} Wrapper] Use const on `Context.h` copy constructor.
-* [Archive Client: C] Call `close_session()` in `archive_close()`. (https://github.com/aeron-io/aeron/pull/1778[#1778])
+* **[Client/C]** Do not update image list change number when retaining/releasing images as those can be called from a client conductor thread.
+* **[Client/C{plus}{plus} Wrapper]** Use const on `Context.h` copy constructor.
+* **[Archive Client/C]** Call `close_session()` in `archive_close()`. (https://github.com/aeron-io/aeron/pull/1778[#1778])
 
 == 1.47.4 (2025-03-14)
 
