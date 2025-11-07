@@ -63,7 +63,7 @@ inline int aeron_number_of_trailing_zeroes(int32_t value)
     return __builtin_ctz(value);
 #elif defined(_MSC_VER)
     unsigned long r;
-    assert(_BitScanForward(&r, (unsigned long)value));
+    _BitScanForward(&r, (unsigned long)value);
     return (int)r;
 #else
     // Hacker's Delight. Figure 5-26.
@@ -91,7 +91,7 @@ inline int aeron_number_of_trailing_zeroes_u64(uint64_t value)
     return __builtin_ctzll(value);
 #elif defined(_MSC_VER)
     unsigned long r;
-    assert(_BitScanForward64(&r, (__int64)value));
+    _BitScanForward64(&r, (__int64)value);
     return (int)r;
 #else
     int lower_tzc = aeron_number_of_trailing_zeroes((int32_t) (value & UINT64_C(0xFFFFFFFF)));
@@ -114,7 +114,7 @@ inline int aeron_number_of_leading_zeroes(uint32_t value)
     return __builtin_clz(value);
 #elif defined(_MSC_VER)
     unsigned long r;
-    assert(_BitScanReverse(&r, (unsigned long)value));
+    _BitScanReverse(&r, (unsigned long)value);
     return 31 - (int)r;
 #else
     // Hacker's Delight. Figure 5-18.
@@ -147,7 +147,7 @@ inline int aeron_number_of_leading_zeroes_u64(uint64_t value)
     return __builtin_clzll(value);
 #elif defined(_MSC_VER)
     unsigned long r;
-    assert(_BitScanReverse64(&r, (__int64)value));
+    _BitScanReverse64(&r, (__int64)value);
     return 63 - (int)r;
 #else
     int upper_lzc = aeron_number_of_leading_zeroes((int32_t) ((value >> 32u) & UINT64_C(0xFFFFFFFF)));
