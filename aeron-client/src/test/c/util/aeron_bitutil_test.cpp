@@ -29,6 +29,7 @@ public:
 
 TEST_F(BitutilTest, shouldCountTrailingZeros64Bit)
 {
+    EXPECT_EQ(64, aeron_number_of_trailing_zeroes_u64(0));
     for (uint64_t i = 0; i < 64; i++)
     {
         uint64_t value = UINT64_C(1) << i;
@@ -38,6 +39,7 @@ TEST_F(BitutilTest, shouldCountTrailingZeros64Bit)
 
 TEST_F(BitutilTest, shouldCountTrailingZeros32Bit)
 {
+    EXPECT_EQ(32, aeron_number_of_trailing_zeroes(0));
     for (uint32_t i = 0; i < 32; i++)
     {
         uint32_t value = UINT32_C(1) << i;
