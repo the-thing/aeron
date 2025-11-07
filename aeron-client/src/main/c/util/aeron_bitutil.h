@@ -148,7 +148,7 @@ inline int aeron_number_of_leading_zeroes_u64(uint64_t value)
     return __builtin_clzll(value);
 #elif defined(_MSC_VER)
     unsigned long r;
-    assert(__BitScanReverse64(&r, (unsigned long)value));
+    assert(_BitScanReverse64(&r, (__int64)value));
     return 63 - (int)r;
 #else
     int upper_lzc = aeron_number_of_leading_zeroes((int32_t) ((value >> 32u) & UINT64_C(0xFFFFFFFF)));
