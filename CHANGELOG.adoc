@@ -1,5 +1,24 @@
 = Aeron Releases
 
+== 1.49.2 (???-??-??)
+
+* **[Java]** Improve mark file APIs: use high-level operations to signal ready/terminated, reset activity timestamp
+upon failure, update tests to reflect activity timestamp changes during startup sequence.
+* **[Java/C]** Fix formatting of large values and counter ids in `AeronStat`.
+* **[Java/C]** Add dissector for the `ERR` (`0x04`) frame type.
+* **[Java]** Add version information to `ComponentLogger` and print enabled loggers upon agent startup.
+* **[C]** Print enabled loggers upon agent startup and their versions.
+* **[C]** Add function to counter number of leading zeroes in 64 bit value (`aeron_number_of_leading_zeroes_u64`).
+* **[C]** Add ability to counter number of digits in a 32-bit number (`aeron_digit_count`).
+* **[C]** Link `aeron-client` against `libbsd`.
+* **[Java]** Delete `DeduplicateTask`, i.e. use built-in capabilities of the Shadow plugin instead.
+* **[Java]** Upgrade to https://github.com/aeron-io/agrona/releases/tag/2.3.2[Agrona 2.3.2].
+* **[Java]** Upgrade to https://github.com/aeron-io/simple-binary-encoding/releases/tag/1.36.2[SBE 1.36.2].
+* **[Java]** Upgrade to `ByteBuddy` 1.17.8.
+* **[Java]** Upgrade to `ASM` 9.9.
+* **[Java]** Upgrade to `JUnit` 6.0.1.
+* **[Java]** Upgrade to `Checkstyle` 12.1.1.
+
 == 1.49.1 (2025-11-01)
 
 * **[Cluster]** Optimize redirect handling in `AeronCluster`: reuse existing publication if available and use async API
