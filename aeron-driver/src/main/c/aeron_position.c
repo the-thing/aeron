@@ -24,6 +24,7 @@ int32_t aeron_stream_counter_allocate(
     aeron_counters_manager_t *counters_manager,
     const char *name,
     int32_t type_id,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -33,7 +34,7 @@ int32_t aeron_stream_counter_allocate(
 {
     char label[AERON_COUNTER_MAX_LABEL_LENGTH];
     int total_length = snprintf(
-        label, sizeof(label), "%s: %" PRId64 " %" PRId32 " %" PRId32 " %.*s %s",
+        label, sizeof(label), "%s: %" PRId64 " %" PRId32 " %" PRId32 " %.*s%s",
         name, registration_id, session_id, stream_id, (int)channel_length, channel, suffix);
     size_t label_length = AERON_MIN(AERON_COUNTER_MAX_LABEL_LENGTH, (size_t)total_length);
 
@@ -54,6 +55,7 @@ int32_t aeron_stream_counter_allocate(
     if (counter_id >= 0)
     {
         aeron_counters_manager_counter_registration_id(counters_manager, counter_id, registration_id);
+        aeron_counters_manager_counter_owner_id(counters_manager, counter_id, client_id);
     }
 
     return counter_id;
@@ -61,6 +63,7 @@ int32_t aeron_stream_counter_allocate(
 
 int32_t aeron_counter_publisher_limit_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -71,6 +74,7 @@ int32_t aeron_counter_publisher_limit_allocate(
         counters_manager,
         AERON_COUNTER_PUBLISHER_LIMIT_NAME,
         AERON_COUNTER_PUBLISHER_LIMIT_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -81,6 +85,7 @@ int32_t aeron_counter_publisher_limit_allocate(
 
 int32_t aeron_counter_subscription_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -90,12 +95,13 @@ int32_t aeron_counter_subscription_position_allocate(
 {
     char buffer[64];
 
-    snprintf(buffer, sizeof(buffer) - 1, "@%" PRId64, joining_position);
+    snprintf(buffer, sizeof(buffer) - 1, " @%" PRId64, joining_position);
 
     return aeron_stream_counter_allocate(
         counters_manager,
         AERON_COUNTER_SUBSCRIPTION_POSITION_NAME,
         AERON_COUNTER_SUBSCRIPTION_POSITION_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -106,6 +112,7 @@ int32_t aeron_counter_subscription_position_allocate(
 
 int32_t aeron_counter_sender_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -116,6 +123,7 @@ int32_t aeron_counter_sender_position_allocate(
         counters_manager,
         AERON_COUNTER_SENDER_POSITION_NAME,
         AERON_COUNTER_SENDER_POSITION_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -126,6 +134,7 @@ int32_t aeron_counter_sender_position_allocate(
 
 int32_t aeron_counter_sender_limit_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -136,6 +145,7 @@ int32_t aeron_counter_sender_limit_allocate(
         counters_manager,
         AERON_COUNTER_SENDER_LIMIT_NAME,
         AERON_COUNTER_SENDER_LIMIT_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -146,6 +156,7 @@ int32_t aeron_counter_sender_limit_allocate(
 
 int32_t aeron_counter_receiver_hwm_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -156,6 +167,7 @@ int32_t aeron_counter_receiver_hwm_allocate(
         counters_manager,
         AERON_COUNTER_RECEIVER_HWM_NAME,
         AERON_COUNTER_RECEIVER_HWM_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -166,6 +178,7 @@ int32_t aeron_counter_receiver_hwm_allocate(
 
 int32_t aeron_counter_receiver_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -176,6 +189,7 @@ int32_t aeron_counter_receiver_position_allocate(
         counters_manager,
         AERON_COUNTER_RECEIVER_POSITION_NAME,
         AERON_COUNTER_RECEIVER_POSITION_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -325,6 +339,7 @@ int32_t aeron_counter_client_heartbeat_timestamp_allocate(aeron_counters_manager
 
 int32_t aeron_counter_publisher_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -335,6 +350,7 @@ int32_t aeron_counter_publisher_position_allocate(
         counters_manager,
         AERON_COUNTER_PUBLISHER_POSITION_NAME,
         AERON_COUNTER_PUBLISHER_POSITION_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -345,6 +361,7 @@ int32_t aeron_counter_publisher_position_allocate(
 
 int32_t aeron_counter_sender_bpe_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -355,6 +372,7 @@ int32_t aeron_counter_sender_bpe_allocate(
         counters_manager,
         AERON_COUNTER_SENDER_BPE_NAME,
         AERON_COUNTER_SENDER_BPE_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -365,6 +383,7 @@ int32_t aeron_counter_sender_bpe_allocate(
 
 int32_t aeron_counter_sender_naks_received_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -375,6 +394,7 @@ int32_t aeron_counter_sender_naks_received_allocate(
         counters_manager,
         AERON_COUNTER_SENDER_NAKS_RECEIVED_NAME,
         AERON_COUNTER_SENDER_NAKS_RECEIVED_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,
@@ -385,6 +405,7 @@ int32_t aeron_counter_sender_naks_received_allocate(
 
 int32_t aeron_counter_receiver_naks_sent_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -395,6 +416,7 @@ int32_t aeron_counter_receiver_naks_sent_allocate(
         counters_manager,
         AERON_COUNTER_RECEIVER_NAKS_SENT_NAME,
         AERON_COUNTER_RECEIVER_NAKS_SENT_TYPE_ID,
+        client_id,
         registration_id,
         session_id,
         stream_id,

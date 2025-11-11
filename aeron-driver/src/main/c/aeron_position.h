@@ -23,6 +23,7 @@ int32_t aeron_stream_counter_allocate(
     aeron_counters_manager_t *counters_manager,
     const char *name,
     int32_t type_id,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -55,6 +56,7 @@ int32_t aeron_heartbeat_timestamp_allocate(
 
 int32_t aeron_counter_publisher_limit_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -63,6 +65,7 @@ int32_t aeron_counter_publisher_limit_allocate(
 
 int32_t aeron_counter_sender_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -71,6 +74,7 @@ int32_t aeron_counter_sender_position_allocate(
 
 int32_t aeron_counter_sender_limit_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -79,6 +83,7 @@ int32_t aeron_counter_sender_limit_allocate(
 
 int32_t aeron_counter_subscription_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -88,6 +93,7 @@ int32_t aeron_counter_subscription_position_allocate(
 
 int32_t aeron_counter_receiver_hwm_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -96,6 +102,7 @@ int32_t aeron_counter_receiver_hwm_allocate(
 
 int32_t aeron_counter_receiver_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -127,6 +134,7 @@ int32_t aeron_counter_client_heartbeat_timestamp_allocate(
 
 int32_t aeron_counter_publisher_position_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -135,6 +143,7 @@ int32_t aeron_counter_publisher_position_allocate(
 
 int32_t aeron_counter_sender_bpe_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -143,6 +152,7 @@ int32_t aeron_counter_sender_bpe_allocate(
 
 int32_t aeron_counter_sender_naks_received_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,
@@ -151,6 +161,7 @@ int32_t aeron_counter_sender_naks_received_allocate(
 
 int32_t aeron_counter_receiver_naks_sent_allocate(
     aeron_counters_manager_t *counters_manager,
+    int64_t client_id,
     int64_t registration_id,
     int32_t session_id,
     int32_t stream_id,

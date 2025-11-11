@@ -2034,11 +2034,11 @@ aeron_ipc_publication_t *aeron_driver_conductor_get_or_add_ipc_publication(
                 aeron_position_t pub_lmt_position;
 
                 pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 pub_pos_position.value_addr = aeron_counters_manager_addr(
                     &conductor->counters_manager, pub_pos_position.counter_id);
                 pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 pub_lmt_position.value_addr = aeron_counters_manager_addr(
                     &conductor->counters_manager, pub_lmt_position.counter_id);
 
@@ -2046,9 +2046,6 @@ aeron_ipc_publication_t *aeron_driver_conductor_get_or_add_ipc_publication(
                 {
                     return NULL;
                 }
-
-                aeron_counters_manager_counter_owner_id(
-                    &conductor->counters_manager, pub_lmt_position.counter_id, client->client_id);
 
                 if (params->has_position)
                 {
@@ -2309,17 +2306,17 @@ aeron_network_publication_t *aeron_driver_conductor_get_or_add_network_publicati
                 aeron_atomic_counter_t snd_naks_received_counter;
 
                 pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 snd_pos_position.counter_id = aeron_counter_sender_position_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 snd_lmt_position.counter_id = aeron_counter_sender_limit_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 snd_bpe_counter.counter_id = aeron_counter_sender_bpe_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 snd_naks_received_counter.counter_id = aeron_counter_sender_naks_received_allocate(
-                    &conductor->counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
 
                 if (pub_pos_position.counter_id < 0 || pub_lmt_position.counter_id < 0 ||
                     snd_pos_position.counter_id < 0 || snd_lmt_position.counter_id < 0 ||
@@ -2327,9 +2324,6 @@ aeron_network_publication_t *aeron_driver_conductor_get_or_add_network_publicati
                 {
                     return NULL;
                 }
-
-                aeron_counters_manager_counter_owner_id(
-                    &conductor->counters_manager, pub_lmt_position.counter_id, client->client_id);
 
                 pub_pos_position.value_addr = aeron_counters_manager_addr(
                     &conductor->counters_manager, pub_pos_position.counter_id);
@@ -3991,6 +3985,7 @@ int aeron_driver_conductor_link_subscribable(
         int64_t joining_position = join_position;
         int32_t counter_id = aeron_counter_subscription_position_allocate(
             &conductor->counters_manager,
+            link->client_id,
             link->registration_id,
             session_id,
             stream_id,
@@ -6174,7 +6169,13 @@ void aeron_driver_conductor_on_create_publication_image(void *clientd, void *ite
 
     aeron_position_t rcv_hwm_position;
     rcv_hwm_position.counter_id = aeron_counter_receiver_hwm_allocate(
-        &conductor->counters_manager, registration_id, command->session_id, command->stream_id, uri_length, uri);
+        &conductor->counters_manager,
+        subscription_link.client_id,
+        registration_id,
+        command->session_id,
+        command->stream_id,
+        uri_length,
+        uri);
     if (rcv_hwm_position.counter_id < 0)
     {
         AERON_APPEND_ERR("stream_id=%d session_id=%d", command->stream_id, command->session_id);
@@ -6183,7 +6184,13 @@ void aeron_driver_conductor_on_create_publication_image(void *clientd, void *ite
 
     aeron_position_t rcv_pos_position;
     rcv_pos_position.counter_id = aeron_counter_receiver_position_allocate(
-        &conductor->counters_manager, registration_id, command->session_id, command->stream_id, uri_length, uri);
+        &conductor->counters_manager,
+        subscription_link.client_id,
+        registration_id,
+        command->session_id,
+        command->stream_id,
+        uri_length,
+        uri);
     if (rcv_pos_position.counter_id < 0)
     {
         aeron_counters_manager_free(&conductor->counters_manager, rcv_hwm_position.counter_id);
@@ -6193,7 +6200,13 @@ void aeron_driver_conductor_on_create_publication_image(void *clientd, void *ite
 
     aeron_atomic_counter_t rcv_naks_sent;
     rcv_naks_sent.counter_id = aeron_counter_receiver_naks_sent_allocate(
-        &conductor->counters_manager, registration_id, command->session_id, command->stream_id, uri_length, uri);
+        &conductor->counters_manager,
+        subscription_link.client_id,
+        registration_id,
+        command->session_id,
+        command->stream_id,
+        uri_length,
+        uri);
     if (rcv_naks_sent.counter_id < 0)
     {
         aeron_counters_manager_free(&conductor->counters_manager, rcv_hwm_position.counter_id);

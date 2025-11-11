@@ -206,14 +206,16 @@ protected:
         aeron_position_t hwm_position;
         aeron_position_t pos_position;
         aeron_atomic_counter_t rcv_naks_sent;
+
+        int64_t client_id = 9999999;
         pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, 0, session_id, stream_id, strlen("foo"), "foo");
+            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");
         pos_position.value_addr = aeron_counters_manager_addr(&m_counters_manager, pos_position.counter_id);
         hwm_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, 0, session_id, stream_id, strlen("foo"), "foo");
+            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");
         hwm_position.value_addr = aeron_counters_manager_addr(&m_counters_manager, hwm_position.counter_id);
         rcv_naks_sent.counter_id = aeron_counter_receiver_naks_sent_allocate(
-                &m_counters_manager, 0, session_id, stream_id, strlen("foo"), "foo");
+            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");
         rcv_naks_sent.value_addr = aeron_counters_manager_addr(&m_counters_manager, rcv_naks_sent.counter_id);
 
         aeron_udp_channel_t *channel = endpoint->conductor_fields.udp_channel;

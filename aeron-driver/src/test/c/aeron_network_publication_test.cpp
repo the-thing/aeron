@@ -132,6 +132,7 @@ protected:
             return nullptr;
         }
 
+        int64_t client_id = 8888888;
         int64_t registration_id = 1;
         int32_t stream_id = 10;
         int32_t session_id = 10;
@@ -145,17 +146,17 @@ protected:
         aeron_atomic_counter_t snd_naks_received_counter;
 
         pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         snd_pos_position.counter_id = aeron_counter_sender_position_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         snd_lmt_position.counter_id = aeron_counter_sender_limit_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         snd_bpe_counter.counter_id = aeron_counter_sender_bpe_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         snd_naks_received_counter.counter_id = aeron_counter_sender_naks_received_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
 
         if (pub_pos_position.counter_id < 0 || pub_lmt_position.counter_id < 0 ||
             snd_pos_position.counter_id < 0 || snd_lmt_position.counter_id < 0 ||

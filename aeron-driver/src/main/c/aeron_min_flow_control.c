@@ -486,6 +486,7 @@ int aeron_tagged_flow_control_strategy_allocate_receiver_counter(
         counters_manager,
         AERON_MIN_FLOW_CONTROL_RECEIVERS_COUNTER_NAME,
         AERON_COUNTER_FC_NUM_RECEIVERS_TYPE_ID,
+        AERON_NULL_VALUE,
         registration_id,
         session_id,
         stream_id,

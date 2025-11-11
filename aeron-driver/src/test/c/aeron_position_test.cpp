@@ -163,6 +163,7 @@ TEST_F(PositionTest, streamCounterShouldTruncateChannelUriIfTooLong)
         &m_counters_manager,
         AERON_COUNTER_SENDER_BPE_NAME,
         AERON_COUNTER_SENDER_BPE_TYPE_ID,
+        -143,
         42,
         5,
         -189,
@@ -188,6 +189,7 @@ TEST_F(PositionTest, streamCounterShouldEncodeChannelUriDirectly)
         &m_counters_manager,
         AERON_COUNTER_PUBLISHER_LIMIT_NAME,
         AERON_COUNTER_PUBLISHER_LIMIT_TYPE_ID,
+        821,
         42,
         5,
         -189,
@@ -203,4 +205,15 @@ TEST_F(PositionTest, streamCounterShouldEncodeChannelUriDirectly)
 
     aeron_counters_reader_foreach_metadata(
         m_counters_manager.metadata, m_counters_manager.metadata_length, verify_channel_uri_stream_counter, &clientd);
+
+    int64_t owner_id;
+    aeron_counters_reader_t countersReader = {};
+    aeron_counters_reader_init(
+        &countersReader,
+        m_counters_manager.metadata,
+        m_counters_manager.metadata_length,
+        m_counters_manager.values,
+        m_counters_manager.values_length);
+    aeron_counters_reader_counter_owner_id(&countersReader, id, &owner_id);
+    EXPECT_EQ(821, owner_id);
 }

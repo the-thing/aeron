@@ -82,18 +82,17 @@ protected:
         aeron_position_t pub_pos_position;
         aeron_position_t pub_lmt_position;
 
+        int64_t client_id = 42;
+
         pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
-            &m_counters_manager, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
 
         if (pub_pos_position.counter_id < 0 || pub_lmt_position.counter_id < 0)
         {
             return nullptr;
         }
-
-        aeron_counters_manager_counter_owner_id(
-            &m_counters_manager, pub_lmt_position.counter_id, 1);
 
         pub_pos_position.value_addr = aeron_counters_manager_addr(
             &m_counters_manager, pub_pos_position.counter_id);
