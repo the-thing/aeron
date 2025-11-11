@@ -193,6 +193,11 @@ bound to reduce the chance of the returning publication not being connected and 
 * **[C]** Upgrade to `CMake` 4.1.2.
 * **[C]** Upgrade to `HDR Histogram` 0.11.9.
 
+== 1.48.8 (2025-11-11)
+
+* **[Driver/Java/C]** Add log dissectors for `ERR` (`0x04`) frame type.
+* **[Java]** Delete `DeduplicateTask`, i.e. use built-in capabilities of the `Shadow` plugin instead.
+
 == 1.48.7 (2025-11-01)
 
 * **[Driver/C]** Fix `UNTETHERED_SUBSCRIPTION_STATE_CHANGE` logging, i.e. log previous state and add missing logging to
