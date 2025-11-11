@@ -17,14 +17,17 @@ package io.aeron.driver.status;
 
 import io.aeron.AeronCounters;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersManager;
 import org.agrona.concurrent.status.UnsafeBufferPosition;
+
+import static io.aeron.Aeron.NULL_VALUE;
 
 /**
  * The position in bytes a publication has reached appending to the log.
  * <p>
  * <b>Note:</b> This is a not a real-time value like the other and is updated each conductor duty cycle
- *  for monitoring purposes.
+ * for monitoring purposes.
  */
 public class PublisherPos
 {
@@ -43,6 +46,7 @@ public class PublisherPos
      *
      * @param tempBuffer      to build the label.
      * @param countersManager to allocate the counter from.
+     * @param clientId        to set as counter owner.
      * @param registrationId  associated with the counter.
      * @param sessionId       associated with the counter.
      * @param streamId        associated with the counter.
@@ -52,12 +56,24 @@ public class PublisherPos
     public static UnsafeBufferPosition allocate(
         final MutableDirectBuffer tempBuffer,
         final CountersManager countersManager,
+        final long clientId,
         final long registrationId,
         final int sessionId,
         final int streamId,
         final String channel)
     {
-        return StreamCounter.allocate(
-            tempBuffer, NAME, PUBLISHER_POS_TYPE_ID, countersManager, registrationId, sessionId, streamId, channel);
+        final int counterId = StreamCounter.allocateCounterId(
+            tempBuffer,
+            NAME,
+            PUBLISHER_POS_TYPE_ID,
+            countersManager,
+            clientId,
+            registrationId,
+            sessionId,
+            streamId,
+            channel,
+            NULL_VALUE);
+
+        return new UnsafeBufferPosition((UnsafeBuffer)countersManager.valuesBuffer(), counterId, countersManager);
     }
 }

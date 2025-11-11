@@ -20,6 +20,8 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersManager;
 
+import static io.aeron.Aeron.NULL_VALUE;
+
 /**
  * Count the number of NAK messages received by the Sender. This is a per-stream event count for
  * that which is aggregated in {@link SystemCounterDescriptor#NAK_MESSAGES_RECEIVED}.
@@ -41,6 +43,7 @@ public class SenderNaksReceived
      *
      * @param tempBuffer      to build the label.
      * @param countersManager to allocate the counter from.
+     * @param clientId        to set as counter owner.
      * @param registrationId  associated with the counter.
      * @param sessionId       associated with the counter.
      * @param streamId        associated with the counter.
@@ -50,6 +53,7 @@ public class SenderNaksReceived
     public static AtomicCounter allocate(
         final MutableDirectBuffer tempBuffer,
         final CountersManager countersManager,
+        final long clientId,
         final long registrationId,
         final int sessionId,
         final int streamId,
@@ -60,10 +64,12 @@ public class SenderNaksReceived
             NAME,
             TYPE_ID,
             countersManager,
+            clientId,
             registrationId,
             sessionId,
             streamId,
-            channel);
+            channel,
+            NULL_VALUE);
 
         return new AtomicCounter(countersManager.valuesBuffer(), counterId, countersManager);
     }

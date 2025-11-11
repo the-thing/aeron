@@ -15,13 +15,13 @@
  */
 package io.aeron.driver.status;
 
-import io.aeron.Aeron;
 import io.aeron.AeronCounters;
 import io.aeron.driver.MediaDriverVersion;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersManager;
 
+import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_AERON_VERSION;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_BYTES_CURRENTLY_MAPPED;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_BYTES_RECEIVED;
@@ -401,7 +401,7 @@ public enum SystemCounterDescriptor
         final AtomicCounter counter =
             countersManager.newCounter(label, SYSTEM_COUNTER_TYPE_ID, (buffer) -> buffer.putInt(0, id));
         countersManager.setCounterRegistrationId(counter.id(), id);
-        countersManager.setCounterOwnerId(counter.id(), Aeron.NULL_VALUE);
+        countersManager.setCounterOwnerId(counter.id(), NULL_VALUE);
         return counter;
     }
 }

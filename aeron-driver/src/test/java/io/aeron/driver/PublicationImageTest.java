@@ -148,13 +148,19 @@ class PublicationImageTest
         when(congestionControl.initialWindowLength()).thenReturn(INITIAL_WINDOW_LENGTH);
         when(congestionControl.maxWindowLength()).thenReturn(MAX_WINDOW_LENGHT);
 
+        final long clientId = 117;
         final long registrationId = 73249234983274L;
         final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer();
-        hwmPosition = ReceiverHwm.allocate(tempBuffer, countersManager, registrationId, SESSION_ID, STREAM_ID, channel);
-        rcvPosition =
-            ReceiverPos.allocate(tempBuffer, countersManager, registrationId, SESSION_ID, STREAM_ID, channel);
-        rcvNaksSent =
-            ReceiverNaksSent.allocate(tempBuffer, countersManager, registrationId, SESSION_ID, STREAM_ID, channel);
+        hwmPosition = ReceiverHwm.allocate(
+            tempBuffer, countersManager, clientId, registrationId, SESSION_ID, STREAM_ID, channel);
+        rcvPosition = ReceiverPos.allocate(
+            tempBuffer, countersManager, clientId, registrationId, SESSION_ID, STREAM_ID, channel);
+        rcvNaksSent = ReceiverNaksSent.allocate(
+            tempBuffer, countersManager, clientId, registrationId, SESSION_ID, STREAM_ID, channel);
+
+        assertEquals(clientId, countersManager.getCounterOwnerId(hwmPosition.id()));
+        assertEquals(clientId, countersManager.getCounterOwnerId(rcvPosition.id()));
+        assertEquals(clientId, countersManager.getCounterOwnerId(rcvNaksSent.id()));
 
         image = new PublicationImage(
             CORRELATION_ID,

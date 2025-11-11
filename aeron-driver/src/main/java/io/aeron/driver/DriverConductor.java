@@ -15,7 +15,6 @@
  */
 package io.aeron.driver;
 
-import io.aeron.Aeron;
 import io.aeron.ChannelUri;
 import io.aeron.driver.MediaDriver.Context;
 import io.aeron.driver.buffer.LogFactory;
@@ -82,6 +81,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.ChannelUri.SPY_QUALIFIER;
 import static io.aeron.CommonContext.CHANNEL_RECEIVE_TIMESTAMP_OFFSET_PARAM_NAME;
 import static io.aeron.CommonContext.CHANNEL_SEND_TIMESTAMP_OFFSET_PARAM_NAME;
@@ -312,7 +312,7 @@ public final class DriverConductor implements Agent
         networkPublications.forEach(NetworkPublication::free);
         ipcPublications.forEach(IpcPublication::free);
         freeEndOfLifeResources(Integer.MAX_VALUE);
-        toDriverCommands.consumerHeartbeatTime(Aeron.NULL_VALUE);
+        toDriverCommands.consumerHeartbeatTime(NULL_VALUE);
         ctx.cncByteBuffer().force();
         ctx.close();
     }
@@ -421,10 +421,13 @@ public final class DriverConductor implements Agent
 
                 final SubscriptionLink subscription = subscriberPositions.get(0).subscription();
                 final String uri = subscription.channel();
-                hwmPos = ReceiverHwm.allocate(tempBuffer, countersManager, registrationId, sessionId, streamId, uri);
-                rcvPos = ReceiverPos.allocate(tempBuffer, countersManager, registrationId, sessionId, streamId, uri);
-                rcvNaksSent =
-                    ReceiverNaksSent.allocate(tempBuffer, countersManager, registrationId, sessionId, streamId, uri);
+                final long clientId = subscription.aeronClient().clientId();
+                hwmPos = ReceiverHwm.allocate(
+                    tempBuffer, countersManager, clientId, registrationId, sessionId, streamId, uri);
+                rcvPos = ReceiverPos.allocate(
+                    tempBuffer, countersManager, clientId, registrationId, sessionId, streamId, uri);
+                rcvNaksSent = ReceiverNaksSent.allocate(
+                    tempBuffer, countersManager, clientId, registrationId, sessionId, streamId, uri);
 
                 final String sourceIdentity = Configuration.sourceIdentity(sourceAddress);
 
@@ -709,7 +712,7 @@ public final class DriverConductor implements Agent
             return null;
         }
 
-        if (Aeron.NULL_VALUE == params.responseCorrelationId)
+        if (NULL_VALUE == params.responseCorrelationId)
         {
             throw new IllegalArgumentException(
                 "control-mode=response was specified, but no response-correlation-id set");
@@ -793,7 +796,7 @@ public final class DriverConductor implements Agent
 
     private void validateResponseSubscription(final PublicationParams params)
     {
-        if (!params.isResponse && Aeron.NULL_VALUE != params.responseCorrelationId)
+        if (!params.isResponse && NULL_VALUE != params.responseCorrelationId)
         {
             for (final SubscriptionLink subscriptionLink : subscriptionLinks)
             {
@@ -1308,8 +1311,8 @@ public final class DriverConductor implements Agent
         final AtomicCounter counter = countersManager.newCounter(
             typeId, keyBuffer, keyOffset, keyLength, labelBuffer, labelOffset, labelLength);
 
-        countersManager.setCounterOwnerId(counter.id(), clientId);
         countersManager.setCounterRegistrationId(counter.id(), correlationId);
+        countersManager.setCounterOwnerId(counter.id(), clientId);
         counterLinks.add(new CounterLink(counter, correlationId, client));
         clientProxy.onCounterReady(correlationId, counter.id());
     }
@@ -1331,7 +1334,7 @@ public final class DriverConductor implements Agent
         final int counterId = countersManager.findByTypeIdAndRegistrationId(typeId, registrationId);
         if (CountersReader.NULL_COUNTER_ID != counterId)
         {
-            if (Aeron.NULL_VALUE != countersManager.getCounterOwnerId(counterId))
+            if (NULL_VALUE != countersManager.getCounterOwnerId(counterId))
             {
                 clientProxy.onError(correlationId, GENERIC_ERROR, "cannot add static counter, because a " +
                     "non-static counter exists (counterId=" + counterId + ") for typeId=" + typeId + " and " +
@@ -1348,7 +1351,7 @@ public final class DriverConductor implements Agent
                 typeId, keyBuffer, keyOffset, keyLength, labelBuffer, labelOffset, labelLength);
 
             countersManager.setCounterRegistrationId(counter.id(), registrationId);
-            countersManager.setCounterOwnerId(counter.id(), Aeron.NULL_VALUE);
+            countersManager.setCounterOwnerId(counter.id(), NULL_VALUE);
             clientProxy.onStaticCounter(correlationId, counter.id());
         }
     }
@@ -1896,19 +1899,18 @@ public final class DriverConductor implements Agent
         try
         {
             publisherPos = PublisherPos.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             publisherLmt = PublisherLimit.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             senderPos = SenderPos.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             senderLmt = SenderLimit.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             senderBpe = SenderBpe.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             senderNaksReceived = SenderNaksReceived.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
 
-            countersManager.setCounterOwnerId(publisherLmt.id(), clientId);
             final AtomicCounter retransmitOverflowCounter = ctx.systemCounters().get(RETRANSMIT_OVERFLOW);
 
             if (params.hasPosition)
@@ -2585,8 +2587,8 @@ public final class DriverConductor implements Agent
             final int counterId = counter.id();
 
             counter.setRelease(cachedEpochClock.time());
-            countersManager.setCounterOwnerId(counterId, clientId);
             countersManager.setCounterRegistrationId(counterId, clientId);
+            countersManager.setCounterOwnerId(counterId, clientId);
 
             client = new AeronClient(
                 clientId,
@@ -2619,11 +2621,9 @@ public final class DriverConductor implements Agent
         try
         {
             publisherPosition = PublisherPos.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             publisherLimit = PublisherLimit.allocate(
-                tempBuffer, countersManager, registrationId, params.sessionId, streamId, channel);
-
-            countersManager.setCounterOwnerId(publisherLimit.id(), clientId);
+                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
 
             if (params.hasPosition)
             {
@@ -2663,7 +2663,7 @@ public final class DriverConductor implements Agent
 
     private void findAndUpdateResponseIpcSubscription(final PublicationParams params, final IpcPublication publication)
     {
-        if (Aeron.NULL_VALUE != params.responseCorrelationId)
+        if (NULL_VALUE != params.responseCorrelationId)
         {
             for (final IpcPublication ipcPublication : ipcPublications)
             {

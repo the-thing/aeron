@@ -20,6 +20,8 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersManager;
 
+import static io.aeron.Aeron.NULL_VALUE;
+
 /**
  * The number of active receivers represented as a counter value.
  */
@@ -60,10 +62,12 @@ public class FlowControlReceivers
             NAME,
             FLOW_CONTROL_RECEIVERS_COUNTER_TYPE_ID,
             countersManager,
+            NULL_VALUE,
             registrationId,
             sessionId,
             streamId,
-            channel);
+            channel,
+            NULL_VALUE);
 
         return new AtomicCounter(countersManager.valuesBuffer(), counterId, countersManager);
     }

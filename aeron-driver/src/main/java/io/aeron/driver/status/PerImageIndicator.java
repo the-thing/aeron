@@ -20,6 +20,8 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersManager;
 
+import static io.aeron.Aeron.NULL_VALUE;
+
 /**
  * Allocates {@link AtomicCounter} indicating a per {@link io.aeron.driver.PublicationImage} indication of presence for
  * {@link io.aeron.driver.CongestionControl}.
@@ -57,10 +59,12 @@ public class PerImageIndicator
             name,
             PER_IMAGE_TYPE_ID,
             countersManager,
+            NULL_VALUE,
             registrationId,
             sessionId,
             streamId,
-            channel);
+            channel,
+            NULL_VALUE);
 
         return new AtomicCounter(countersManager.valuesBuffer(), counterId, countersManager);
     }

@@ -17,6 +17,7 @@ package io.aeron.driver.status;
 
 import io.aeron.AeronCounters;
 import org.agrona.MutableDirectBuffer;
+import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.CountersManager;
 import org.agrona.concurrent.status.UnsafeBufferPosition;
 
@@ -41,7 +42,7 @@ public class SubscriberPos
      *
      * @param tempBuffer      to build the label.
      * @param countersManager to allocate the counter from.
-     * @param clientId        that owns the subscription.
+     * @param clientId        to set as counter owner.
      * @param registrationId  associated with the counter.
      * @param sessionId       associated with the counter.
      * @param streamId        associated with the counter.
@@ -59,19 +60,18 @@ public class SubscriberPos
         final String channel,
         final long joinPosition)
     {
-        final UnsafeBufferPosition position = StreamCounter.allocate(
+        final int counterId = StreamCounter.allocateCounterId(
             tempBuffer,
             NAME,
             SUBSCRIBER_POSITION_TYPE_ID,
             countersManager,
+            clientId,
             registrationId,
             sessionId,
             streamId,
             channel,
             joinPosition);
 
-        countersManager.setCounterOwnerId(position.id(), clientId);
-
-        return position;
+        return new UnsafeBufferPosition((UnsafeBuffer)countersManager.valuesBuffer(), counterId, countersManager);
     }
 }
