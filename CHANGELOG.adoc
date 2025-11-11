@@ -193,7 +193,19 @@ bound to reduce the chance of the returning publication not being connected and 
 * **[C]** Upgrade to `CMake` 4.1.2.
 * **[C]** Upgrade to `HDR Histogram` 0.11.9.
 
+== 1.48.9 (2025-11-11)
+
+* **[Java]** Upgrade to `Shadow` 9.2.2 to fix duplicate classes issue in the uber-jar (i.e. `aeron-agent.jar` and
+`aeron-all.jar`).
+
 == 1.48.8 (2025-11-11)
+
+=== Known issues
+
+* Uber-jars `aeron-agent.jar` and `aeron-all.jar` contain duplicate classes. Fixed in
+https://github.com/aeron-io/aeron/releases/tag/1.48.9[1.48.9].
+
+=== Changelog
 
 * **[Driver/Java/C]** Add log dissectors for `ERR` (`0x04`) frame type.
 * **[Java]** Delete `DeduplicateTask`, i.e. use built-in capabilities of the `Shadow` plugin instead.
