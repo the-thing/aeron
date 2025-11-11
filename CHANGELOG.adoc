@@ -323,50 +323,59 @@ filtering out of self entries, i.e. use full name matching instead of a prefix m
 === Noteworthy Changes
 
 * `ExclusivePublication#revoke`.
-
++
+--
 Release publisher and subscriber resources immediately with exclusive publication revoke. Publication will not linger and not allow any trailing loss to be resolved. Subscription will not wait for any data to be received.
 
-_*NB:* Media driver and client code (publisher and subscriber) must run Aeron 1.48.0 or higher._
-
+NOTE: Media driver and client code (publisher and subscriber) must run Aeron 1.48.0 or higher.
+--
++
 For more information see https://github.com/aeron-io/aeron/wiki/Publication%23revoke[Publication#revoke] wiki page.
 
 * `Image#reject`.
-
++
 Reject incoming sessions from a publisher. This allows you to quickly stop data flow in scenarios where the data is no longer needed or is invalid.
-
++
 For more information see https://github.com/aeron-io/aeron/wiki/Image%23reject[Image#reject] wiki page.
 
 * Track connection status in `AeronCluster`.
-
++
+--
 `AeronCluster` now contains a state machine to track connection status. The state machine is updated during poll operations (`AeronCluster#pollEgress` and `AeronCluster#controlledPollEgress`) and while sending data to the Cluster (i.e. `AeronCluster#offer`, `AeronCluster#tryClaim`, `AeronCluster#sendKeepAlive`). If a break in communication is detected and it lasts for more than `AeronCluster.Context#newLeaderTimeoutNs()` then `AeronCluster` will close itself.
 
-_*NB:* When `AeronCluster.Context#newLeaderTimeoutNs()` is not set the `AeronCluster` will wait for double the *leadership timeout* from an actual Cluster. If that is not available (i.e. Cluster is running on an older Aeron version) then it will fallback to a 10 seconds default value, i.e. will wait for 20 seconds._
-
+NOTE: When `AeronCluster.Context#newLeaderTimeoutNs()` is not set the `AeronCluster` will wait for double the *leadership timeout* from an actual Cluster. If that is not available (i.e. Cluster is running on an older Aeron version) then it will fallback to a 10 seconds default value, i.e. will wait for 20 seconds.
+--
 If `AeronCluster#ingressPublication` or `AeronCluster#egressSubscription` are used directly then it is a user responsibility to call new APIs in order to update the connection tracking state machine, i.e.:
-* After each invocation of the `offer`/`tryClaim` on the `AeronCluster#ingressPublication` a call to `AeronCluster#trackIngressPublicationResult` must be made.
-* Every time `AeronCluster#egressSubscription` is polled a call to `AeronCluster#pollStateChanges` must be made.
+** After each invocation of the `offer`/`tryClaim` on the `AeronCluster#ingressPublication` a call to `AeronCluster#trackIngressPublicationResult` must be made.
+** Every time `AeronCluster#egressSubscription` is polled a call to `AeronCluster#pollStateChanges` must be made.
 
 * Response channels GA.
-
++
 Response channels have been promoted from experimental to General Availability. Users no longer need to enable experimental features to use this feature.
 
 * C &amp; C{plus}{plus} wrapper Archive client APIs GA.
++
+--
+The APIs have been promoted from experimental to General Availability, achieving feature-completeness and parity with Java.
 
-The APIs have been promoted from experimental to General Availability, achieving feature-completeness and parity with Java. Old C{plus}{plus} APIs will be decommissioned in *1.50.0*.
+NOTE: Old C{plus}{plus} APIs will be decommissioned in *1.50.0*.
+--
 
 * Per-stream NAK counters.
++
 Two new stream-specific NAK counters where added:
-
++
 ** `snd-naks-received` (`typeId=19`) - tracks the number of NAKs received by the sender.
 ** `rcv-naks-sent` (`typeId=20`) - tracks the number of NAKs sent by the receiver.
+
 * Affinity setting `AERON_DRIVER_ASYNC_EXECUTOR_CPU_AFFINITY` for async thread (`aeron_executor`) was removed.
 
 * Retransmit Receiver Window Multiple
-
++
 To avoid overwhelming receivers in the event of retransmissions, Aeron limits the amount of data sent in a single retransmission to a multiple of the receiver window. Previously, this multiple was 16 for unicast, 16 for min and tagged multicast, and 4 for max multicast. It now defaults to 16 for unicast, 4 for all multicast strategies, and can be configured with the properties `aeron.unicast.flow.control.rrwm` and `aeron.multicast.flow.control.rrwm`.
 
 * Linger timeout
-
++
 There is a new option to control how long untethered subscriptions will linger before being removed from flow control. If the new untethered linger timeout is not set, the default timeout is equal to the untethered window limit timeout. Previously, the untethered linger timeout was always equal to the window limit timeout. Now they can be changed independently. The new property name is `aeron.untethered.linger.timeout`. It can also be set via `untethered-linger-timeout` URI parameter.
 
 === Changelog
@@ -533,7 +542,7 @@ There is a new option to control how long untethered subscriptions will linger b
 === Known issues
 
 * **[Java]** `ClusterBackup` might connect to two different Cluster nodes simultaneously whereby one is used to provide the live Raft log replay and to download the snapshots, whereas the other one is used to fetch the latest list of snapshot entries and the recording log metadata. As long as all of the Cluster nodes are "in sync" (i.e. have the same set of snapshots) then everything is ok. However, if the second node from which `ClusterBackup` fetches the snapshots was down for some time (i.e. does not have all of the snapshots) then the `ClusterBackup` might end up with a broken recording log whereby recording log entries will have a different log position to the underlying snapshot recordings.
-
++
 Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 
 === Changelog
@@ -547,7 +556,7 @@ Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 === Known issues
 
 * **[Java]** `ClusterBackup` might connect to two different Cluster nodes simultaneously whereby one is used to provide the live Raft log replay and to download the snapshots, whereas the other one is used to fetch the latest list of snapshot entries and the recording log metadata. As long as all of the Cluster nodes are "in sync" (i.e. have the same set of snapshots) then everything is ok. However, if the second node from which `ClusterBackup` fetches the snapshots was down for some time (i.e. does not have all of the snapshots) then the `ClusterBackup` might end up with a broken recording log whereby recording log entries will have a different log position to the underlying snapshot recordings.
-
++
 Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 
 === Changelog
@@ -580,50 +589,56 @@ Thank you for your continued support and contributions to the Aeron Open Source 
 
 === Breaking changes
 
-* **[Java]** Agrona upgrade contains breaking changes. See https://github.com/aeron-io/agrona/releases/tag/2.0.0[Agrona 2.0.0 release notes].
+* **[Java]** Agrona upgrade contains breaking changes. See
+https://github.com/aeron-io/agrona/releases/tag/2.0.0[Agrona 2.0.0 release notes].
 
-_*Note:* `--add-opens java.base/jdk.internal.misc=ALL-UNNAMED` JVM option must be specified in order to run Aeron. In addition to `--add-opens java.base/java.util.zip=ALL-UNNAMED` that is required to running the Aeron Archive._
+NOTE: `--add-opens java.base/jdk.internal.misc=ALL-UNNAMED` JVM option must be specified in order to run Aeron. In
+addition to `--add-opens java.base/java.util.zip=ALL-UNNAMED` that is required to running the Aeron Archive.
 
 === Noteworthy Changes
 
 * Detect and terminate dormant Archive clients.
-
-Archive will now send periodic heartbeat messages to each connected Archive client. By default it is done once per second and can be configured via `aeron.archive.session.liveness.check.interval` property or programmatically via `io.aeron.archive.Archive.Context#sessionLivenessCheckIntervalNs(long)` method. If it detects that it cannot send such a message for more than a connection timeout (i.e. `aeron.archive.connect.timeout`, defaults to 5 seconds) then it will close the corresponding control session which will cause such Archive client to disconnect.
++
+Archive will now send periodic heartbeat messages to each connected Archive client. By default, it is done once per
+second and can be configured via `aeron.archive.session.liveness.check.interval` property or programmatically via
+`io.aeron.archive.Archive.Context#sessionLivenessCheckIntervalNs(long)` method. If it detects that it cannot send such
+a message for more than a connection timeout (i.e. `aeron.archive.connect.timeout`, defaults to 5 seconds) then it will
+close the corresponding control session which will cause such Archive client to disconnect.
 
 * Eliminate interference between Archive clients.
 
 * C/C{plus}{plus} Wrapper implementation of the Archive client APIs.
-
++
 In terms of feature completeness and stability, they are still marked experimental, as there's a small chance some of the functions might change as the feature is hardened. Furthermore, a number of the async APIs have yet to be implemented.
 
 * Make the algorithm used for SecureRandom configurable and specify NativePRNGNonBlocking as the default. This stops the Archive from blocking when there is not sufficient entropy available.
 
 * Fix duplicate service messages during failover/restart when using multiple services in Cluster.
-
++
 When service messages are being sent from multiple services, these can be enqueued in different orders. This means during failover/restart pending messages can be skipped or duplicated when a new leader is elected.
-
-*Upgrade procedure:* Those affected will need to do a clean shutdown (with a snapshot) and restart the whole cluster with the fix.
++
+NOTE: *Upgrade procedure:* Those affected will need to do a clean shutdown (with a snapshot) and restart the whole cluster with the fix.
 
 * Invalidate Standby snapshots.
-
++
 When invalidating latest snapshot both normal and Standby snapshots are taken into account. In order to prevent invalidated snapshots from being re-downloaded from the Standby node upon recovery.
 
 * New log events for NAK messages sent and received.
-
++
 `NAK_RECEIVED` logging event was added when a NAK request is received by the sender. An existing `SEND_NAK_MESSAGE` event was renamed to `NAK_SENT` and logs a NAK message being sent by the receiver.
 
 * Prevent client process crashing by a pathologically slow consumer.
-
++
 If a call to `Controlled/FragmentHandler#onFragment` blocks for disproportionate amount of time, i.e. long enough for an `Image` to become unavailable. Then the corresponding log buffer will freed by the client conductor thread. Any further access to the log buffer will cause the client process to segfault. The `Image` was updated to prevent any further access once it was closed.
 
 === Known issues
 
 * **[Java]** `AeronArchive#listRecording/listRecordings/listRecordingsForUri/listRecordingSubscriptions` might return a wrong recording information upon `BACK_PRESSURED`/`ADMIN_ACTION` result when sending a recording descriptor.
-
++
 Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.2[1.47.2].
 
 * **[Java]** `ClusterBackup` might connect to two different Cluster nodes simultaneously whereby one is used to provide the live Raft log replay and to download the snapshots, whereas the other one is used to fetch the latest list of snapshot entries and the recording log metadata. As long as all of the Cluster nodes are "in sync" (i.e. have the same set of snapshots) then everything is ok. However, if the second node from which `ClusterBackup` fetches the snapshots was down for some time (i.e. does not have all of the snapshots) then the `ClusterBackup` might end up with a broken recording log whereby recording log entries will have a different log position to the underlying snapshot recordings.
-
++
 Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 
 === Changelog
@@ -918,7 +933,7 @@ Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 
 === Breaking changes
 
-* *JDK 17 is required for compiling and running!*
+NOTE: *JDK 17 is required for compiling and running!*
 
 === Changelog
 
@@ -952,29 +967,48 @@ Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 === Noteworthy Changes
 
 * Per-Stream Session Limits
-** Allows users to limit the number of different sessions (i.e. distinct publication images) that can be created connecting to the same subscription (channel &amp; stream). This can be used to avoid resource exhaustion the driver hosting the subscription, when clients on other drivers are over zealously creating publications.
++
+Allows users to limit the number of different sessions (i.e. distinct publication images) that can be created connecting to the same subscription (channel &amp; stream). This can be used to avoid resource exhaustion the driver hosting the subscription, when clients on other drivers are over zealously creating publications.
 * Infer Group Subscriptions for Recovery Behaviour
-** When using Multi-Destination Cast, if the user wants to make use of group semantics for nakking and retransmission, then previously group=true needed to be added to the channel configuration on the subscription. Failing to do so would potentially cause excessive nakking. This feature will set a flag on the SETUP message that the subscription can use to automate the setting of this configuration option. Setting group=true/false will override the derived value.
++
+When using Multi-Destination Cast, if the user wants to make use of group semantics for nakking and retransmission, then previously group=true needed to be added to the channel configuration on the subscription. Failing to do so would potentially cause excessive nakking. This feature will set a flag on the SETUP message that the subscription can use to automate the setting of this configuration option. Setting group=true/false will override the derived value.
+
 * Static Counters
-** Add new API to create static counters whose lifetime is decoupled from an Aeron client instance that created them. Unlike the normal counters which are deleted when an Aeron client is closed or times out, the static counters remain valid until the MediaDriver is closed.
-** Static counters are similar to the system counters which are created by the MediaDriver upon startup. Such counters cannot be delete and only one instance of each counter can exist per MediaDriver instance. A static counter is identified by a tuple &lt;typeId, registrationId&gt; which are specified at the creation time. Calling addStaticCounter with the same &lt;typeId, registrationId&gt; multiple times will only create a counter once with subsequent calls returning the id of an existing counter. An exception will be thrown upon an attempt to specify &lt;typeId, registrationId&gt; of an existing non-static counter.
++
+Add new API to create static counters whose lifetime is decoupled from an Aeron client instance that created them. Unlike the normal counters which are deleted when an Aeron client is closed or times out, the static counters remain valid until the MediaDriver is closed.
++
+Static counters are similar to the system counters which are created by the MediaDriver upon startup. Such counters cannot be delete and only one instance of each counter can exist per MediaDriver instance. A static counter is identified by a tuple &lt;typeId, registrationId&gt; which are specified at the creation time. Calling addStaticCounter with the same &lt;typeId, registrationId&gt; multiple times will only create a counter once with subsequent calls returning the id of an existing counter. An exception will be thrown upon an attempt to specify &lt;typeId, registrationId&gt; of an existing non-static counter.
+
 * Archive Integration of Response Channels
-** Users of the AeronArchive client can make use of response channels for control, replay and replication communication paths.
++
+Users of the AeronArchive client can make use of response channels for control, replay and replication communication paths.
+
 * Archive Logging Improvements
-** To increase visiblity of replay and recording session state changes.
-** Enable either REPLAY_SESSION_STATE_CHANGE or RECORDING_SESSION_STATE_CHANGE when configuring the aeron agent.
++
+To increase visiblity of replay and recording session state changes.
++
+Enable either REPLAY_SESSION_STATE_CHANGE or RECORDING_SESSION_STATE_CHANGE when configuring the aeron agent.
+
 * ReplayMerge Backoff
-** To slow down internal state transitions that involve calls to ‘get max recorded position’.
+**To slow down internal state transitions that involve calls to ‘get max recorded position’.
 ** Reduces network traffic.
 ** Greatly reduces log output when debugging is enabled.
+
 * RetransmitHandler Improvements
-** On unicast channels, a received NAK may immediately replace a previous received NAK so long as the offset has increased.
++
+On unicast channels, a received NAK may immediately replace a previous received NAK so long as the offset has increased.
+
 * Retransmitted Bytes Counter
-** To understand network conditions, it can be useful to know how many bytes have been retransmitted due to reception of NAKs.
-** We have exposed a new counter “Retransmitted bytes”, which serves as an approximate indicator of this information.
-** The counter only approximates the true value, as MDC retransmits are only recorded once, rather than N times (once for each destination). It is also worth noting that the retransmitted bytes are not included in the total bytes sent counter value. We may improve these aspects in the future.
++
+To understand network conditions, it can be useful to know how many bytes have been retransmitted due to reception of NAKs.
++
+We have exposed a new counter “Retransmitted bytes”, which serves as an approximate indicator of this information.
++
+The counter only approximates the true value, as MDC retransmits are only recorded once, rather than N times (once for each destination). It is also worth noting that the retransmitted bytes are not included in the total bytes sent counter value. We may improve these aspects in the future.
+
 * C{plus}{plus} API Deprecation
-** Aeron currently has two C{plus}{plus} APIs, a pure C{plus}{plus} version and a wrapper over the C API. This release we are no longer adding new features to the C{plus}{plus} API. This include being able to offer raw `uint8_t *` values and the new static counters feature.
++
+Aeron currently has two C{plus}{plus} APIs, a pure C{plus}{plus} version and a wrapper over the C API. This release we are no longer adding new features to the C{plus}{plus} API. This include being able to offer raw `uint8_t *` values and the new static counters feature.
 
 === Changelog
 
@@ -1153,25 +1187,34 @@ Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 === Noteworthy Changes
 
 * https://github.com/aeron-io/aeron/wiki/Response-Channels**[Response Channels]**
-** A new experimental feature that provides server/client behaviour to Aeron clients.
++
+A new experimental feature that provides server/client behaviour to Aeron clients.
+
 * Asynchronous DNS Name Resolution
-** Improve Publication/Subscription creation performance and avoid stalls by performing DNS resolution asynchronously with Aeron.
++
+Improve Publication/Subscription creation performance and avoid stalls by performing DNS resolution asynchronously with Aeron.
+
 * Tethering Behaviour
-** Prevent premature disconnections by utilizing the maximum window size for tethering, even in congested networks. OR Improve tethering behaviour when using congestion control.
++
+Prevent premature disconnections by utilizing the maximum window size for tethering, even in congested networks. OR Improve tethering behaviour when using congestion control.
+
 * Adjust Overrun Behaviour
 ** Make better use of buffers and reduce dropped consumers.
 ** Enhance the performance of receivers in a max flow control use-case.
-* Congestion Control Recovery
-** Significantly reduce recovery time in congested networks, without the need for any configuration changes.
-* Loss Recovery Improvements
-**
 
+* Congestion Control Recovery
++
+Significantly reduce recovery time in congested networks, without the need for any configuration changes.
+* Loss Recovery Improvements
++
 Reduce negative acknowledgements and message redelivery to improve the efficiency of message recovery.
 
 === Known issues
 
 * **[Cluster]** ClusterBackup is stuck in the `LIVE_LOG_REPLAY` state as it trying to find recording using wrong
-`archiveId`. Fixed in https://github.com/aeron-io/aeron/releases/tag/1.44.1[1.44.1].
+`archiveId`.
++
+Fixed in https://github.com/aeron-io/aeron/releases/tag/1.44.1[1.44.1].
 
 === Changelog
 
