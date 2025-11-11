@@ -31,6 +31,7 @@ import org.agrona.collections.MutableBoolean;
 import org.agrona.collections.MutableInteger;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1297,6 +1298,41 @@ class PubAndSubTest
         }
         assertFalse(Files.exists(pubLogBuffer));
         assertFalse(Files.exists(imageLogBuffer));
+    }
+
+    @ParameterizedTest
+    @MethodSource("channels")
+    @InterruptAfter(10)
+    void shouldAssignOwnerIdForEachStreamCounter(final String channel)
+    {
+        launch(channel);
+        Tests.awaitConnected(publication);
+        Tests.awaitConnected(subscription);
+
+        final CountersReader countersReader = subscribingClient.countersReader();
+        verifyStreamCounters(countersReader, subscription.registrationId(), subscribingClient.clientId());
+
+        verifyStreamCounters(countersReader, publication.registrationId(), publishingClient.clientId());
+    }
+
+    private static void verifyStreamCounters(
+        final CountersReader countersReader, final long registrationId, final long clientId)
+    {
+        countersReader.forEach(
+            (int counterId, int typeId, DirectBuffer keyBuffer, String label) ->
+            {
+                if ((typeId >= AeronCounters.DRIVER_PUBLISHER_LIMIT_TYPE_ID &&
+                    typeId <= AeronCounters.DRIVER_RECEIVER_POS_TYPE_ID ||
+                    (AeronCounters.DRIVER_SENDER_LIMIT_TYPE_ID == typeId ||
+                        AeronCounters.DRIVER_PUBLISHER_POS_TYPE_ID == typeId ||
+                        AeronCounters.DRIVER_SENDER_BPE_TYPE_ID == typeId ||
+                        AeronCounters.DRIVER_SENDER_NAKS_RECEIVED_TYPE_ID == typeId ||
+                        AeronCounters.DRIVER_RECEIVER_NAKS_SENT_TYPE_ID == typeId)) &&
+                    countersReader.getCounterRegistrationId(counterId) == registrationId)
+                {
+                    assertEquals(clientId, countersReader.getCounterOwnerId(counterId), label);
+                }
+            });
     }
 
     private static void verifyFragment(
