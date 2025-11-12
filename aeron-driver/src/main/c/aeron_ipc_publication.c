@@ -175,7 +175,7 @@ int aeron_ipc_publication_create(
         (uint8_t)params->signal_eos,
         (uint8_t)params->spies_simulate_connection,
         (uint8_t)false,
-        (uint8_t)is_exclusive);
+        is_exclusive ? AERON_LOGBUFFER_TYPE_EXCLUSIVE_PUBLICATION : AERON_LOGBUFFER_TYPE_CONCURRENT_PUBLICATION);
 
     _pub->conductor_fields.subscribable.correlation_id = registration_id;
     _pub->conductor_fields.subscribable.array = NULL;

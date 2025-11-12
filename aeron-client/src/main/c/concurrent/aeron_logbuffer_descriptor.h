@@ -31,6 +31,9 @@
 #define AERON_PAGE_MAX_SIZE UINT32_C(1024 * 1024 * 1024)
 #define AERON_LOGBUFFER_PADDING_SIZE UINT32_C(64)
 #define AERON_LOGBUFFER_DEFAULT_FRAME_HEADER_MAX_LENGTH (AERON_CACHE_LINE_LENGTH * 2)
+#define AERON_LOGBUFFER_TYPE_CONCURRENT_PUBLICATION UINT8_C(0)
+#define AERON_LOGBUFFER_TYPE_EXCLUSIVE_PUBLICATION UINT8_C(1)
+#define AERON_LOGBUFFER_TYPE_PUBLICATION_IMAGE UINT8_C(2)
 
 #define AERON_MAX_UDP_PAYLOAD_LENGTH (65504)
 
@@ -77,7 +80,7 @@ typedef struct aeron_logbuffer_metadata_stct
     uint8_t spies_simulate_connection;
     uint8_t tether;
     uint8_t is_publication_revoked;
-    uint8_t is_exclusive_publication;
+    uint8_t type;
     uint8_t pad3[2 * sizeof(uint8_t)];
     int64_t untethered_linger_timeout_ns;
 }
@@ -269,7 +272,7 @@ inline void aeron_logbuffer_metadata_init(
     uint8_t signal_eos,
     uint8_t spies_simulate_connection,
     uint8_t tether,
-    uint8_t is_exclusive_publication)
+    uint8_t type)
 {
     aeron_logbuffer_metadata_t *log_meta_data = (aeron_logbuffer_metadata_t *)log_meta_data_buffer;
 
@@ -310,7 +313,7 @@ inline void aeron_logbuffer_metadata_init(
     log_meta_data->spies_simulate_connection = spies_simulate_connection;
     log_meta_data->tether = tether;
     log_meta_data->is_publication_revoked = (uint8_t)false;
-    log_meta_data->is_exclusive_publication = is_exclusive_publication;
+    log_meta_data->type = type;
 }
 
 inline void aeron_logbuffer_apply_default_header(uint8_t *log_meta_data_buffer, uint8_t *buffer)

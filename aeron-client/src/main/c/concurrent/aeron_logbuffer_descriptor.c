@@ -171,8 +171,8 @@ _Static_assert(
     "offsetof(aeron_logbuffer_metadata_t, is_publication_revoked) is wrong");
 
 _Static_assert(
-    offsetof(aeron_logbuffer_metadata_t, is_exclusive_publication) == 497,
-    "offsetof(aeron_logbuffer_metadata_t, is_exclusive_publication) is wrong");
+    offsetof(aeron_logbuffer_metadata_t, type) == 497,
+    "offsetof(aeron_logbuffer_metadata_t, type) is wrong");
 
 _Static_assert(
     offsetof(aeron_logbuffer_metadata_t, untethered_linger_timeout_ns) == 500,

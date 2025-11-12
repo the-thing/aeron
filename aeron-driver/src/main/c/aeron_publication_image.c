@@ -296,7 +296,7 @@ int aeron_publication_image_create(
         (uint8_t)false,
         (uint8_t)false,
         (uint8_t)params.is_tether,
-        UINT8_MAX);
+        AERON_LOGBUFFER_TYPE_PUBLICATION_IMAGE);
 
     _image->endpoint = endpoint;
     _image->conductor_fields.endpoint = endpoint;
