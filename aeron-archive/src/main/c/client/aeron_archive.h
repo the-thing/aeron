@@ -431,6 +431,12 @@ int aeron_archive_context_set_message_timeout_ns(aeron_archive_context_t *ctx, u
 uint64_t aeron_archive_context_get_message_timeout_ns(aeron_archive_context_t *ctx);
 
 /**
+ * Specify the number of retry attempts when offering messages to the archive.
+ */
+int aeron_archive_context_set_message_retry_attempts(aeron_archive_context_t *ctx, uint32_t message_retry_attempts);
+uint32_t aeron_archive_context_get_message_retry_attempts(aeron_archive_context_t *ctx);
+
+/**
  * Specify the default term buffer length for the control request/response channels.
  */
 int aeron_archive_context_set_control_term_buffer_length(aeron_archive_context_t *ctx, size_t control_term_buffer_length);

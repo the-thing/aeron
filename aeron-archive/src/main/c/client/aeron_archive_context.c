@@ -68,6 +68,7 @@ int aeron_archive_context_init(aeron_archive_context_t **ctx)
     _ctx->recording_events_stream_id = AERON_ARCHIVE_RECORDING_EVENTS_STREAM_ID_DEFAULT;
 
     _ctx->message_timeout_ns = AERON_ARCHIVE_MESSAGE_TIMEOUT_NS_DEFAULT;
+    _ctx->message_retry_attempts = AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_DEFAULT;
 
     _ctx->control_term_buffer_sparse = AERON_ARCHIVE_CONTROL_TERM_BUFFER_SPARSE_DEFAULT;
     _ctx->control_term_buffer_length = AERON_ARCHIVE_CONTROL_TERM_BUFFER_LENGTH_DEFAULT;
@@ -163,6 +164,13 @@ int aeron_archive_context_init(aeron_archive_context_t **ctx)
         _ctx->message_timeout_ns,
         1000,
         INT64_MAX);
+
+    _ctx->message_retry_attempts = aeron_config_parse_duration_ns(
+        AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_ENV_VAR,
+        getenv(AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_ENV_VAR),
+        _ctx->message_retry_attempts,
+        0,
+        INT32_MAX);
 
     _ctx->control_term_buffer_length = aeron_config_parse_size64(
         AERON_ARCHIVE_CONTROL_TERM_BUFFER_LENGTH_ENV_VAR,
@@ -310,6 +318,12 @@ int aeron_archive_context_conclude(aeron_archive_context_t *ctx)
     if (NULL == ctx->control_response_channel)
     {
         AERON_SET_ERR(EINVAL, "%s", "control response channel is required");
+        goto error;
+    }
+
+    if (0 == ctx->message_retry_attempts)
+    {
+        AERON_SET_ERR(EINVAL, "%s", "message_retry_attempts must be > 0");
         goto error;
     }
 
@@ -690,6 +704,17 @@ int aeron_archive_context_set_message_timeout_ns(aeron_archive_context_t *ctx, u
 uint64_t aeron_archive_context_get_message_timeout_ns(aeron_archive_context_t *ctx)
 {
     return ctx->message_timeout_ns;
+}
+
+int aeron_archive_context_set_message_retry_attempts(aeron_archive_context_t *ctx, uint32_t message_retry_attempts)
+{
+    ctx->message_retry_attempts = message_retry_attempts;
+    return 0;
+}
+
+uint32_t aeron_archive_context_get_message_retry_attempts(aeron_archive_context_t *ctx)
+{
+    return ctx->message_retry_attempts;
 }
 
 int aeron_archive_context_set_idle_strategy(

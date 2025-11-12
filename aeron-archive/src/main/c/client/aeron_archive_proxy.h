@@ -34,8 +34,6 @@ typedef struct aeron_archive_proxy_stct
 }
 aeron_archive_proxy_t;
 
-#define AERON_ARCHIVE_PROXY_RETRY_ATTEMPTS_DEFAULT (3)
-
 int aeron_archive_proxy_create(
     aeron_archive_proxy_t **archive_proxy,
     aeron_archive_context_t *ctx,

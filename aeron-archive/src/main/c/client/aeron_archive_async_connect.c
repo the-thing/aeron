@@ -198,7 +198,7 @@ int aeron_archive_async_connect_poll(aeron_archive_t **aeron_archive, aeron_arch
                 &async->archive_proxy,
                 async->ctx,
                 async->exclusive_publication,
-                AERON_ARCHIVE_PROXY_RETRY_ATTEMPTS_DEFAULT) < 0)
+                (int)async->ctx->message_retry_attempts) < 0)
             {
                 AERON_APPEND_ERR("%s", "");
                 goto cleanup;

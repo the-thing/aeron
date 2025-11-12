@@ -2490,7 +2490,7 @@ int aeron_archive_initiate_replay_via_response_channel(
         &archive_proxy,
         aeron_archive->ctx,
         exclusive_publication,
-        AERON_ARCHIVE_PROXY_RETRY_ATTEMPTS_DEFAULT) < 0)
+        (int)aeron_archive->ctx->message_retry_attempts) < 0)
     {
         AERON_APPEND_ERR("%s", "");
         aeron_exclusive_publication_close(exclusive_publication, NULL, NULL);

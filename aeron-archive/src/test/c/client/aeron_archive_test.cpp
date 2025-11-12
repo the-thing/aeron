@@ -3043,6 +3043,7 @@ TEST_F(AeronCArchiveIdTest, shouldInitializeContextWithDefaultValues)
     EXPECT_EQ(AERON_ARCHIVE_RECORDING_EVENTS_STREAM_ID_DEFAULT, m_ctx->recording_events_stream_id);
 
     EXPECT_EQ(AERON_ARCHIVE_MESSAGE_TIMEOUT_NS_DEFAULT, m_ctx->message_timeout_ns);
+    EXPECT_EQ(AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_DEFAULT, m_ctx->message_retry_attempts);
 
     EXPECT_EQ(AERON_ARCHIVE_CONTROL_TERM_BUFFER_LENGTH_DEFAULT, m_ctx->control_term_buffer_length);
     EXPECT_EQ(AERON_ARCHIVE_CONTROL_TERM_BUFFER_SPARSE_DEFAULT, m_ctx->control_term_buffer_sparse);
@@ -3065,6 +3066,7 @@ TEST_F(AeronCArchiveIdTest, shouldInitializeContextWithValuesSpecifiedViaEnviron
     aeron_env_set(AERON_ARCHIVE_RECORDING_EVENTS_CHANNEL_ENV_VAR, recording_events_channel);
     aeron_env_set(AERON_ARCHIVE_RECORDING_EVENTS_STREAM_ID_ENV_VAR, "2147483647");
     aeron_env_set(AERON_ARCHIVE_MESSAGE_TIMEOUT_ENV_VAR, "9223372036s");
+    aeron_env_set(AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_ENV_VAR, "404");
     aeron_env_set(AERON_ARCHIVE_CONTROL_TERM_BUFFER_LENGTH_ENV_VAR, "128k");
     aeron_env_set(AERON_ARCHIVE_CONTROL_TERM_BUFFER_SPARSE_ENV_VAR, "false");
     aeron_env_set(AERON_ARCHIVE_CONTROL_MTU_LENGTH_ENV_VAR, "8k");
@@ -3079,6 +3081,7 @@ TEST_F(AeronCArchiveIdTest, shouldInitializeContextWithValuesSpecifiedViaEnviron
     aeron_env_unset(AERON_ARCHIVE_RECORDING_EVENTS_CHANNEL_ENV_VAR);
     aeron_env_unset(AERON_ARCHIVE_RECORDING_EVENTS_STREAM_ID_ENV_VAR);
     aeron_env_unset(AERON_ARCHIVE_MESSAGE_TIMEOUT_ENV_VAR);
+    aeron_env_unset(AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_ENV_VAR);
     aeron_env_unset(AERON_ARCHIVE_CONTROL_TERM_BUFFER_LENGTH_ENV_VAR);
     aeron_env_unset(AERON_ARCHIVE_CONTROL_TERM_BUFFER_SPARSE_ENV_VAR);
     aeron_env_unset(AERON_ARCHIVE_CONTROL_MTU_LENGTH_ENV_VAR);
@@ -3097,6 +3100,7 @@ TEST_F(AeronCArchiveIdTest, shouldInitializeContextWithValuesSpecifiedViaEnviron
     EXPECT_EQ(INT32_MAX, m_ctx->recording_events_stream_id);
 
     EXPECT_EQ(9223372036000000000UL, m_ctx->message_timeout_ns);
+    EXPECT_EQ(404, m_ctx->message_retry_attempts);
 
     EXPECT_EQ(128 * 1024, m_ctx->control_term_buffer_length);
     EXPECT_EQ(false, m_ctx->control_term_buffer_sparse);
@@ -3125,6 +3129,22 @@ TEST_F(AeronCArchiveIdTest, shouldFailWithErrorIfControlResponseChannelIsNotDefi
 
     EXPECT_EQ(EINVAL, aeron_errcode());
     EXPECT_NE(std::string::npos, std::string(aeron_errmsg()).find("control response channel is required"));
+
+    EXPECT_EQ(0, aeron_archive_context_close(m_ctx));
+}
+
+TEST_F(AeronCArchiveIdTest, shouldFailWithErrorIfRetryAttemptsIsZero)
+{
+    ASSERT_EQ_ERR(0, aeron_archive_context_init(&m_ctx));
+
+    aeron_archive_context_set_control_request_channel(m_ctx, "aeron:ipc");
+    aeron_archive_context_set_control_response_channel(m_ctx, "aeron:ipc");
+    aeron_archive_context_set_message_retry_attempts(m_ctx, 0);
+    ASSERT_EQ(0, aeron_archive_context_get_message_retry_attempts(m_ctx));
+    ASSERT_EQ_ERR(-1, aeron_archive_context_conclude(m_ctx));
+
+    EXPECT_EQ(EINVAL, aeron_errcode());
+    EXPECT_NE(std::string::npos, std::string(aeron_errmsg()).find("message_retry_attempts must be > 0"));
 
     EXPECT_EQ(0, aeron_archive_context_close(m_ctx));
 }

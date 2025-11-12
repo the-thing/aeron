@@ -171,15 +171,26 @@ public:
         return aeron_archive_context_get_recording_events_channel(m_aeron_archive_ctx_t);
     }
 
-    inline Context &messageTimeoutNS(const std::int64_t messageTmoNS)
+    inline Context &messageTimeoutNs(const std::uint64_t messageTimeoutNs)
     {
-        aeron_archive_context_set_message_timeout_ns(m_aeron_archive_ctx_t, messageTmoNS);
+        aeron_archive_context_set_message_timeout_ns(m_aeron_archive_ctx_t, messageTimeoutNs);
         return *this;
     }
 
-    inline std::int64_t messageTimeoutNS() const
+    inline std::uint64_t messageTimeoutNs() const
     {
         return aeron_archive_context_get_message_timeout_ns(m_aeron_archive_ctx_t);
+    }
+
+    inline Context &messageRetryAttempts(const std::uint32_t messageRetryAttempts)
+    {
+        aeron_archive_context_set_message_retry_attempts(m_aeron_archive_ctx_t, messageRetryAttempts);
+        return *this;
+    }
+
+    inline std::uint32_t messageRetryAttempts() const
+    {
+        return aeron_archive_context_get_message_retry_attempts(m_aeron_archive_ctx_t);
     }
 
     template<typename IdleStrategy>

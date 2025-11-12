@@ -21,7 +21,9 @@
 #include "aeron_archive_credentials_supplier.h"
 
 #define AERON_ARCHIVE_MESSAGE_TIMEOUT_ENV_VAR "AERON_ARCHIVE_MESSAGE_TIMEOUT"
-#define AERON_ARCHIVE_MESSAGE_TIMEOUT_NS_DEFAULT  (10 * 1000 * 1000 * 1000LL) // 10 seconds
+#define AERON_ARCHIVE_MESSAGE_TIMEOUT_NS_DEFAULT  (UINT64_C(10) * 1000 * 1000 * 1000) // 10 seconds
+#define AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_ENV_VAR "AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS"
+#define AERON_ARCHIVE_MESSAGE_RETRY_ATTEMPTS_DEFAULT  UINT32_C(3)
 #define AERON_ARCHIVE_CONTROL_CHANNEL_ENV_VAR "AERON_ARCHIVE_CONTROL_CHANNEL"
 #define AERON_ARCHIVE_CONTROL_STREAM_ID_ENV_VAR "AERON_ARCHIVE_CONTROL_STREAM_ID"
 #define AERON_ARCHIVE_CONTROL_STREAM_ID_DEFAULT (10)
@@ -58,6 +60,7 @@ struct aeron_archive_context_stct
     int32_t recording_events_stream_id;
 
     uint64_t message_timeout_ns;
+    uint32_t message_retry_attempts;
 
     size_t control_term_buffer_length;
     size_t control_mtu_length;
