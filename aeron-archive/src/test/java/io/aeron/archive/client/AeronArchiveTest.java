@@ -24,6 +24,7 @@ import io.aeron.UnavailableImageHandler;
 import io.aeron.archive.client.AeronArchive.Context;
 import io.aeron.archive.codecs.ControlResponseCode;
 import io.aeron.exceptions.AeronException;
+import io.aeron.exceptions.ConfigurationException;
 import io.aeron.security.CredentialsSupplier;
 import org.agrona.BitUtil;
 import org.agrona.ErrorHandler;
@@ -870,5 +871,44 @@ class AeronArchiveTest
             String.valueOf(context.controlTermBufferLength()), actualResponseChannel.get(TERM_LENGTH_PARAM_NAME));
         assertEquals(String.valueOf(context.controlTermBufferSparse()), actualRequestChannel.get(SPARSE_PARAM_NAME));
         assertEquals(String.valueOf(context.controlTermBufferSparse()), actualResponseChannel.get(SPARSE_PARAM_NAME));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { Integer.MIN_VALUE, -1, 0 })
+    void shouldRejectInvalidRetryAttempts(final int retryAttempts)
+    {
+        final Context context = new Context()
+            .aeron(aeron)
+            .controlRequestChannel("aeron:udp")
+            .controlResponseChannel("aeron:udp")
+            .messageRetryAttempts(retryAttempts);
+        assertEquals(retryAttempts, context.messageRetryAttempts());
+
+        final ConfigurationException exception = assertThrowsExactly(ConfigurationException.class, context::conclude);
+        assertEquals(
+            "ERROR - AeronArchive.Context.messageRetryAttempts must be > 0, got: " + retryAttempts,
+            exception.getMessage());
+    }
+
+    @Test
+    void maxRetryAttemptsDefaultValue()
+    {
+        final Context context = new Context();
+        assertEquals(AeronArchive.Configuration.MESSAGE_RETRY_ATTEMPTS_DEFAULT, context.messageRetryAttempts());
+    }
+
+    @Test
+    void maxRetryAttemptsSystemProperty()
+    {
+        System.setProperty(AeronArchive.Configuration.MESSAGE_RETRY_ATTEMPTS_PROP_NAME, "111");
+        try
+        {
+            final Context context = new Context();
+            assertEquals(111, context.messageRetryAttempts());
+        }
+        finally
+        {
+            System.clearProperty(AeronArchive.Configuration.MESSAGE_RETRY_ATTEMPTS_PROP_NAME);
+        }
     }
 }

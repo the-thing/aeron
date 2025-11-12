@@ -78,9 +78,9 @@ public final class ArchiveProxy
 {
     /**
      * Default number of retry attempts to be made when offering requests.
-     * @deprecated Use {@link AeronArchive.Configuration#MESSAGE_RETRY_ATTEMPTS_DEFAULT}.
+     *
+     * @see AeronArchive.Configuration#MESSAGE_RETRY_ATTEMPTS_DEFAULT
      */
-    @Deprecated(since = "1.48.6", forRemoval = true)
     public static final int DEFAULT_RETRY_ATTEMPTS = MESSAGE_RETRY_ATTEMPTS_DEFAULT;
 
     private final long connectTimeoutNs;
@@ -159,7 +159,7 @@ public final class ArchiveProxy
      * <p>
      * This provides a default {@link IdleStrategy} of a {@link YieldingIdleStrategy} when offers are back pressured
      * with a defaults of {@link AeronArchive.Configuration#MESSAGE_TIMEOUT_DEFAULT_NS} and
-     * {@link AeronArchive.Configuration#MESSAGE_RETRY_ATTEMPTS_DEFAULT}.
+     * {@link #DEFAULT_RETRY_ATTEMPTS}.
      *
      * @param publication publication for sending control messages to an archive.
      * @throws ClassCastException if {@code publication} is not an instance of {@link ExclusivePublication}.
@@ -171,7 +171,7 @@ public final class ArchiveProxy
             YieldingIdleStrategy.INSTANCE,
             SystemNanoClock.INSTANCE,
             MESSAGE_TIMEOUT_DEFAULT_NS,
-            MESSAGE_RETRY_ATTEMPTS_DEFAULT,
+            DEFAULT_RETRY_ATTEMPTS,
             new NullCredentialsSupplier(),
             null);
     }
@@ -1441,10 +1441,10 @@ public final class ArchiveProxy
     /**
      * Update the channel for a recording.
      *
-     * @param recordingId       the recording id to update.
-     * @param channel           the new channel to include in the catalogue.
-     * @param correlationId     for the request.
-     * @param controlSessionId  for the request.
+     * @param recordingId      the recording id to update.
+     * @param channel          the new channel to include in the catalogue.
+     * @param correlationId    for the request.
+     * @param controlSessionId for the request.
      * @return true if successfully offered.
      */
     public boolean updateChannel(

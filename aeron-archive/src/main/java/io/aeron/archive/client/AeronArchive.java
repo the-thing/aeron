@@ -2687,13 +2687,13 @@ public final class AeronArchive implements AutoCloseable
         public static final long MESSAGE_TIMEOUT_DEFAULT_NS = TimeUnit.SECONDS.toNanos(10);
 
         /**
-         * The number of retry attempts to be made when offering requests.
+         * The number of retry attempts to be made when offering messages to the archive.
          */
         @Config
-        public static final String MESSAGE_RETRY_ATTEMPTS_PROP_NAME = "aeron.archive.message.retryAttempts";
+        public static final String MESSAGE_RETRY_ATTEMPTS_PROP_NAME = "aeron.archive.message.retry.attempts";
 
         /**
-         * Default number of retry attempts to be made when offering requests.
+         * Default number of retry attempts to be made when offering messages to the archive.
          */
         @Config
         public static final int MESSAGE_RETRY_ATTEMPTS_DEFAULT = 3;
@@ -2872,9 +2872,9 @@ public final class AeronArchive implements AutoCloseable
         }
 
         /**
-         * The number of retry attempts to be made when offering requests.
+         * The number of retry attempts to be made when offering messages to the archive.
          *
-         * @return the number of retry attempts to be made when offering requests.
+         * @return the number of retry attempts.
          * @see #MESSAGE_RETRY_ATTEMPTS_PROP_NAME
          */
         public static int messageRetryAttempts()
@@ -3121,6 +3121,12 @@ public final class AeronArchive implements AutoCloseable
                     "AeronArchive.Context.clientName length must be <= " + Aeron.Configuration.MAX_CLIENT_NAME_LENGTH);
             }
 
+            if (messageRetryAttempts <= 0)
+            {
+                throw new ConfigurationException("AeronArchive.Context.messageRetryAttempts must be > 0, got: " +
+                    messageRetryAttempts);
+            }
+
             if (null == aeron)
             {
                 aeron = Aeron.connect(
@@ -3195,9 +3201,9 @@ public final class AeronArchive implements AutoCloseable
         }
 
         /**
-         * Set the number of retry attempts to be made when offering requests.
+         * Set the number of retry attempts to be made when offering messages to the archive.
          *
-         * @param messageRetryAttempts the number of retry attempts to be made when offering requests.
+         * @param messageRetryAttempts the number of retry attempts.
          * @return this for a fluent API.
          * @see Configuration#MESSAGE_RETRY_ATTEMPTS_PROP_NAME
          */
@@ -3208,9 +3214,9 @@ public final class AeronArchive implements AutoCloseable
         }
 
         /**
-         * The number of retry attempts to be made when offering requests.
+         * The number of retry attempts to be made when offering messages to the archive.
          *
-         * @return the number of retry attempts to be made when offering requests.
+         * @return the number of retry attempts.
          * @see Configuration#MESSAGE_RETRY_ATTEMPTS_PROP_NAME
          */
         @Config
