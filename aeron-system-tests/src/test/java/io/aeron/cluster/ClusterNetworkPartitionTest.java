@@ -36,6 +36,7 @@ import io.aeron.test.cluster.TestNode;
 import org.agrona.collections.MutableInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -64,7 +65,7 @@ class ClusterNetworkPartitionTest
     final SystemTestWatcher systemTestWatcher = new SystemTestWatcher();
     private final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private final SessionMessageHeaderDecoder sessionHeaderDecoder = new SessionMessageHeaderDecoder();
-    private TestCluster cluster = null;
+    private TestCluster cluster;
 
     @BeforeEach
     void setUp()
@@ -98,31 +99,30 @@ class ClusterNetworkPartitionTest
 
         IpTables.makeSymmetricNetworkPartition(
             CHAIN_NAME,
-            List.of(HOSTNAMES.get(firstLeader.index())),
+            List.of(HOSTNAMES.get(firstLeader.memberId())),
             IntStream.range(0, HOSTNAMES.size())
-                .filter(i -> i != firstLeader.index())
+                .filter(i -> i != firstLeader.memberId())
                 .mapToObj(HOSTNAMES::get)
                 .toList());
 
         cluster.sendMessages(50); // will be sent to the old leader
         Tests.await(() -> firstLeader.appendPosition() > initialLeaderLogPosition);
 
-        final TestNode interimLeader = cluster.awaitLeaderWithoutElectionTerminationCheck(firstLeader.index());
-        assertNotEquals(firstLeader.index(), interimLeader.index());
+        final TestNode interimLeader = cluster.awaitLeaderWithoutElectionTerminationCheck(firstLeader.memberId());
+        assertNotEquals(firstLeader.memberId(), interimLeader.memberId());
 
         cluster.awaitNodeState(firstLeader, (n) -> n.electionState() == ElectionState.CANVASS);
 
         IpTables.flushChain(CHAIN_NAME);
 
         final TestNode finalLeader = cluster.awaitLeader(); // ensure no more elections
-        assertNotEquals(firstLeader.index(), finalLeader.index());
+        assertNotEquals(firstLeader.memberId(), finalLeader.memberId());
 
         cluster.reconnectClient();
         cluster.sendAndAwaitMessages(100, 200);
     }
 
     @Test
-    @SuppressWarnings("MethodLength")
     @InterruptAfter(30)
     void shouldRestartClusterWithMajorityNodesBeingSlow()
     {
@@ -160,13 +160,13 @@ class ClusterNetworkPartitionTest
             assertEquals(slowFollower.memberId(), clusterMember.id());
 
             IpTables.dropUdpTrafficBetweenHosts(CHAIN_NAME,
-                HOSTNAMES.get(firstLeader.index()),
+                HOSTNAMES.get(firstLeader.memberId()),
                 "",
                 HOSTNAMES.get(slowFollower.memberId()),
                 clusterMember.consensusEndpoint().substring(clusterMember.consensusEndpoint().indexOf(':') + 1));
 
             IpTables.dropUdpTrafficBetweenHosts(CHAIN_NAME,
-                HOSTNAMES.get(firstLeader.index()),
+                HOSTNAMES.get(firstLeader.memberId()),
                 "",
                 HOSTNAMES.get(slowFollower.memberId()),
                 clusterMember.logEndpoint().substring(clusterMember.logEndpoint().indexOf(':') + 1));
@@ -174,15 +174,152 @@ class ClusterNetworkPartitionTest
 
         final int messagesReceivedByMinority = 300;
         cluster.sendMessages(messagesReceivedByMinority); // these messages will be only received by 2 out of 5 nodes
+
+        awaitLeaderLogRecording(firstLeader, committedMessageCount + messagesReceivedByMinority);
+
+        Tests.await(() -> firstLeader.appendPosition() == fastFollower.appendPosition());
+
+        // ensure message haven't been processed
+        assertEquals(commitPositionBeforePartition, firstLeader.commitPosition());
+        assertEquals(committedMessageCount, firstLeader.service().messageCount());
+        for (final TestNode follower : followers)
+        {
+            assertEquals(committedMessageCount, follower.service().messageCount());
+        }
+
+        cluster.terminationsExpected(true);
+        cluster.stopAllNodes();
+
+        IpTables.flushChain(CHAIN_NAME); // remove network partition
+
+        cluster.restartAllNodes(false);
+        cluster.awaitLeader();
+        cluster.reconnectClient();
+
+        final int newMessages = 200;
+        cluster.sendMessages(newMessages);
+        cluster.awaitResponseMessageCount(newMessages);
+        cluster.awaitServicesMessageCount(committedMessageCount + messagesReceivedByMinority + newMessages);
+    }
+
+    @Test
+    @SuppressWarnings("MethodLength")
+    @Disabled
+    @InterruptAfter(30)
+    void shouldCatchupFollowerAfterBeingStoppedAndNetworkPartition()
+    {
+        cluster = aCluster()
+            .withStaticNodes(CLUSTER_SIZE)
+            .withCustomAddresses(HOSTNAMES)
+            .withClusterId(42)
+            .start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode originalLeader = cluster.awaitLeader();
+        final List<TestNode> followers = cluster.followers();
+        TestNode recoveringNode = followers.get(0);
+        final TestNode[] majority = followers.subList(1, followers.size()).toArray(new TestNode[0]);
+        final ClusterMember[] clusterMembers =
+            ClusterMember.parse(originalLeader.consensusModule().context().clusterMembers());
+
+        cluster.connectClient();
+        cluster.sendAndAwaitMessages(100);
+
+        cluster.takeSnapshot(originalLeader);
+        cluster.awaitSnapshotCount(1);
+
+        cluster.sendAndAwaitMessages(50, 150);
+
+        recoveringNode.isTerminationExpected(true);
+        cluster.stopNode(recoveringNode);
+
+        final int committedMessages = 350;
+        cluster.sendAndAwaitMessages(200, committedMessages);
+
+        final long commitPosition = originalLeader.commitPosition();
+
+        for (final TestNode node : majority)
+        {
+            final ClusterMember clusterMember = clusterMembers[node.memberId()];
+            assertNotNull(clusterMember);
+            assertEquals(node.memberId(), clusterMember.id());
+
+            final String consensusEndpoint =
+                clusterMember.consensusEndpoint().substring(clusterMember.consensusEndpoint().indexOf(':') + 1);
+            final String logEndpoint =
+                clusterMember.logEndpoint().substring(clusterMember.logEndpoint().indexOf(':') + 1);
+
+            // Drop traffic from the leader node
+            IpTables.dropUdpTrafficBetweenHosts(
+                CHAIN_NAME,
+                HOSTNAMES.get(originalLeader.memberId()),
+                "",
+                HOSTNAMES.get(node.memberId()),
+                consensusEndpoint);
+            IpTables.dropUdpTrafficBetweenHosts(
+                CHAIN_NAME, HOSTNAMES.get(originalLeader.memberId()), "", HOSTNAMES.get(node.memberId()), logEndpoint);
+
+            // Drop traffic from the recovering node
+            IpTables.dropUdpTrafficBetweenHosts(
+                CHAIN_NAME,
+                HOSTNAMES.get(recoveringNode.memberId()),
+                "",
+                HOSTNAMES.get(node.memberId()),
+                consensusEndpoint);
+            IpTables.dropUdpTrafficBetweenHosts(
+                CHAIN_NAME, HOSTNAMES.get(recoveringNode.memberId()), "", HOSTNAMES.get(node.memberId()), logEndpoint);
+        }
+
+        final int uncommittedMessages = 333;
+        cluster.sendMessages(uncommittedMessages);
+
+        awaitLeaderLogRecording(originalLeader, committedMessages + uncommittedMessages);
+
+        // await the new leader on the other side of the partition
+        final TestNode majorityLeader = cluster.awaitLeader(originalLeader.memberId());
+        assertNotEquals(originalLeader.memberId(), majorityLeader.memberId());
+
+        // restart stopped node to
+        recoveringNode = cluster.startStaticNode(recoveringNode.memberId(), false);
+
+        recoveringNode.awaitElectionState(ElectionState.FOLLOWER_CATCHUP);
+        while (recoveringNode.logRecordingCounterId() <= commitPosition)
+        {
+            Tests.yield();
+        }
+
+        IpTables.flushChain(CHAIN_NAME); // remove network partition
+
+        final TestNode newMaster = cluster.awaitLeader();
+        assertEquals(majorityLeader.memberId(), newMaster.memberId());
+
+        // ensure uncommitted message haven't been processed
+        assertEquals(commitPosition, originalLeader.commitPosition());
+        assertEquals(committedMessages, originalLeader.service().messageCount());
+        for (final TestNode follower : followers)
+        {
+            assertEquals(committedMessages, follower.service().messageCount());
+        }
+
+        cluster.reconnectClient();
+
+        final int newMessages = 100;
+        cluster.sendMessages(newMessages);
+        cluster.awaitResponseMessageCount(newMessages);
+        cluster.awaitServicesMessageCount(committedMessages + newMessages);
+    }
+
+    private void awaitLeaderLogRecording(final TestNode leader, final int expectedMessageCount)
+    {
         final long firstLeaderLogRecordingId =
-            RecordingPos.getRecordingId(firstLeader.mediaDriver().counters(), firstLeader.logRecordingCounterId());
+            RecordingPos.getRecordingId(leader.mediaDriver().counters(), leader.logRecordingCounterId());
 
         // await leader to record all ingress messages
         try (AeronArchive aeronArchive = AeronArchive.connect(new AeronArchive.Context()
             .clientName("test")
             .aeronDirectoryName(cluster.startClientMediaDriver().aeronDirectoryName())
-            .controlRequestChannel(firstLeader.archive().context().controlChannel())
-            .controlRequestStreamId(firstLeader.archive().context().controlStreamId())
+            .controlRequestChannel(leader.archive().context().controlChannel())
+            .controlRequestStreamId(leader.archive().context().controlStreamId())
             .controlResponseChannel("aeron:udp?endpoint=localhost:0")))
         {
             final Aeron aeron = aeronArchive.context().aeron();
@@ -213,10 +350,9 @@ class ClusterNetworkPartitionTest
                 }
             };
 
-            final int expectedMessageCount = committedMessageCount + messagesReceivedByMinority;
             while (messageCount.get() < expectedMessageCount)
             {
-                if (0 == image.poll(fragmentHandler, 10))
+                if (0 == image.poll(fragmentHandler, 100))
                 {
                     Tests.yield();
                 }
@@ -225,29 +361,5 @@ class ClusterNetworkPartitionTest
             subscription.close();
             aeronArchive.stopReplay(replaySubscriptionId);
         }
-
-        Tests.await(() -> firstLeader.appendPosition() == fastFollower.appendPosition());
-
-        // ensure message haven't been processed
-        assertEquals(commitPositionBeforePartition, firstLeader.commitPosition());
-        assertEquals(committedMessageCount, firstLeader.service().messageCount());
-        for (final TestNode follower : followers)
-        {
-            assertEquals(committedMessageCount, follower.service().messageCount());
-        }
-
-        cluster.terminationsExpected(true);
-        cluster.stopAllNodes();
-
-        IpTables.flushChain(CHAIN_NAME); // remove network partition
-
-        cluster.restartAllNodes(false);
-        cluster.awaitLeader();
-        cluster.reconnectClient();
-
-        final int newMessages = 200;
-        cluster.sendMessages(newMessages);
-        cluster.awaitResponseMessageCount(newMessages);
-        cluster.awaitServicesMessageCount(committedMessageCount + messagesReceivedByMinority + newMessages);
     }
 }
