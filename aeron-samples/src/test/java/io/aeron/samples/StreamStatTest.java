@@ -20,14 +20,7 @@ import io.aeron.ConcurrentPublication;
 import io.aeron.ExclusivePublication;
 import io.aeron.Subscription;
 import io.aeron.driver.MediaDriver;
-import io.aeron.driver.status.PublisherLimit;
-import io.aeron.driver.status.PublisherPos;
-import io.aeron.driver.status.ReceiverHwm;
-import io.aeron.driver.status.ReceiverPos;
-import io.aeron.driver.status.SenderLimit;
-import io.aeron.driver.status.SenderPos;
 import io.aeron.driver.status.StreamCounter;
-import io.aeron.driver.status.SubscriberPos;
 import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.Header;
 import io.aeron.test.InterruptAfter;
@@ -54,7 +47,12 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ThreadLocalRandom;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.aeron.AeronCounters.DRIVER_PUBLISHER_LIMIT_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_RECEIVER_POS_TYPE_ID;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 
 @ExtendWith(InterruptingTestCallback.class)
 class StreamStatTest
@@ -183,22 +181,27 @@ class StreamStatTest
             pub5.streamId(),
             pub5.channel().substring(0, StreamCounter.MAX_CHANNEL_LENGTH),
             pub5.channel());
-        assertEquals(4, entry.getValue().size());
-        assertStreamPosition(entry.getValue().get(0), PublisherPos.PUBLISHER_POS_TYPE_ID, 0);
-        assertStreamPosition(entry.getValue().get(1), PublisherLimit.PUBLISHER_LIMIT_TYPE_ID, 0);
-        assertStreamPosition(entry.getValue().get(2), SenderPos.SENDER_POSITION_TYPE_ID, 0);
-        assertStreamPosition(entry.getValue().get(3), SenderLimit.SENDER_LIMIT_TYPE_ID, 0);
+        assertEquals(6, entry.getValue().size());
+        assertStreamPosition(entry.getValue().get(0), 0);
+        assertStreamPosition(entry.getValue().get(1), 0);
+        assertStreamPosition(entry.getValue().get(2), 0);
+        assertStreamPosition(entry.getValue().get(3), 0);
+        assertStreamPosition(entry.getValue().get(4), 0);
+        assertStreamPosition(entry.getValue().get(5), 0);
 
         entry = entries.get(1);
         assertStreamInfo(entry.getKey(), pub2.sessionId(), pub2.streamId(), pub2.channel(), pub2.channel());
-        assertEquals(7, entry.getValue().size());
-        assertStreamPosition(entry.getValue().get(0), PublisherPos.PUBLISHER_POS_TYPE_ID, 1120);
-        assertStreamPosition(entry.getValue().get(1), PublisherLimit.PUBLISHER_LIMIT_TYPE_ID, 66656);
-        assertStreamPosition(entry.getValue().get(2), SenderPos.SENDER_POSITION_TYPE_ID, 1120);
-        assertStreamPosition(entry.getValue().get(3), SenderLimit.SENDER_LIMIT_TYPE_ID, 65536);
-        assertStreamPosition(entry.getValue().get(4), SubscriberPos.SUBSCRIBER_POSITION_TYPE_ID, 448);
-        assertStreamPosition(entry.getValue().get(5), ReceiverHwm.RECEIVER_HWM_TYPE_ID, 1120);
-        assertStreamPosition(entry.getValue().get(6), ReceiverPos.RECEIVER_POS_TYPE_ID, 1120);
+        assertEquals(10, entry.getValue().size());
+        assertStreamPosition(entry.getValue().get(0), 1120);
+        assertStreamPosition(entry.getValue().get(1), 66656);
+        assertStreamPosition(entry.getValue().get(2), 1120);
+        assertStreamPosition(entry.getValue().get(3), 65536);
+        assertStreamPosition(entry.getValue().get(4), 0);
+        assertStreamPosition(entry.getValue().get(5), 0);
+        assertStreamPosition(entry.getValue().get(6), 448);
+        assertStreamPosition(entry.getValue().get(7), 1120);
+        assertStreamPosition(entry.getValue().get(8), 1120);
+        assertStreamPosition(entry.getValue().get(9), 0);
 
         entry = entries.get(2);
         assertStreamInfo(
@@ -208,13 +211,13 @@ class StreamStatTest
             pub1.channel().substring(0, StreamCounter.MAX_CHANNEL_LENGTH),
             pub1.channel());
         assertEquals(3, entry.getValue().size());
-        assertStreamPosition(entry.getValue().get(0), PublisherPos.PUBLISHER_POS_TYPE_ID, 800);
-        assertStreamPosition(entry.getValue().get(1), PublisherLimit.PUBLISHER_LIMIT_TYPE_ID, 32768);
-        assertStreamPosition(entry.getValue().get(2), SubscriberPos.SUBSCRIBER_POSITION_TYPE_ID, 320);
+        assertStreamPosition(entry.getValue().get(0), 800);
+        assertStreamPosition(entry.getValue().get(1), 32768);
+        assertStreamPosition(entry.getValue().get(2), 320);
 
         entry = entries.get(3);
         final int pub4LimitCounterId = aeron.countersReader()
-            .findByTypeIdAndRegistrationId(PublisherLimit.PUBLISHER_LIMIT_TYPE_ID, pub4.registrationId());
+            .findByTypeIdAndRegistrationId(DRIVER_PUBLISHER_LIMIT_TYPE_ID, pub4.registrationId());
         assertNotEquals(CountersReader.NULL_COUNTER_ID, pub4LimitCounterId);
         final String pub4LimitLabel = aeron.countersReader().getCounterLabel(pub4LimitCounterId);
         assertStreamInfo(
@@ -223,15 +226,18 @@ class StreamStatTest
             pub4.streamId(),
             pub4.channel().substring(0, StreamCounter.MAX_CHANNEL_LENGTH),
             pub4LimitLabel.substring(pub4LimitLabel.indexOf("aeron:")));
-        assertEquals(8, entry.getValue().size());
-        assertStreamPosition(entry.getValue().get(0), PublisherPos.PUBLISHER_POS_TYPE_ID, 1716702414144L);
-        assertStreamPosition(entry.getValue().get(1), PublisherLimit.PUBLISHER_LIMIT_TYPE_ID, 1716702545216L);
-        assertStreamPosition(entry.getValue().get(2), SenderPos.SENDER_POSITION_TYPE_ID, 1716702414144L);
-        assertStreamPosition(entry.getValue().get(3), SenderLimit.SENDER_LIMIT_TYPE_ID, 1716702544896L);
-        assertStreamPosition(entry.getValue().get(4), SubscriberPos.SUBSCRIBER_POSITION_TYPE_ID, 1716702414016L);
-        assertStreamPosition(entry.getValue().get(5), ReceiverHwm.RECEIVER_HWM_TYPE_ID, 1716702414144L);
-        assertStreamPosition(entry.getValue().get(6), ReceiverPos.RECEIVER_POS_TYPE_ID, 1716702414144L);
-        assertStreamPosition(entry.getValue().get(7), SubscriberPos.SUBSCRIBER_POSITION_TYPE_ID, 1716702413824L);
+        assertEquals(11, entry.getValue().size());
+        assertStreamPosition(entry.getValue().get(0), 1716702414144L);
+        assertStreamPosition(entry.getValue().get(1), 1716702545216L);
+        assertStreamPosition(entry.getValue().get(2), 1716702414144L);
+        assertStreamPosition(entry.getValue().get(3), 1716702544896L);
+        assertStreamPosition(entry.getValue().get(4), 0L);
+        assertStreamPosition(entry.getValue().get(5), 0L);
+        assertStreamPosition(entry.getValue().get(6), 1716702414016L);
+        assertStreamPosition(entry.getValue().get(7), 1716702414144L);
+        assertStreamPosition(entry.getValue().get(8), 1716702414144L);
+        assertStreamPosition(entry.getValue().get(9), 0L);
+        assertStreamPosition(entry.getValue().get(10), 1716702413824L);
     }
 
     private int findCounterIdByStream(final CountersReader countersReader, final int streamId)
@@ -242,7 +248,7 @@ class StreamStatTest
             (counterId1, typeId1, keyBuffer, label) ->
             {
                 final int counterStreamId = keyBuffer.getInt(StreamCounter.STREAM_ID_OFFSET);
-                if (ReceiverPos.RECEIVER_POS_TYPE_ID == typeId1 && streamId == counterStreamId)
+                if (DRIVER_RECEIVER_POS_TYPE_ID == typeId1 && streamId == counterStreamId)
                 {
                     assertEquals(-1, counterId.intValue(), () -> "multiple rcv-pos found for streamId=" + streamId);
                     counterId.set(counterId1);
@@ -269,10 +275,8 @@ class StreamStatTest
 
     private static void assertStreamPosition(
         final StreamStat.StreamPosition position,
-        final int expectedTypeId,
         final long expectedValue)
     {
-        assertEquals(expectedTypeId, position.typeId());
         assertEquals(expectedValue, position.value());
     }
 

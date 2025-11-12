@@ -133,28 +133,4 @@ public class StreamCounter
 
         return counterId;
     }
-
-    /**
-     * Return the label name for a counter type identifier.
-     *
-     * @param typeId of the counter.
-     * @return the label name as a String.
-     */
-    public static String labelName(final int typeId)
-    {
-        return switch (typeId)
-        {
-            case PublisherLimit.PUBLISHER_LIMIT_TYPE_ID -> PublisherLimit.NAME;
-            case SenderPos.SENDER_POSITION_TYPE_ID -> SenderPos.NAME;
-            case ReceiverHwm.RECEIVER_HWM_TYPE_ID -> ReceiverHwm.NAME;
-            case SubscriberPos.SUBSCRIBER_POSITION_TYPE_ID -> SubscriberPos.NAME;
-            case ReceiverPos.RECEIVER_POS_TYPE_ID -> ReceiverPos.NAME;
-            case SenderLimit.SENDER_LIMIT_TYPE_ID -> SenderLimit.NAME;
-            case PublisherPos.PUBLISHER_POS_TYPE_ID -> PublisherPos.NAME;
-            case SenderBpe.SENDER_BPE_TYPE_ID -> SenderBpe.NAME;
-            case SenderNaksReceived.TYPE_ID -> SenderNaksReceived.NAME;
-            case ReceiverNaksSent.TYPE_ID -> ReceiverNaksSent.NAME;
-            default -> "<unknown>";
-        };
-    }
 }
