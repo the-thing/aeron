@@ -21,8 +21,16 @@ import io.aeron.driver.ext.DebugChannelEndpointConfiguration;
 import io.aeron.driver.ext.DebugSendChannelEndpoint;
 import io.aeron.driver.ext.LossGenerator;
 import io.aeron.exceptions.RegistrationException;
-import io.aeron.logbuffer.*;
-import io.aeron.test.*;
+import io.aeron.logbuffer.BufferClaim;
+import io.aeron.logbuffer.ControlledFragmentHandler;
+import io.aeron.logbuffer.FragmentHandler;
+import io.aeron.logbuffer.Header;
+import io.aeron.logbuffer.RawBlockHandler;
+import io.aeron.test.InterruptAfter;
+import io.aeron.test.InterruptingTestCallback;
+import io.aeron.test.SlowTest;
+import io.aeron.test.SystemTestWatcher;
+import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
@@ -54,19 +62,52 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+import static io.aeron.AeronCounters.DRIVER_PUBLISHER_LIMIT_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_PUBLISHER_POS_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_RECEIVER_NAKS_SENT_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_RECEIVER_POS_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_SENDER_BPE_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_SENDER_LIMIT_TYPE_ID;
+import static io.aeron.AeronCounters.DRIVER_SENDER_NAKS_RECEIVED_TYPE_ID;
 import static io.aeron.SystemTests.verifyLossOccurredForStream;
-import static io.aeron.logbuffer.FrameDescriptor.*;
+import static io.aeron.logbuffer.FrameDescriptor.BEGIN_FRAG_FLAG;
+import static io.aeron.logbuffer.FrameDescriptor.END_FRAG_FLAG;
+import static io.aeron.logbuffer.FrameDescriptor.FRAME_ALIGNMENT;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_PUBLICATION_IMAGE;
 import static io.aeron.logbuffer.LogBufferDescriptor.computeFragmentedFrameLength;
-import static io.aeron.protocol.DataHeaderFlyweight.*;
+import static io.aeron.logbuffer.LogBufferDescriptor.type;
+import static io.aeron.protocol.DataHeaderFlyweight.BEGIN_AND_END_FLAGS;
+import static io.aeron.protocol.DataHeaderFlyweight.BEGIN_END_AND_EOS_FLAGS;
+import static io.aeron.protocol.DataHeaderFlyweight.CURRENT_VERSION;
+import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_DATA;
+import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_RSP_SETUP;
+import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_SM;
+import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
+import static io.aeron.protocol.DataHeaderFlyweight.VERSION_FIELD_OFFSET;
 import static java.util.Arrays.asList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.agrona.BitUtil.SIZE_OF_INT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.lessThan;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(InterruptingTestCallback.class)
 class PubAndSubTest
@@ -1315,19 +1356,64 @@ class PubAndSubTest
         verifyStreamCounters(countersReader, publication.registrationId(), publishingClient.clientId());
     }
 
+    @ParameterizedTest
+    @MethodSource("channels")
+    @InterruptAfter(10)
+    void shouldReflectPublicationTypeInTheCountersAndLogMetadata(final String channel)
+    {
+        launch(channel);
+
+        final ExclusivePublication exclusivePublication =
+            publishingClient.addExclusivePublication(channel, STREAM_ID + 1);
+        Tests.awaitConnected(publication);
+        Tests.awaitConnected(subscription);
+
+        final CountersReader countersReader = subscribingClient.countersReader();
+        final int concurrentPubPosCounterId = countersReader.findByTypeIdAndRegistrationId(
+            DRIVER_PUBLISHER_POS_TYPE_ID, publication.registrationId());
+        assertThat(
+            countersReader.getCounterLabel(concurrentPubPosCounterId),
+            startsWith("pub-pos (concurrent): "));
+        final int exclusivePubPosCounterId = countersReader.findByTypeIdAndRegistrationId(
+            DRIVER_PUBLISHER_POS_TYPE_ID, exclusivePublication.registrationId());
+        assertThat(
+            countersReader.getCounterLabel(exclusivePubPosCounterId),
+            startsWith("pub-pos (exclusive): "));
+
+        verifyLogBufferType(publication.registrationId(), "publications", LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION);
+        verifyLogBufferType(
+            exclusivePublication.registrationId(), "publications", LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION);
+
+        if (ChannelUri.parse(channel).isUdp())
+        {
+            final Image image = subscription.imageBySessionId(publication.sessionId());
+            verifyLogBufferType(image.correlationId(), "images", LOG_BUFFER_TYPE_PUBLICATION_IMAGE);
+        }
+    }
+
+    private void verifyLogBufferType(final long registrationId, final String dir, final byte expectedType)
+    {
+        try (LogBuffers logBuffers =
+            new LogBuffers(driver.aeronDirectoryName() + "/" + dir + "/" + registrationId + ".logbuffer"))
+        {
+            final UnsafeBuffer metaDataBuffer = logBuffers.metaDataBuffer();
+            assertEquals(expectedType, type(metaDataBuffer));
+        }
+    }
+
     private static void verifyStreamCounters(
         final CountersReader countersReader, final long registrationId, final long clientId)
     {
         countersReader.forEach(
             (int counterId, int typeId, DirectBuffer keyBuffer, String label) ->
             {
-                if ((typeId >= AeronCounters.DRIVER_PUBLISHER_LIMIT_TYPE_ID &&
-                    typeId <= AeronCounters.DRIVER_RECEIVER_POS_TYPE_ID ||
-                    (AeronCounters.DRIVER_SENDER_LIMIT_TYPE_ID == typeId ||
-                        AeronCounters.DRIVER_PUBLISHER_POS_TYPE_ID == typeId ||
-                        AeronCounters.DRIVER_SENDER_BPE_TYPE_ID == typeId ||
-                        AeronCounters.DRIVER_SENDER_NAKS_RECEIVED_TYPE_ID == typeId ||
-                        AeronCounters.DRIVER_RECEIVER_NAKS_SENT_TYPE_ID == typeId)) &&
+                if ((typeId >= DRIVER_PUBLISHER_LIMIT_TYPE_ID &&
+                    typeId <= DRIVER_RECEIVER_POS_TYPE_ID ||
+                    (DRIVER_SENDER_LIMIT_TYPE_ID == typeId ||
+                        DRIVER_PUBLISHER_POS_TYPE_ID == typeId ||
+                        DRIVER_SENDER_BPE_TYPE_ID == typeId ||
+                        DRIVER_SENDER_NAKS_RECEIVED_TYPE_ID == typeId ||
+                        DRIVER_RECEIVER_NAKS_SENT_TYPE_ID == typeId)) &&
                     countersReader.getCounterRegistrationId(counterId) == registrationId)
                 {
                     assertEquals(clientId, countersReader.getCounterOwnerId(counterId), label);

@@ -119,6 +119,9 @@ import static io.aeron.driver.status.SystemCounterDescriptor.INVALID_PACKETS;
 import static io.aeron.driver.status.SystemCounterDescriptor.RESOLUTION_CHANGES;
 import static io.aeron.driver.status.SystemCounterDescriptor.RETRANSMIT_OVERFLOW;
 import static io.aeron.driver.status.SystemCounterDescriptor.UNBLOCKED_COMMANDS;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION;
+import static io.aeron.logbuffer.LogBufferDescriptor.LOG_BUFFER_TYPE_PUBLICATION_IMAGE;
 import static io.aeron.logbuffer.LogBufferDescriptor.PARTITION_COUNT;
 import static io.aeron.logbuffer.LogBufferDescriptor.TERM_MIN_LENGTH;
 import static io.aeron.logbuffer.LogBufferDescriptor.activeTermCount;
@@ -157,6 +160,7 @@ import static io.aeron.logbuffer.LogBufferDescriptor.spiesSimulateConnection;
 import static io.aeron.logbuffer.LogBufferDescriptor.storeDefaultFrameHeader;
 import static io.aeron.logbuffer.LogBufferDescriptor.termLength;
 import static io.aeron.logbuffer.LogBufferDescriptor.tether;
+import static io.aeron.logbuffer.LogBufferDescriptor.type;
 import static io.aeron.logbuffer.LogBufferDescriptor.untetheredLingerTimeoutNs;
 import static io.aeron.logbuffer.LogBufferDescriptor.untetheredRestingTimeoutNs;
 import static io.aeron.logbuffer.LogBufferDescriptor.untetheredWindowLimitTimeoutNs;
@@ -1887,8 +1891,16 @@ public final class DriverConductor implements Agent
 
         final int termOffset = params.termOffset;
 
-        final RawLog rawLog = newNetworkPublicationLog(params.sessionId, streamId, params.initialTermId, registrationId,
-            channelEndpoint.socketRcvbufLength(), channelEndpoint.socketSndbufLength(), termOffset, params,
+        final RawLog rawLog = newNetworkPublicationLog(
+            isExclusive,
+            params.sessionId,
+            streamId,
+            params.initialTermId,
+            registrationId,
+            channelEndpoint.socketRcvbufLength(),
+            channelEndpoint.socketSndbufLength(),
+            termOffset,
+            params,
             udpChannel.hasGroupSemantics());
         UnsafeBufferPosition publisherPos = null;
         UnsafeBufferPosition publisherLmt = null;
@@ -1899,7 +1911,14 @@ public final class DriverConductor implements Agent
         try
         {
             publisherPos = PublisherPos.allocate(
-                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
+                tempBuffer,
+                countersManager,
+                clientId,
+                registrationId,
+                params.sessionId,
+                streamId,
+                channel,
+                isExclusive);
             publisherLmt = PublisherLimit.allocate(
                 tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
             senderPos = SenderPos.allocate(
@@ -1969,6 +1988,7 @@ public final class DriverConductor implements Agent
     }
 
     private RawLog newNetworkPublicationLog(
+        final boolean isExclusive,
         final int sessionId,
         final int streamId,
         final int initialTermId,
@@ -1985,6 +2005,7 @@ public final class DriverConductor implements Agent
         final boolean rejoin = false;
         final boolean reliable = false;
         initLogMetadata(
+            isExclusive ? LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION : LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION,
             sessionId,
             streamId,
             initialTermId,
@@ -2017,6 +2038,7 @@ public final class DriverConductor implements Agent
     }
 
     private RawLog newIpcPublicationLog(
+        final boolean isExclusive,
         final int sessionId,
         final int streamId,
         final int initialTermId,
@@ -2034,6 +2056,7 @@ public final class DriverConductor implements Agent
         final boolean reliable = false;
         final boolean group = false;
         initLogMetadata(
+            isExclusive ? LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION : LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION,
             sessionId,
             streamId,
             initialTermId,
@@ -2066,6 +2089,7 @@ public final class DriverConductor implements Agent
     }
 
     private void initLogMetadata(
+        final byte type,
         final int sessionId,
         final int streamId,
         final int initialTermId,
@@ -2127,6 +2151,7 @@ public final class DriverConductor implements Agent
         isPublicationRevoked(logMetaData, false);
         group(logMetaData, group);
         isResponse(logMetaData, isResponse);
+        type(logMetaData, type);
 
         entityTag(logMetaData, entityTag);
         responseCorrelationId(logMetaData, responseCorrelationId);
@@ -2195,6 +2220,7 @@ public final class DriverConductor implements Agent
         final long entityTag = 0;
         final long responseCorrelationId = 0;
         initLogMetadata(
+            LOG_BUFFER_TYPE_PUBLICATION_IMAGE,
             sessionId,
             streamId,
             initialTermId,
@@ -2613,15 +2639,22 @@ public final class DriverConductor implements Agent
     {
         final int termOffset = params.termOffset;
 
-        final RawLog rawLog =
-            newIpcPublicationLog(params.sessionId, streamId, params.initialTermId, registrationId, termOffset, params);
+        final RawLog rawLog = newIpcPublicationLog(
+            isExclusive, params.sessionId, streamId, params.initialTermId, registrationId, termOffset, params);
 
         UnsafeBufferPosition publisherPosition = null;
         UnsafeBufferPosition publisherLimit = null;
         try
         {
             publisherPosition = PublisherPos.allocate(
-                tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
+                tempBuffer,
+                countersManager,
+                clientId,
+                registrationId,
+                params.sessionId,
+                streamId,
+                channel,
+                isExclusive);
             publisherLimit = PublisherLimit.allocate(
                 tempBuffer, countersManager, clientId, registrationId, params.sessionId, streamId, channel);
 

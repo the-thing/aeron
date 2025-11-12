@@ -72,6 +72,20 @@ public class LogBufferDescriptor
      */
     public static final int PAGE_MAX_SIZE = 1024 * 1024 * 1024;
 
+    /**
+     * Value for the {@code type} field to indicate a concurrent publication.
+     */
+    public static final byte LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION = 0;
+
+    /**
+     * Value for the {@code type} field to indicate an exclusive publication.
+     */
+    public static final byte LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION = 1;
+
+    /**
+     * Value for the {@code type} field to indicate a subscription.
+     */
+    public static final byte LOG_BUFFER_TYPE_PUBLICATION_IMAGE = 2;
 
     // *******************************
     // *** Log Meta Data Constants ***
@@ -156,6 +170,15 @@ public class LogBufferDescriptor
      * Offset within the log metadata where the 'publication revoked' status is indicated.
      */
     public static final int LOG_IS_PUBLICATION_REVOKED_OFFSET;
+
+    /**
+     * Offset within the log metadata where the type of the log buffer is stored.
+     *
+     * @see #LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION
+     * @see #LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION
+     * @see #LOG_BUFFER_TYPE_PUBLICATION_IMAGE
+     */
+    public static final int LOG_TYPE_OFFSET;
 
     /**
      * Offset within the log metadata where the rejoin property is stored.
@@ -410,6 +433,7 @@ public class LogBufferDescriptor
         LOG_SPIES_SIMULATE_CONNECTION_OFFSET = LOG_SIGNAL_EOS_OFFSET + SIZE_OF_BYTE;
         LOG_TETHER_OFFSET = LOG_SPIES_SIMULATE_CONNECTION_OFFSET + SIZE_OF_BYTE;
         LOG_IS_PUBLICATION_REVOKED_OFFSET = LOG_TETHER_OFFSET + SIZE_OF_BYTE;
+        LOG_TYPE_OFFSET = LOG_IS_PUBLICATION_REVOKED_OFFSET + SIZE_OF_BYTE;
         LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET = LOG_IS_PUBLICATION_REVOKED_OFFSET + SIZE_OF_INT;
 
         LOG_META_DATA_LENGTH = PAGE_MIN_SIZE;
@@ -1138,6 +1162,31 @@ public class LogBufferDescriptor
     public static void isPublicationRevoked(final UnsafeBuffer metadataBuffer, final boolean value)
     {
         metadataBuffer.putByte(LOG_IS_PUBLICATION_REVOKED_OFFSET, (byte)(value ? 1 : 0));
+    }
+
+    /**
+     * Get type information from this log buffer.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @return one of the {@link #LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION},
+     * {@link #LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION} or {@link #LOG_BUFFER_TYPE_PUBLICATION_IMAGE}
+     */
+    public static byte type(final UnsafeBuffer metadataBuffer)
+    {
+        return metadataBuffer.getByte(LOG_TYPE_OFFSET);
+    }
+
+    /**
+     * Set {@code type} information for this log buffer.
+     *
+     * @param metadataBuffer containing the meta data.
+     * @param value          one of the {@link #LOG_BUFFER_TYPE_CONCURRENT_PUBLICATION},
+     *                       {@link #LOG_BUFFER_TYPE_EXCLUSIVE_PUBLICATION} or
+     *                       {@link #LOG_BUFFER_TYPE_PUBLICATION_IMAGE}.
+     */
+    public static void type(final UnsafeBuffer metadataBuffer, final byte value)
+    {
+        metadataBuffer.putByte(LOG_TYPE_OFFSET, value);
     }
 
     /**

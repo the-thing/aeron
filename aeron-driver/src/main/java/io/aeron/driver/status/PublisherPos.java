@@ -36,10 +36,8 @@ public class PublisherPos
      */
     public static final int PUBLISHER_POS_TYPE_ID = AeronCounters.DRIVER_PUBLISHER_POS_TYPE_ID;
 
-    /**
-     * Human-readable name for the counter.
-     */
-    public static final String NAME = "pub-pos (sampled)";
+    private static final String NAME_CONCURRENT = "pub-pos (concurrent)";
+    private static final String NAME_EXCLUSIVE = "pub-pos (exclusive)";
 
     /**
      * Allocate a new publication position counter for a stream.
@@ -51,6 +49,7 @@ public class PublisherPos
      * @param sessionId       associated with the counter.
      * @param streamId        associated with the counter.
      * @param channel         associated with the counter.
+     * @param isExclusive     {code true} if exclusive publication.
      * @return the allocated counter.
      */
     public static UnsafeBufferPosition allocate(
@@ -60,11 +59,12 @@ public class PublisherPos
         final long registrationId,
         final int sessionId,
         final int streamId,
-        final String channel)
+        final String channel,
+        final boolean isExclusive)
     {
         final int counterId = StreamCounter.allocateCounterId(
             tempBuffer,
-            NAME,
+            isExclusive ? NAME_EXCLUSIVE : NAME_CONCURRENT,
             PUBLISHER_POS_TYPE_ID,
             countersManager,
             clientId,
