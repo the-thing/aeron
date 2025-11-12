@@ -295,7 +295,8 @@ int aeron_publication_image_create(
         (uint8_t)params.is_sparse,
         (uint8_t)false,
         (uint8_t)false,
-        (uint8_t)params.is_tether);
+        (uint8_t)params.is_tether,
+        (uint8_t)false);
 
     _image->endpoint = endpoint;
     _image->conductor_fields.endpoint = endpoint;

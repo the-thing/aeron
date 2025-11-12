@@ -207,12 +207,13 @@ protected:
         aeron_position_t pos_position;
         aeron_atomic_counter_t rcv_naks_sent;
 
+        bool is_exclusive = false;
         int64_t client_id = 9999999;
         pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");
+            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo", is_exclusive);
         pos_position.value_addr = aeron_counters_manager_addr(&m_counters_manager, pos_position.counter_id);
         hwm_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");
+            &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo", is_exclusive);
         hwm_position.value_addr = aeron_counters_manager_addr(&m_counters_manager, hwm_position.counter_id);
         rcv_naks_sent.counter_id = aeron_counter_receiver_naks_sent_allocate(
             &m_counters_manager, client_id, 0, session_id, stream_id, strlen("foo"), "foo");

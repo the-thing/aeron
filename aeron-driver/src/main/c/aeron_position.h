@@ -139,7 +139,8 @@ int32_t aeron_counter_publisher_position_allocate(
     int32_t session_id,
     int32_t stream_id,
     size_t channel_length,
-    const char *channel);
+    const char *channel,
+    bool is_exclusive);
 
 int32_t aeron_counter_sender_bpe_allocate(
     aeron_counters_manager_t *counters_manager,

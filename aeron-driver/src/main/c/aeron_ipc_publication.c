@@ -174,7 +174,8 @@ int aeron_ipc_publication_create(
         (uint8_t)params->is_sparse,
         (uint8_t)params->signal_eos,
         (uint8_t)params->spies_simulate_connection,
-        (uint8_t)false);
+        (uint8_t)false,
+        (uint8_t)is_exclusive);
 
     _pub->conductor_fields.subscribable.correlation_id = registration_id;
     _pub->conductor_fields.subscribable.array = NULL;

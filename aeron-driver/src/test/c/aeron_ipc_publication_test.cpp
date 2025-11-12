@@ -83,9 +83,17 @@ protected:
         aeron_position_t pub_lmt_position;
 
         int64_t client_id = 42;
+        bool is_exclusive = false;
 
         pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager,
+            client_id,
+            registration_id,
+            session_id,
+            stream_id,
+            uri_length,
+            uri,
+            is_exclusive);
         pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
             &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
 
@@ -112,7 +120,7 @@ protected:
             &pub_lmt_position,
             0,
             &params,
-            false,
+            is_exclusive,
             &m_system_counters,
             uri_length,
             uri) < 0)

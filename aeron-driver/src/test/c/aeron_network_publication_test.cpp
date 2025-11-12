@@ -146,7 +146,14 @@ protected:
         aeron_atomic_counter_t snd_naks_received_counter;
 
         pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-            &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
+            &m_counters_manager,
+            client_id,
+            registration_id,
+            session_id,
+            stream_id,
+            uri_length,
+            uri,
+            is_exclusive);
         pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
             &m_counters_manager, client_id, registration_id, session_id, stream_id, uri_length, uri);
         snd_pos_position.counter_id = aeron_counter_sender_position_allocate(

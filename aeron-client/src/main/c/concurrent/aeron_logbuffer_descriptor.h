@@ -77,7 +77,8 @@ typedef struct aeron_logbuffer_metadata_stct
     uint8_t spies_simulate_connection;
     uint8_t tether;
     uint8_t is_publication_revoked;
-    uint8_t pad3[3 * sizeof(uint8_t)];
+    uint8_t is_exclusive_publication;
+    uint8_t pad3[2 * sizeof(uint8_t)];
     int64_t untethered_linger_timeout_ns;
 }
 aeron_logbuffer_metadata_t;
@@ -267,7 +268,8 @@ inline void aeron_logbuffer_metadata_init(
     uint8_t sparse,
     uint8_t signal_eos,
     uint8_t spies_simulate_connection,
-    uint8_t tether)
+    uint8_t tether,
+    uint8_t is_exclusive_publication)
 {
     aeron_logbuffer_metadata_t *log_meta_data = (aeron_logbuffer_metadata_t *)log_meta_data_buffer;
 
@@ -308,6 +310,7 @@ inline void aeron_logbuffer_metadata_init(
     log_meta_data->spies_simulate_connection = spies_simulate_connection;
     log_meta_data->tether = tether;
     log_meta_data->is_publication_revoked = (uint8_t)false;
+    log_meta_data->is_exclusive_publication = is_exclusive_publication;
 }
 
 inline void aeron_logbuffer_apply_default_header(uint8_t *log_meta_data_buffer, uint8_t *buffer)

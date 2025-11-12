@@ -171,6 +171,10 @@ _Static_assert(
     "offsetof(aeron_logbuffer_metadata_t, is_publication_revoked) is wrong");
 
 _Static_assert(
+    offsetof(aeron_logbuffer_metadata_t, is_exclusive_publication) == 497,
+    "offsetof(aeron_logbuffer_metadata_t, is_exclusive_publication) is wrong");
+
+_Static_assert(
     offsetof(aeron_logbuffer_metadata_t, untethered_linger_timeout_ns) == 500,
     "offsetof(aeron_logbuffer_metadata_t, is_publication_revoked) is wrong");
 
@@ -308,6 +312,7 @@ extern void aeron_logbuffer_metadata_init(
     uint8_t sparse,
     uint8_t signal_eos,
     uint8_t spies_simulate_connection,
-    uint8_t tether);
+    uint8_t tether,
+    uint8_t is_exclusive_publication);
 extern void aeron_logbuffer_apply_default_header(uint8_t *log_meta_data_buffer, uint8_t *buffer);
 extern size_t aeron_logbuffer_compute_fragmented_length(size_t length, size_t max_payload_length);

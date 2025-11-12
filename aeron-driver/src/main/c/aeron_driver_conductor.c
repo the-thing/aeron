@@ -2034,7 +2034,14 @@ aeron_ipc_publication_t *aeron_driver_conductor_get_or_add_ipc_publication(
                 aeron_position_t pub_lmt_position;
 
                 pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager,
+                    client->client_id,
+                    registration_id,
+                    session_id,
+                    stream_id,
+                    uri_length,
+                    uri,
+                    is_exclusive);
                 pub_pos_position.value_addr = aeron_counters_manager_addr(
                     &conductor->counters_manager, pub_pos_position.counter_id);
                 pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
@@ -2306,7 +2313,14 @@ aeron_network_publication_t *aeron_driver_conductor_get_or_add_network_publicati
                 aeron_atomic_counter_t snd_naks_received_counter;
 
                 pub_pos_position.counter_id = aeron_counter_publisher_position_allocate(
-                    &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
+                    &conductor->counters_manager,
+                    client->client_id,
+                    registration_id,
+                    session_id,
+                    stream_id,
+                    uri_length,
+                    uri,
+                    is_exclusive);
                 pub_lmt_position.counter_id = aeron_counter_publisher_limit_allocate(
                     &conductor->counters_manager, client->client_id, registration_id, session_id, stream_id, uri_length, uri);
                 snd_pos_position.counter_id = aeron_counter_sender_position_allocate(

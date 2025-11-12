@@ -344,11 +344,12 @@ int32_t aeron_counter_publisher_position_allocate(
     int32_t session_id,
     int32_t stream_id,
     size_t channel_length,
-    const char *channel)
+    const char *channel,
+    bool is_exclusive)
 {
     return aeron_stream_counter_allocate(
         counters_manager,
-        AERON_COUNTER_PUBLISHER_POSITION_NAME,
+        is_exclusive ? AERON_COUNTER_PUBLISHER_POSITION_NAME_EXCLUSIVE : AERON_COUNTER_PUBLISHER_POSITION_NAME_CONCURRENT,
         AERON_COUNTER_PUBLISHER_POSITION_TYPE_ID,
         client_id,
         registration_id,
