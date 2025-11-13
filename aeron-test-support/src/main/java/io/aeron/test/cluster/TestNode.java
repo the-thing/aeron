@@ -78,9 +78,11 @@ import java.util.zip.CRC32;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
+import static io.aeron.archive.status.RecordingPos.NULL_RECORDING_ID;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.agrona.BitUtil.SIZE_OF_INT;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
+import static org.agrona.concurrent.status.CountersReader.NULL_COUNTER_ID;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -98,6 +100,8 @@ public final class TestNode implements AutoCloseable
     private final TestMediaDriver mediaDriver;
     private final ConsensusModuleExtension extension;
     private boolean isClosed = false;
+    private long logRecordingId = NULL_RECORDING_ID;
+    private int logRecordingCounterId = NULL_COUNTER_ID;
 
     TestNode(final Context context, final DataCollector dataCollector)
     {
@@ -316,6 +320,11 @@ public final class TestNode implements AutoCloseable
         return ElectionState.get(consensusModule.context().electionStateCounter());
     }
 
+    public long electionCount()
+    {
+        return consensusModule.context().electionCounter().get();
+    }
+
     public ConsensusModule.State moduleState()
     {
         return ConsensusModule.State.get(consensusModule.context().moduleStateCounter());
@@ -334,26 +343,33 @@ public final class TestNode implements AutoCloseable
 
     public long appendPosition()
     {
-        return countersReader().getCounterValue(logRecordingCounterId());
+        final int counterId = logRecordingCounterId();
+        if (NULL_VALUE == counterId)
+        {
+            ArchiveTool.describeRecording(System.out, archive().context().archiveDir(), logRecordingId);
+            fail("recording not active " + logRecordingId);
+        }
+        return countersReader().getCounterValue(counterId);
     }
 
     public int logRecordingCounterId()
     {
-        final long recordingId = consensusModule().context().recordingLog().findLastTermRecordingId();
-        if (RecordingPos.NULL_RECORDING_ID == recordingId)
+        if (NULL_RECORDING_ID == logRecordingId)
         {
-            fail("no recording for last term");
+            final long recordingId = consensusModule().context().recordingLog().findLastTermRecordingId();
+            if (NULL_RECORDING_ID == recordingId)
+            {
+                fail("no recording for last term");
+            }
+            logRecordingId = recordingId;
         }
 
-        final CountersReader countersReader = countersReader();
-        final int counterId =
-            RecordingPos.findCounterIdByRecording(countersReader, recordingId, archive.context().archiveId());
-        if (NULL_VALUE == counterId)
+        if (NULL_COUNTER_ID == logRecordingCounterId)
         {
-            ArchiveTool.describeRecording(System.out, archive().context().archiveDir(), recordingId);
-            fail("recording not active " + recordingId);
+            logRecordingCounterId =
+                RecordingPos.findCounterIdByRecording(countersReader(), logRecordingId, archive.context().archiveId());
         }
-        return counterId;
+        return logRecordingCounterId;
     }
 
     boolean isLeader()
