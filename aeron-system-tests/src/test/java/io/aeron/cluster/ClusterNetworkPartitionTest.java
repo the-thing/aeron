@@ -287,7 +287,7 @@ class ClusterNetworkPartitionTest
         // this will only work if old leader didn't receive unexpected votes or anything
         recoveringNode.awaitElectionState(ElectionState.FOLLOWER_CATCHUP);
         while ((CountersReader.NULL_COUNTER_ID == recoveringNode.logRecordingCounterId()) ||
-            recoveringNode.appendPosition() <= commitPosition)
+            recoveringNode.appendPosition() <= uncommittedAppendPosition)
         {
             Tests.yield();
         }
