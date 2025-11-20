@@ -294,24 +294,12 @@ class ClusterNetworkPartitionTest
 
         // FIXME: Prevent recovering follower from finishing the election
 
-        // await the majority to go into an election...
-        boolean inElection = false;
-        do
-        {
-            for (final TestNode node : majority)
-            {
-                if (node.electionCount() > 1)
-                {
-                    inElection = true;
-                    break;
-                }
-            }
-        }
-        while (!inElection);
+        final TestNode majorityLeader = cluster.awaitLeaderWithoutElectionTerminationCheck(originalLeader.memberId());
 
         IpTables.flushChain(CHAIN_NAME); // remove network partition
 
-        final TestNode majorityLeader = cluster.awaitLeader();
+        final TestNode actualNewLeader = cluster.awaitLeader();
+        assertEquals(majorityLeader.memberId(), actualNewLeader.memberId());
         final long newCommitPosition = majorityLeader.commitPosition();
         assertThat(newCommitPosition, lessThan(uncommittedAppendPosition));
 
