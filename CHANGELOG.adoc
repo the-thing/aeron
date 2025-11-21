@@ -212,6 +212,15 @@ bound to reduce the chance of the returning publication not being connected and 
 * **[C]** Upgrade to `CMake` 4.1.2.
 * **[C]** Upgrade to `HDR Histogram` 0.11.9.
 
+== 1.48.10 (2025-11-21)
+
+* **[C]** Add `aeron_is_frame_valid` method.
+* **[C/Java]** Add all missing counter type constants for the premium components.
+* **[C]** Do not truncate frames longer than 1408 bytes when logging, i.e. allow up to `AERON_MAX_UDP_PAYLOAD_LENGTH`
+(`65504`) bytes instead.
+* **[C]** Ensure that fallback `receiverId` cannot be zero.
+* **[C]** Link `aeron-client` against `libbsd`.
+
 == 1.48.9 (2025-11-11)
 
 * **[Java]** Upgrade to `Shadow` 9.2.2 to fix duplicate classes issue in the uber-jar (i.e. `aeron-agent.jar` and
