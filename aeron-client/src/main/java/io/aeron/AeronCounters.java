@@ -1057,6 +1057,30 @@ public final class AeronCounters
     @AeronCounter
     public static final int CLUSTER_SESSION_TYPE_ID = 241;
 
+    /**
+     * SELECTOR_CLIENTS_COUNTER_TYPE_ID.
+     */
+    @AeronCounter
+    public static final int SELECTOR_CLIENTS_COUNTER_TYPE_ID = 300;
+
+    /**
+     * SELECTOR_SUBSCRIPTIONS_COUNTER_TYPE_ID.
+     */
+    @AeronCounter
+    public static final int SELECTOR_SUBSCRIPTIONS_COUNTER_TYPE_ID = 301;
+
+    /**
+     * SELECTOR_MAX_CYCLE_TIME_TYPE_ID.
+     */
+    @AeronCounter
+    public static final int SELECTOR_MAX_CYCLE_TIME_TYPE_ID = 302;
+
+    /**
+     * SELECTOR_MAX_CYCLE_TIME_TYPE_ID.
+     */
+    @AeronCounter
+    public static final int SELECTOR_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID = 303;
+
     // ===================
     // Sequencer Counters.
     // ===================
