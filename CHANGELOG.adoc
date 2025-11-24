@@ -1,7 +1,17 @@
 = Aeron Releases
 
-== 1.49.2 (???-??-??)
+== 1.49.2 (2025-11-24)
 
+* **[C]** Do not resolve `endpoint` with ephemeral port for MDS subscription. Copy original channel as-is if no
+resolution is performed.
+* **[Java]** Fix `Subscription#tryResolveChannelEndpointPort` when no addresses exist, i.e. return `null` if active
+address is not yet available. Avoid doing any work if `endpoint` is not defined (IPC, MDS, response channel) or does not
+contain a port zero.
+* **[C]** Add `aeron_is_frame_valid` method.
+* **[C/Java]** Add all missing counter type constants for the premium components.
+* **[C]** Do not truncate frames longer than 1408 bytes when logging, i.e. allow up to `AERON_MAX_UDP_PAYLOAD_LENGTH`
+(`65504`) bytes instead.
+* **[C]** Ensure that fallback `receiverId` cannot be zero.
 * **[Java]** Improve mark file APIs: use high-level operations to signal ready/terminated, reset activity timestamp
 upon failure, update tests to reflect activity timestamp changes during startup sequence.
 * **[Java/C]** Fix formatting of large values and counter ids in `AeronStat`.
@@ -18,6 +28,7 @@ upon failure, update tests to reflect activity timestamp changes during startup 
 * **[Java]** Upgrade to `ASM` 9.9.
 * **[Java]** Upgrade to `JUnit` 6.0.1.
 * **[Java]** Upgrade to `Checkstyle` 12.1.1.
+* **[C]** Upgrade to `CMake` 4.1.3.
 
 == 1.49.1 (2025-11-01)
 
