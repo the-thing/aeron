@@ -210,6 +210,8 @@ class SubscriptionTest
         assertEquals(
             ChannelUri.parse("aeron:udp?endpoint=localhost:19091|interface=192.168.5.0/24|reliable=false"),
             ChannelUri.parse(channelWithResolvedEndpoint));
+
+        assertSame(channelWithResolvedEndpoint, subscription.tryResolveChannelEndpointPort());
     }
 
     @Test
@@ -251,7 +253,10 @@ class SubscriptionTest
         subscription.channelStatusId(channelStatusId);
         when(conductor.channelStatus(channelStatusId)).thenReturn(ERRORED);
 
-        assertEquals(channel, subscription.tryResolveChannelEndpointPort());
+        assertSame(channel, subscription.tryResolveChannelEndpointPort());
+
+        // subsequent calls return the same result
+        assertSame(channel, subscription.tryResolveChannelEndpointPort());
     }
 
     @ValueSource(longs = { INITIALIZING, ERRORED, CLOSING })
@@ -314,7 +319,10 @@ class SubscriptionTest
         allocateAddressCounter("127.0.0.1:19091", channelStatusId, CLOSING);
         allocateAddressCounter("localhost:12122", channelStatusId, ACTIVE);
 
-        assertEquals("127.0.0.1:5555", subscription.resolvedEndpoint());
+        final String resolvedEndpoint = subscription.resolvedEndpoint();
+        assertEquals("127.0.0.1:5555", resolvedEndpoint);
+
+        assertSame(resolvedEndpoint, subscription.resolvedEndpoint());
     }
 
     @Test

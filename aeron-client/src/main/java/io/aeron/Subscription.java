@@ -52,6 +52,7 @@ abstract class SubscriptionFields extends SubscriptionLhsPadding
     final String channel;
     final AvailableImageHandler availableImageHandler;
     final UnavailableImageHandler unavailableImageHandler;
+    ChannelUri channelUri;
     String resolvedChannel;
     String resolvedEndpoint;
     int channelStatusId = ChannelEndpointStatus.NO_ID_ALLOCATED;
@@ -70,19 +71,6 @@ abstract class SubscriptionFields extends SubscriptionLhsPadding
         this.channel = channel;
         this.availableImageHandler = availableImageHandler;
         this.unavailableImageHandler = unavailableImageHandler;
-        try
-        {
-            final ChannelUri uri = ChannelUri.parse(channel);
-            final String endpoint = uri.get(CommonContext.ENDPOINT_PARAM_NAME);
-            if (null == endpoint || !endpoint.endsWith(":0"))
-            {
-                resolvedChannel = channel;
-            }
-        }
-        catch (final RuntimeException ignored)
-        {
-            // allow Subscription to be created with an invalid URI
-        }
     }
 }
 
@@ -549,10 +537,21 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
     {
         if (null == resolvedChannel)
         {
+            if (null == channelUri)
+            {
+                final ChannelUri uri = ChannelUri.parse(channel);
+                final String endpoint = uri.get(CommonContext.ENDPOINT_PARAM_NAME);
+                if (null == endpoint || !endpoint.endsWith(":0"))
+                {
+                    resolvedChannel = channel;
+                    return channel;
+                }
+                channelUri = uri;
+            }
+
             final String endpoint = resolvedEndpoint();
             if (null != endpoint)
             {
-                final ChannelUri channelUri = ChannelUri.parse(channel);
                 channelUri.replaceEndpointWildcardPort(endpoint);
                 resolvedChannel = channelUri.toString();
             }
