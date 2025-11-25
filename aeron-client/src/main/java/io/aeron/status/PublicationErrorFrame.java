@@ -172,7 +172,7 @@ public class PublicationErrorFrame implements Cloneable
      */
     public String toString()
     {
-        return "CounterMessageFlyweight{" +
+        return "PublicationErrorFrame{" +
             "registrationId=" + registrationId() +
             ", sessionId=" + sessionId() +
             ", streamId=" + streamId() +
