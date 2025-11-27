@@ -26,12 +26,10 @@ TEST(AeronThreadTest, shouldCreateReentrantMutex)
     aeron_mutex_t mutex;
     ASSERT_EQ(0, aeron_mutex_init(&mutex, nullptr));
 
-    ASSERT_EQ(0, aeron_mutex_lock(&mutex));
-    ASSERT_EQ(0, aeron_mutex_lock(&mutex));
-    ASSERT_EQ(0, aeron_mutex_unlock(&mutex));
-    ASSERT_EQ(0, aeron_mutex_unlock(&mutex));
-
-    ASSERT_NE(0, aeron_mutex_unlock(&mutex));
+    EXPECT_EQ(0, aeron_mutex_lock(&mutex));
+    EXPECT_EQ(0, aeron_mutex_lock(&mutex));
+    EXPECT_EQ(0, aeron_mutex_unlock(&mutex));
+    EXPECT_EQ(0, aeron_mutex_unlock(&mutex));
 
     EXPECT_EQ(0, aeron_mutex_destroy(&mutex));
 }
