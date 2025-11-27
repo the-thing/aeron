@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include "aeron_alloc.h"
 #include "concurrent/aeron_thread.h"
+
+#include <assert.h>
+
 #include "util/aeron_error.h"
 
 #if !defined(_WIN32)
@@ -121,6 +124,26 @@ void aeron_thread_set_name(const char *role_name)
 #endif
 }
 
+int aeron_mutex_init(aeron_mutex_t *mutex, void *attr)
+{
+    assert(NULL == attr && "user-defined mutex attributes are not supported");
+
+    pthread_mutexattr_t mutex_attr;
+    int rc = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+    if (0 != rc)
+    {
+        AERON_SET_ERR(-rc, "%s", "failed to set mutex attributes");
+        return -1;
+    }
+
+    rc = pthread_mutex_init(mutex, &mutex_attr);
+    if (0 != rc)
+    {
+        AERON_SET_ERR(-rc, "%s", "failed to create mutex");
+        return -1;
+    }
+    return 0;
+}
 
 #elif defined(AERON_COMPILER_MSVC)
 
