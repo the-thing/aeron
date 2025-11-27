@@ -129,20 +129,33 @@ int aeron_mutex_init(aeron_mutex_t *mutex, void *attr)
     assert(NULL == attr && "user-defined mutex attributes are not supported");
 
     pthread_mutexattr_t mutex_attr;
-    int rc = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+    int rc = pthread_mutexattr_init(&mutex_attr);
     if (0 != rc)
     {
-        AERON_SET_ERR(rc, "%s", "failed to set mutex attributes");
+        AERON_SET_ERR(rc, "%s", "pthread_mutexattr_init failed");
         return -1;
+    }
+
+    rc = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+    if (0 != rc)
+    {
+        AERON_SET_ERR(rc, "%s", "pthread_mutexattr_settype failed");
+        goto error;
     }
 
     rc = pthread_mutex_init(mutex, &mutex_attr);
     if (0 != rc)
     {
         AERON_SET_ERR(rc, "%s", "failed to create mutex");
-        return -1;
+        goto error;
     }
+
+    pthread_mutexattr_destroy(&mutex_attr);
     return 0;
+
+error:
+    pthread_mutexattr_destroy(&mutex_attr);
+    return -1;
 }
 
 #elif defined(AERON_COMPILER_MSVC)
