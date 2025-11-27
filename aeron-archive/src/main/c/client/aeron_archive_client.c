@@ -36,6 +36,7 @@
 do { \
     if ((_aa)->is_in_callback) \
     { \
+        aeron_mutex_unlock(&aeron_archive->lock); \
         AERON_SET_ERR(-AERON_ERROR_CODE_GENERIC_ERROR, "%s", "reentrant calls not permitted during callbacks"); \
         return (_rc); \
     } \
