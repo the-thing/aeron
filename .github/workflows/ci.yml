@@ -471,7 +471,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
       - name: Build
-        run: cppbuild/cppbuild.ps1 --cxx-hide-deprecation-message
+        run: cppbuild/cppbuild.ps1 --c-warnings-as-errors --cxx-warnings-as-errors --cxx-hide-deprecation-message
       - name: Remove small temp file system (Windows)
         if: always()
         run: |
