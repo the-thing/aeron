@@ -36,7 +36,7 @@
 do { \
     if ((_aa)->is_in_callback) \
     { \
-        AERON_SET_ERR(-AERON_ERROR_CODE_GENERIC_ERROR, "%s", "client cannot be invoked within callback"); \
+        AERON_SET_ERR(-AERON_ERROR_CODE_GENERIC_ERROR, "%s", "reentrant calls not permitted during callbacks"); \
         return (_rc); \
     } \
 } while (0)
@@ -60,11 +60,7 @@ static void aeron_archive_dispatch_recording_signal(aeron_archive_t *aeron_archi
     signal.position = poller->position;
     signal.recording_signal_code = poller->recording_signal_code;
 
-    aeron_archive->is_in_callback = true;
-
     aeron_archive_recording_signal_dispatch_signal(aeron_archive->ctx, &signal);
-
-    aeron_archive->is_in_callback = false;
 }
 
 static int aeron_archive_poll_next_response(
@@ -327,6 +323,8 @@ int aeron_archive_create(
 
 int aeron_archive_close(aeron_archive_t *aeron_archive)
 {
+    aeron_mutex_lock(&aeron_archive->lock);
+
     if (aeron_exclusive_publication_is_connected(aeron_archive->archive_proxy->exclusive_publication))
     {
         aeron_archive_proxy_close_session(aeron_archive->archive_proxy);
@@ -356,6 +354,7 @@ int aeron_archive_close(aeron_archive_t *aeron_archive)
     }
     aeron_archive->ctx = NULL;
 
+    aeron_mutex_unlock(&aeron_archive->lock);
     aeron_mutex_destroy(&aeron_archive->lock);
 
     aeron_free(aeron_archive);
@@ -721,8 +720,8 @@ int aeron_archive_start_recording(
     aeron_archive_source_location_t source_location,
     bool auto_stop)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -756,8 +755,8 @@ int aeron_archive_get_recording_position(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -788,8 +787,8 @@ int aeron_archive_get_start_position(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -820,8 +819,8 @@ int aeron_archive_get_stop_position(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -852,8 +851,8 @@ int aeron_archive_get_max_recorded_position(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -883,8 +882,8 @@ int aeron_archive_stop_recording_subscription(
     aeron_archive_t *aeron_archive,
     int64_t subscription_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -915,8 +914,8 @@ int aeron_archive_try_stop_recording_subscription(
     aeron_archive_t *aeron_archive,
     int64_t subscription_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -948,8 +947,8 @@ int aeron_archive_stop_recording_channel_and_stream(
     const char *channel,
     int32_t stream_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -982,8 +981,8 @@ int aeron_archive_try_stop_recording_channel_and_stream(
     const char *channel,
     int32_t stream_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1016,8 +1015,8 @@ int aeron_archive_try_stop_recording_by_identity(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1110,8 +1109,8 @@ int aeron_archive_find_last_matching_recording(
     int32_t stream_id,
     int32_t session_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1147,8 +1146,8 @@ int aeron_archive_list_recording(
     aeron_archive_recording_descriptor_consumer_func_t recording_descriptor_consumer,
     void *recording_descriptor_consumer_clientd)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1189,8 +1188,8 @@ int aeron_archive_list_recordings(
     aeron_archive_recording_descriptor_consumer_func_t recording_descriptor_consumer,
     void *recording_descriptor_consumer_clientd)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1234,8 +1233,8 @@ int aeron_archive_list_recordings_for_uri(
     aeron_archive_recording_descriptor_consumer_func_t recording_descriptor_consumer,
     void *recording_descriptor_consumer_clientd)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1347,8 +1346,8 @@ int aeron_archive_start_replay(
     int32_t replay_stream_id,
     aeron_archive_replay_params_t *params)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int rc = aeron_archive_start_replay_locked(replay_session_id_p, aeron_archive, recording_id, replay_channel, replay_stream_id, params);
 
@@ -1495,8 +1494,8 @@ int aeron_archive_replay(
     int32_t replay_stream_id,
     aeron_archive_replay_params_t *params)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int rc = aeron_archive_replay_locked(subscription_p, aeron_archive, recording_id, replay_channel, replay_stream_id, params);
 
@@ -1511,8 +1510,8 @@ int aeron_archive_truncate_recording(
     int64_t recording_id,
     int64_t position)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1543,8 +1542,8 @@ int aeron_archive_stop_replay(
     aeron_archive_t *aeron_archive,
     int64_t replay_session_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1574,8 +1573,8 @@ int aeron_archive_stop_all_replays(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1612,8 +1611,8 @@ int aeron_archive_list_recording_subscriptions(
     aeron_archive_recording_subscription_descriptor_consumer_func_t recording_subscription_descriptor_consumer,
     void *recording_subscription_descriptor_consumer_clientd)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1655,8 +1654,8 @@ int aeron_archive_purge_recording(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1691,8 +1690,8 @@ int aeron_archive_extend_recording(
     aeron_archive_source_location_t source_location,
     bool auto_stop)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1730,8 +1729,8 @@ int aeron_archive_replicate(
     int32_t src_control_stream_id,
     aeron_archive_replication_params_t *params)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1764,8 +1763,8 @@ int aeron_archive_stop_replication(
     aeron_archive_t *aeron_archive,
     int64_t replication_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1796,8 +1795,8 @@ int aeron_archive_try_stop_replication(
     aeron_archive_t *aeron_archive,
     int64_t replication_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1829,8 +1828,8 @@ int aeron_archive_detach_segments(
     int64_t recording_id,
     int64_t new_start_position)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1862,8 +1861,8 @@ int aeron_archive_delete_detached_segments(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1895,8 +1894,8 @@ int aeron_archive_purge_segments(
     int64_t recording_id,
     int64_t new_start_position)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1928,8 +1927,8 @@ int aeron_archive_attach_segments(
     aeron_archive_t *aeron_archive,
     int64_t recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1961,8 +1960,8 @@ int aeron_archive_migrate_segments(
     int64_t src_recording_id,
     int64_t dst_recording_id)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
@@ -1991,8 +1990,8 @@ int aeron_archive_migrate_segments(
 
 int aeron_archive_update_channel(aeron_archive_t *aeron_archive, int64_t recording_id, const char *new_channel)
 {
-    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
     aeron_mutex_lock(&aeron_archive->lock);
+    ENSURE_NOT_REENTRANT_CHECK_RETURN(aeron_archive, -1);
 
     int64_t correlation_id = aeron_archive_next_correlation_id(aeron_archive);
     int rc;
