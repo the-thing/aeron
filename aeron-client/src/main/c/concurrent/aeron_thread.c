@@ -132,14 +132,14 @@ int aeron_mutex_init(aeron_mutex_t *mutex, void *attr)
     int rc = pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
     if (0 != rc)
     {
-        AERON_SET_ERR(-rc, "%s", "failed to set mutex attributes");
+        AERON_SET_ERR(rc, "%s", "failed to set mutex attributes");
         return -1;
     }
 
     rc = pthread_mutex_init(mutex, &mutex_attr);
     if (0 != rc)
     {
-        AERON_SET_ERR(-rc, "%s", "failed to create mutex");
+        AERON_SET_ERR(rc, "%s", "failed to create mutex");
         return -1;
     }
     return 0;
