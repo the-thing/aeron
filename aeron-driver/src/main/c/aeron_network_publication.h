@@ -76,7 +76,6 @@ typedef struct aeron_network_publication_stct
     bool has_initial_connection;
     bool track_sender_limits;
     int64_t time_of_last_data_or_heartbeat_ns;
-    size_t current_messages_per_send;
     int64_t status_message_deadline_ns;
     int64_t time_of_last_setup_ns;
     uint8_t sender_fields_pad_rhs[AERON_CACHE_LINE_LENGTH];
