@@ -207,9 +207,9 @@ static void aeron_driver_untethered_subscription_state_change_null(
 #define AERON_DRIVER_SENDER_CYCLE_THRESHOLD_NS_DEFAULT (1 * 1000 * INT64_C(1000))
 #define AERON_DRIVER_RECEIVER_CYCLE_THRESHOLD_NS_DEFAULT (1 * 1000 * INT64_C(1000))
 #define AERON_DRIVER_NAME_RESOLVER_THRESHOLD_NS_DEFAULT (5 * 1000 * 1000 * INT64_C(1000))
-#define AERON_RECEIVER_IO_VECTOR_CAPACITY_DEFAULT UINT32_C(2)
-#define AERON_SENDER_IO_VECTOR_CAPACITY_DEFAULT UINT32_C(2)
-#define AERON_SENDER_MAX_MESSAGES_PER_SEND_DEFAULT UINT32_C(2)
+#define AERON_RECEIVER_IO_VECTOR_CAPACITY_DEFAULT UINT32_C(4)
+#define AERON_SENDER_IO_VECTOR_CAPACITY_DEFAULT UINT32_C(4)
+#define AERON_NETWORK_PUBLICATION_MAX_MESSAGES_PER_SEND_DEFAULT UINT32_C(4)
 #define AERON_DRIVER_RESOURCE_FREE_LIMIT_DEFAULT UINT32_C(10)
 #define AERON_DRIVER_ASYNC_EXECUTOR_THREADS_DEFAULT UINT32_C(1)
 #define AERON_CPU_AFFINITY_DEFAULT (-1)
@@ -442,7 +442,7 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
     _context->name_resolver_time_stall_tracker.cycle_threshold_ns = AERON_DRIVER_NAME_RESOLVER_THRESHOLD_NS_DEFAULT;
     _context->receiver_io_vector_capacity = AERON_RECEIVER_IO_VECTOR_CAPACITY_DEFAULT;
     _context->sender_io_vector_capacity = AERON_SENDER_IO_VECTOR_CAPACITY_DEFAULT;
-    _context->network_publication_max_messages_per_send = AERON_SENDER_MAX_MESSAGES_PER_SEND_DEFAULT;
+    _context->network_publication_max_messages_per_send = AERON_NETWORK_PUBLICATION_MAX_MESSAGES_PER_SEND_DEFAULT;
     _context->resource_free_limit = AERON_DRIVER_RESOURCE_FREE_LIMIT_DEFAULT;
     _context->async_executor_threads = AERON_DRIVER_ASYNC_EXECUTOR_THREADS_DEFAULT;
     _context->connect_enabled = AERON_DRIVER_CONNECT_DEFAULT;
@@ -3116,7 +3116,7 @@ int aeron_driver_context_set_network_publication_max_messages_per_send(aeron_dri
 uint32_t aeron_driver_context_get_network_publication_max_messages_per_send(aeron_driver_context_t *context)
 {
     return NULL != context ?
-        context->network_publication_max_messages_per_send : AERON_SENDER_MAX_MESSAGES_PER_SEND_DEFAULT;
+           context->network_publication_max_messages_per_send : AERON_NETWORK_PUBLICATION_MAX_MESSAGES_PER_SEND_DEFAULT;
 }
 
 int aeron_driver_context_set_resource_free_limit(aeron_driver_context_t *context, uint32_t value)
