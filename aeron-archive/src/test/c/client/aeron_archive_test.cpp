@@ -4297,6 +4297,11 @@ TEST_F(AeronCArchiveTest, shouldRejectReentractCallsDuringCallbacks)
             },
             &callback_client_d));
     EXPECT_EQ(1, count);
+
+#ifndef _MSC_VER
+    // verify that lock was unlocked during the failed reentrant calls
+    EXPECT_EQ(EPERM, aeron_mutex_unlock(&m_archive->lock));
+#endif
 }
 
 class AeronCArchiveNoSetupTest : public AeronCArchiveTestBase, public testing::Test
