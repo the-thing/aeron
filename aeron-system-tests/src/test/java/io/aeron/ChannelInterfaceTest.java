@@ -47,6 +47,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import static org.agrona.BitUtil.SIZE_OF_LONG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.oneOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
@@ -54,7 +56,7 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 @ExtendWith(InterruptingTestCallback.class)
 class ChannelInterfaceTest
 {
-    private static final String LOOPBACK_INTERFACE = findLoopbackInterface();
+    private static final NetworkInterface LOOPBACK_INTERFACE = findLoopbackInterface();
     private static final int STREAM_ID = 1001;
 
     @RegisterExtension
@@ -92,7 +94,7 @@ class ChannelInterfaceTest
         assumeNotNativeDriverOnWindows();
 
         final String subChannel = "aeron:udp?endpoint=127.0.0.1:24325";
-        final String pubChannel = subChannel + "|interface={" + LOOPBACK_INTERFACE + "}:24324";
+        final String pubChannel = subChannel + "|interface={" + LOOPBACK_INTERFACE.getName() + "}:24324";
 
         final Subscription subscription = subscribingClient.addSubscription(subChannel, STREAM_ID);
         final Publication publication = publishingClient.addExclusivePublication(pubChannel, STREAM_ID);
@@ -100,7 +102,11 @@ class ChannelInterfaceTest
         passMessage(subscription, publication);
 
         final String pubSocketAddress = publication.localSocketAddresses().get(0);
-        assertEquals("127.0.0.1:24324", pubSocketAddress);
+        assertThat(pubSocketAddress, endsWith(":24324"));
+        final String address = pubSocketAddress.substring(0, pubSocketAddress.indexOf(':'));
+        final String[] targetAddresses =
+            LOOPBACK_INTERFACE.inetAddresses().map(InetAddress::getHostAddress).toArray(String[]::new);
+        assertThat(address, oneOf(targetAddresses));
     }
 
     @Test
@@ -109,7 +115,8 @@ class ChannelInterfaceTest
     {
         assumeNotNativeDriverOnWindows();
 
-        final String channel = "aeron:udp?endpoint=224.20.30.39:24326|interface={" + LOOPBACK_INTERFACE + "}|alias=foo";
+        final String channel =
+            "aeron:udp?endpoint=224.20.30.39:24326|interface={" + LOOPBACK_INTERFACE.getName() + "}|alias=foo";
 
         final Subscription subscription = subscribingClient.addSubscription(channel, STREAM_ID);
         final Publication publication = publishingClient.addExclusivePublication(channel, STREAM_ID);
@@ -154,7 +161,7 @@ class ChannelInterfaceTest
         }
     }
 
-    private static String findLoopbackInterface()
+    private static NetworkInterface findLoopbackInterface()
     {
         try
         {
@@ -165,7 +172,7 @@ class ChannelInterfaceTest
                 final NetworkInterface networkInterface = networkInterfaces.nextElement();
                 if (networkInterface.isLoopback() && networkInterface.inetAddresses().anyMatch(ia -> ia.equals(home)))
                 {
-                    return networkInterface.getName();
+                    return networkInterface;
                 }
             }
         }
