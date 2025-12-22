@@ -193,6 +193,9 @@ try
 
     $env:Path = "$CMakePath\bin;$env:Path"
 
+    # need to split single string into an array of multiple arguments before passing to cmake
+    $CmakeExtraArgs = $CmakeExtraArgs.split(' ')
+
     cmake $CmakeExtraArgs $SourceDir
     cmake --build . --config $BuildConfig --parallel $CmakeBuildParallelLevel
     if (-not $?)
