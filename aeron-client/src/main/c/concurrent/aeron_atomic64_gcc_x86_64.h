@@ -20,45 +20,51 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define AERON_GET_ACQUIRE(dst, src) \
-do \
-{ \
-    dst = src; \
-    __asm__ __volatile__("" ::: "memory"); \
-} \
-while (false) \
+#define AERON_GET_ACQUIRE(dst, src)                                           \
+do                                                                            \
+{                                                                             \
+    AERON_ATOMIC_ASSERT_VOLATILE_LVALUE(                                      \
+        src,                                                                  \
+        "AERON_GET_ACQUIRE: src must be a volatile lvalue");                  \
+    dst = (src);                                                              \
+    __asm__ __volatile__("" ::: "memory");                                    \
+}                                                                             \
+while (false)
 
-#define AERON_SET_RELEASE(dst, src) \
-do \
-{ \
-    __asm__ __volatile__("" ::: "memory"); \
-    dst = src; \
-} \
-while (false) \
+#define AERON_SET_RELEASE(dst, src)                                           \
+do                                                                            \
+{                                                                             \
+    AERON_ATOMIC_ASSERT_VOLATILE_LVALUE(                                      \
+        dst,                                                                  \
+        "AERON_SET_RELEASE: dst must be a volatile lvalue");                  \
+    __asm__ __volatile__("" ::: "memory");                                    \
+    (dst) = (src);                                                            \
+}                                                                             \
+while (false)
 
-#define AERON_GET_AND_ADD_INT64(original, dst, value) \
-do \
-{ \
-    __asm__ __volatile__( \
-        "lock; xaddq %0, %1" \
-        : "=r"(original), "+m"(dst) \
-        : "0"((int64_t)value) \
-        : "memory", "cc" \
-        ); \
-} \
-while (false) \
+#define AERON_GET_AND_ADD_INT64(original, dst, value)                         \
+do                                                                            \
+{                                                                             \
+    __asm__ __volatile__(                                                     \
+        "lock; xaddq %0, %1"                                                  \
+        : "=r"(original), "+m"(dst)                                           \
+        : "0"((int64_t)value)                                                 \
+        : "memory", "cc"                                                      \
+        );                                                                    \
+}                                                                             \
+while (false)
 
-#define AERON_GET_AND_ADD_INT32(original, dst, value) \
-do \
-{ \
-    __asm__ __volatile__( \
-        "lock; xaddl %0, %1" \
-        : "=r"(original), "+m"(dst) \
-        : "0"(value) \
-        : "memory", "cc" \
-        );\
-} \
-while (false) \
+#define AERON_GET_AND_ADD_INT32(original, dst, value)                         \
+do                                                                            \
+{                                                                             \
+    __asm__ __volatile__(                                                     \
+        "lock; xaddl %0, %1"                                                  \
+        : "=r"(original), "+m"(dst)                                           \
+        : "0"(value)                                                          \
+        : "memory", "cc"                                                      \
+        );                                                                    \
+}                                                                             \
+while (false)
 
 inline bool aeron_cas_int64(volatile int64_t *dst, int64_t expected, int64_t desired)
 {
