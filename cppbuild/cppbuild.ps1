@@ -85,10 +85,6 @@ for ($i = 0; $i -lt $Args.count; $i++)
     {
         $CmakeExtraArgs = Add-Arg $CmakeExtraArgs "-DAERON_SLOW_SYSTEM_TESTS=ON"
     }
-    elseif ($arg -eq "--no-unit-tests")
-    {
-        $CmakeExtraArgs = Add-Arg $CmakeExtraArgs "-DAERON_UNIT_TESTS=OFF"
-    }
     elseif ($arg -eq "--debug-build")
     {
         $CmakeExtraArgs = Add-Arg $CmakeExtraArgs "-DCMAKE_BUILD_TYPE=Debug"
