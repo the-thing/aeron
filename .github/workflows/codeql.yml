@@ -58,18 +58,18 @@ jobs:
         run: sudo apt-get install -y g++-14
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           config-file: ./.github/codeql/codeql-config.yml
           packs: "codeql/${{ matrix.language }}-queries:AlertSuppression.ql"
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
 
       - name: Perform CodeQL Analysis
         id: analyze
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
           upload: false
@@ -94,7 +94,7 @@ jobs:
 
       - name: Upload SARIF
         id: upload
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: sarif-results/${{ matrix.language }}.sarif
           wait-for-processing: true
