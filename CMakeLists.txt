@@ -192,8 +192,6 @@ elseif (MSVC)
     set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /MTd /Oy-")
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /MT /Oy-")
 
-    unset(CMAKE_C_STANDARD) # To avoid `/std:c11` in the compiler options
-
     if (C_WARNINGS_AS_ERRORS)
         add_compile_options($<$<COMPILE_LANGUAGE:C>:/WX>)
     endif (C_WARNINGS_AS_ERRORS)
