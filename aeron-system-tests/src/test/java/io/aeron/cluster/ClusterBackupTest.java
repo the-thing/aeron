@@ -645,12 +645,15 @@ class ClusterBackupTest
         final int initialMessageCount = 100_000; // minimum number of messages to trigger the bug
         cluster.sendAndAwaitMessages(initialMessageCount);
 
+        cluster.client().close();
+
         final TestBackupNode backupNode = cluster.startClusterBackupNode(
             true, new NullCredentialsSupplier(), ClusterBackup.SourceType.FOLLOWER, catchupPort);
         cluster.awaitBackupLiveLogPosition(1);
         backupNode.close();
 
         final int delta = 1000;
+        cluster.reconnectClient();
         cluster.sendAndAwaitMessages(delta, initialMessageCount + delta);
 
         cluster.startClusterBackupNode(
