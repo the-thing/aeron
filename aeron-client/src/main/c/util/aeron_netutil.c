@@ -667,13 +667,13 @@ static int aeron_find_interface_by_name_and_family(
             switch (family)
             {
                 case AF_INET:
-                    sprintf(buffer, "INET");
+                    snprintf(buffer, sizeof(buffer), "INET");
                     break;
                 case AF_INET6:
-                    sprintf(buffer, "INET6");
+                    snprintf(buffer, sizeof(buffer), "INET6");
                     break;
                 default:
-                    sprintf(buffer, "family %d", family);
+                    snprintf(buffer, sizeof(buffer), "family %d", family);
                     break;
             }
             AERON_SET_ERR(EINVAL, "no %s addresses found on interface %s", buffer, named_interface.name);
