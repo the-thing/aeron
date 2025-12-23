@@ -177,6 +177,7 @@ final class ConsensusPublisher
         final long leadershipTermId,
         final long termBaseLogPosition,
         final long logPosition,
+        final long commitPosition,
         final long leaderRecordingId,
         final long timestamp,
         final int leaderMemberId,
@@ -216,7 +217,8 @@ final class ConsensusPublisher
                     .leaderMemberId(leaderMemberId)
                     .logSessionId(logSessionId)
                     .appVersion(appVersion)
-                    .isStartup(isStartup ? BooleanType.TRUE : BooleanType.FALSE);
+                    .isStartup(isStartup ? BooleanType.TRUE : BooleanType.FALSE)
+                    .commitPosition(commitPosition);
 
                 bufferClaim.commit();
 
