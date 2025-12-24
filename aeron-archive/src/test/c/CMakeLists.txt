@@ -25,7 +25,7 @@ add_definitions(-DJAVA_MINOR_VERSION=${Java_VERSION_MINOR})
 
 function(aeron_c_archive_test name file)
         add_executable(${name} "TestArchive.h" ${file} ${SOURCE} ${HEADERS})
-        add_dependencies(${name} gmock aeron-all-jar aeron_client aeron_archive_client)
+        add_dependencies(${name} gmock aeron-all-jar aeron_archive_c_client)
         target_include_directories(${name} PUBLIC ${AERON_C_ARCHIVE_SOURCE_PATH})
         target_include_directories(${name} PUBLIC ${ARCHIVE_C_CODEC_TARGET_DIR})
         target_link_libraries(${name} aeron aeron_archive_c_client gmock_main ${CMAKE_THREAD_LIBS_INIT})

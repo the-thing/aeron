@@ -19,7 +19,7 @@ if ("${CMAKE_SYSTEM_NAME}" MATCHES "Linux")
     add_definitions(-D_DEFAULT_SOURCE)
 endif ()
 
-if (LINK_SAMPLES_CLIENT_SHARED OR (MSVC AND "${CMAKE_SYSTEM_NAME}" MATCHES "Windows"))
+if (LINK_SAMPLES_CLIENT_SHARED OR MSVC)
     set(CLIENT_LINK_LIB "aeron")
     add_definitions(-DCLIENT_SHARED)
 else()

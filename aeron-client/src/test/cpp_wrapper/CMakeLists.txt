@@ -15,7 +15,7 @@
 #
 
 set(TEST_HEADERS
-    ../cpp_shared/EmbeddedMediaDriver.h
+    EmbeddedMediaDriver.h
     TestUtil.h)
 
 include_directories(${AERON_CLIENT_WRAPPER_SOURCE_PATH})
@@ -23,8 +23,7 @@ include_directories(${AERON_CLIENT_WRAPPER_SOURCE_PATH})
 function(aeron_client_native_test name file)
     add_executable(${name} ${file} ${TEST_HEADERS})
     add_dependencies(${name} gmock)
-    target_include_directories(${name} PRIVATE "../cpp_shared")
-    target_link_libraries(${name} aeron_client aeron_driver gmock_main ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${name} aeron_driver gmock_main ${CMAKE_THREAD_LIBS_INIT})
     target_compile_definitions(${name} PUBLIC "_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING")
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
@@ -33,7 +32,6 @@ function(aeron_client_wrapper_test name file)
     set(wrapper_name "${name}W")
     add_executable(${wrapper_name} ${file} ${TEST_HEADERS})
     add_dependencies(${wrapper_name} gmock)
-    target_include_directories(${wrapper_name} PRIVATE "../cpp_shared")
     target_link_libraries(${wrapper_name} aeron_client_wrapper aeron_driver gmock_main ${CMAKE_THREAD_LIBS_INIT})
     target_compile_definitions(${wrapper_name} PUBLIC "_SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING")
     add_test(NAME ${wrapper_name} COMMAND ${wrapper_name})
