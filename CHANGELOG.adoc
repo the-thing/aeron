@@ -4,16 +4,17 @@
 
 === New & Noteworthy
 
-* **Breaking** C{plus}{plus} API removed. The C{plus}{plus} wrapper should be used instead.
+* **[Breaking]** Deprecated standalone C{plus}{plus} API was removed. The C{plus}{plus} Wrapper API should be used instead.
 
-* The `interface` channel parameter now accepts network interface names in the `\{interface}` format, e.g. `interface=\{eth0}`.
+* The `interface` channel parameter now accepts network interface names in the `\{interface-name}` format, e.g. `interface=\{eth0}`.
 +
 When used with multicast channels, it specifies the interface to join with and send on.
 +
 The `interface` parameter might sometimes be used with non-multicast channels to control the local address of a socket.
 In those cases, the socket will be bound to an address of an appropriate family assigned to the named interface.
 If there are multiple matching addresses available, it's unspecified which one will be used.
-It's also possible to specify the port used with the resolved address by using the `\{interface}:port` format.
++
+It's also possible to specify the port used with the resolved address by using the `\{interface-name}:port` format.
 
 === Changelog
 
