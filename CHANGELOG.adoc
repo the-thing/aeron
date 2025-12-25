@@ -4,7 +4,7 @@
 
 === New & Noteworthy
 
-* **[Breaking]** Deprecated standalone C{plus}{plus} API was removed. The C{plus}{plus} Wrapper API should be used instead.
+* **[Breaking]** Remove deprecated standalone C{plus}{plus} API. The C{plus}{plus} Wrapper API should be used instead.
 
 * The `interface` channel parameter now accepts network interface names in the `\{interface-name}` format, e.g. `interface=\{eth0}`.
 +
