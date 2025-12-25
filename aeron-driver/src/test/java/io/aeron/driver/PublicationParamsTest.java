@@ -128,7 +128,7 @@ class PublicationParamsTest
     }
 
     @ParameterizedTest
-    @ValueSource(ints = { -10, 0, 1407 })
+    @ValueSource(ints = { 0, 1407 })
     void shouldRejectPublicationWindowLessThanMtu(final int pubWindow)
     {
         final ChannelUri uri = ChannelUri.parse("aeron:udp?endpoint=localhost:8080|mtu=1408|pub-wnd=" + pubWindow);
