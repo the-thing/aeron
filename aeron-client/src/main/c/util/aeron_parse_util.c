@@ -24,9 +24,19 @@
 #include "util/aeron_parse_util.h"
 #include "util/aeron_error.h"
 
-const uint64_t AERON_MAX_G_VALUE = 8589934591ULL;
-const uint64_t AERON_MAX_M_VALUE = 8796093022207ULL;
-const uint64_t AERON_MAX_K_VALUE = 9007199254739968ULL;
+const uint64_t AERON_ONE_GIGABYTE = 1024ULL * 1024 * 1024;
+const uint64_t AERON_ONE_MEGABYTE = 1024ULL * 1024;
+const uint64_t AERON_ONE_KILOBYTE = 1024ULL;
+const uint64_t AERON_MAX_G_VALUE = (uint64_t)LLONG_MAX / AERON_ONE_GIGABYTE;
+const uint64_t AERON_MAX_M_VALUE = (uint64_t)LLONG_MAX / AERON_ONE_MEGABYTE;
+const uint64_t AERON_MAX_K_VALUE = (uint64_t)LLONG_MAX / AERON_ONE_KILOBYTE;
+
+const uint64_t AERON_ONE_MICROSECOND_NS = 1000ULL;
+const uint64_t AERON_ONE_MILLISECOND_NS = AERON_ONE_MICROSECOND_NS * 1000ULL;
+const uint64_t AERON_ONE_SECOND_NS = AERON_ONE_MILLISECOND_NS * 1000ULL;
+const uint64_t AERON_MAX_MICROSECONDS = (uint64_t)LLONG_MAX / AERON_ONE_MICROSECOND_NS;
+const uint64_t AERON_MAX_MILLISECONDS = (uint64_t)LLONG_MAX / AERON_ONE_MILLISECOND_NS;
+const uint64_t AERON_MAX_SECONDS = (uint64_t)LLONG_MAX / AERON_ONE_SECOND_NS;
 
 int aeron_parse_size64(const char *str, uint64_t *result)
 {
@@ -119,15 +129,16 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
 
     if ('\0' != *end)
     {
-        switch (tolower(*end))
+        switch (*end)
         {
             case 's':
+            case 'S':
                 if ('\0' != *(end + 1))
                 {
                     return -1;
                 }
 
-                if (value > LLONG_MAX / 1000000000)
+                if (value > AERON_MAX_SECONDS)
                 {
                     *result = LLONG_MAX;
                 }
@@ -138,12 +149,13 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 break;
 
             case 'm':
-                if (tolower(*(end + 1)) != 's' && '\0' != *(end + 2))
+            case 'M':
+                if ('s' != *(end + 1) && 'S' != *(end + 1) && '\0' != *(end + 2))
                 {
                     return -1;
                 }
 
-                if (value > LLONG_MAX / 1000000)
+                if (value > AERON_MAX_MILLISECONDS)
                 {
                     *result = LLONG_MAX;
                 }
@@ -154,12 +166,13 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 break;
 
             case 'u':
-                if (tolower(*(end + 1)) != 's' && '\0' != *(end + 2))
+            case 'U':
+                if ('s' != *(end + 1) && 'S' != *(end + 1) && '\0' != *(end + 2))
                 {
                     return -1;
                 }
 
-                if (value > LLONG_MAX / 1000)
+                if (value > AERON_MAX_MICROSECONDS)
                 {
                     *result = LLONG_MAX;
                 }
@@ -170,7 +183,8 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 break;
 
             case 'n':
-                if (tolower(*(end + 1)) != 's' && '\0' != *(end + 2))
+            case 'N':
+                if ('s' != *(end + 1) && 'S' != *(end + 1) && '\0' != *(end + 2))
                 {
                     return -1;
                 }

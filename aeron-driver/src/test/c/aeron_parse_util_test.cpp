@@ -44,50 +44,58 @@ TEST_F(ParseUtilTest, shouldNotParseInvalidNumber)
     EXPECT_EQ(aeron_parse_size64("k", &value), -1);
 }
 
-TEST_F(ParseUtilTest, shouldParseValidNumber)
+class ParseUtilTestValidSize : public testing::TestWithParam<std::tuple<const char *, uint64_t>>
 {
-    uint64_t value = 0;
+};
 
-    EXPECT_EQ(aeron_parse_size64("0", &value), 0);
-    EXPECT_EQ(value, (uint64_t)0);
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestValidSize,
+    ParseUtilTestValidSize,
+    testing::Values(
+        std::make_tuple("0", 0ULL),
+        std::make_tuple("0k", 0ULL),
+        std::make_tuple("0m", 0ULL),
+        std::make_tuple("0g", 0ULL),
+        std::make_tuple("1", 1ULL),
+        std::make_tuple("77777777", 77777777ULL),
+        std::make_tuple("9223372036854775807", 9223372036854775807ULL),
+        std::make_tuple("1K", 1024ULL),
+        std::make_tuple("1M", 1024 * 1024ULL),
+        std::make_tuple("1G", 1024 * 1024 * 1024ULL),
+        std::make_tuple("5023k", 5023 * 1024ULL),
+        std::make_tuple("9m", 9 * 1024 * 1024ULL),
+        std::make_tuple("5g", 5 * 1024 * 1024 * 1024ULL),
+        std::make_tuple("8589934591g", 8589934591 * 1024 * 1024 * 1024ULL),
+        std::make_tuple("8796093022207m", 8796093022207 * 1024 * 1024ULL),
+        std::make_tuple("9007199254740991k", 9007199254740991 * 1024ULL)));
 
-    EXPECT_EQ(aeron_parse_size64("1", &value), 0);
-    EXPECT_EQ(value, (uint64_t)1);
-
-    EXPECT_EQ(aeron_parse_size64("77777777", &value), 0);
-    EXPECT_EQ(value, (uint64_t)77777777);
+TEST_P(ParseUtilTestValidSize, shouldParseValidSize)
+{
+    uint64_t value;
+    EXPECT_EQ(aeron_parse_size64(std::get<0>(GetParam()), &value), 0);
+    EXPECT_EQ(value, std::get<1>(GetParam()));
 }
 
-TEST_F(ParseUtilTest, shouldParseValidQualifiedNumber)
+class ParseUtilTestTooLargeSize : public testing::TestWithParam<const char *>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestTooLargeSize,
+    ParseUtilTestTooLargeSize,
+    testing::Values(
+        "8589934592g",
+        "8796093022208m",
+        "9007199254740992k",
+        "9223372036854775807g",
+        "9223372036854775807m",
+        "9223372036854775807k" ));
+
+TEST_P(ParseUtilTestTooLargeSize, shouldRejecttooLargeValue)
 {
     uint64_t value = 0;
-
-    EXPECT_EQ(aeron_parse_size64("0k", &value), 0);
-    EXPECT_EQ(value, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_size64("1k", &value), 0);
-    EXPECT_EQ(value, (uint64_t)1024);
-
-    EXPECT_EQ(aeron_parse_size64("64k", &value), 0);
-    EXPECT_EQ(value, (uint64_t)64 * 1024);
-
-    EXPECT_EQ(aeron_parse_size64("0m", &value), 0);
-    EXPECT_EQ(value, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_size64("1m", &value), 0);
-    EXPECT_EQ(value, (uint64_t)1024 * 1024);
-
-    EXPECT_EQ(aeron_parse_size64("64m", &value), 0);
-    EXPECT_EQ(value, (uint64_t)64 * 1024 * 1024);
-
-    EXPECT_EQ(aeron_parse_size64("0g", &value), 0);
-    EXPECT_EQ(value, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_size64("1g", &value), 0);
-    EXPECT_EQ(value, (uint64_t)1024 * 1024 * 1024);
-
-    EXPECT_EQ(aeron_parse_size64("64g", &value), 0);
-    EXPECT_EQ(value, (uint64_t)64 * 1024 * 1024 * 1024);
+    EXPECT_EQ(aeron_parse_size64(GetParam(), &value), -1);
+    EXPECT_EQ(value, 0);
 }
 
 TEST_F(ParseUtilTest, shouldNotParseInvalidDuration)
@@ -102,76 +110,62 @@ TEST_F(ParseUtilTest, shouldNotParseInvalidDuration)
     EXPECT_EQ(aeron_parse_duration_ns("s", &duration_ns), -1);
 }
 
-TEST_F(ParseUtilTest, shouldParseValidDuration)
+class ParseUtilTestValidDuration : public testing::TestWithParam<std::tuple<const char *, uint64_t>>
 {
-    uint64_t duration_ns = 0;
+};
 
-    EXPECT_EQ(aeron_parse_duration_ns("0", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)0);
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestValidDuration,
+    ParseUtilTestValidDuration,
+    testing::Values(
+        std::make_tuple("0", 0ULL),
+        std::make_tuple("0ns", 0ULL),
+        std::make_tuple("0us", 0ULL),
+        std::make_tuple("0ms", 0ULL),
+        std::make_tuple("0s", 0ULL),
+        std::make_tuple("12345", 12345ULL),
+        std::make_tuple("12345NS", 12345ULL),
+        std::make_tuple("456nS", 456ULL),
+        std::make_tuple("789Ns", 789ULL),
+        std::make_tuple("456US", 456000ULL),
+        std::make_tuple("1000uS", 1000000ULL),
+        std::make_tuple("2000Us", 2000000ULL),
+        std::make_tuple("123MS", 123000000ULL),
+        std::make_tuple("1ms", 1000000ULL),
+        std::make_tuple("1Ms", 1000000ULL),
+        std::make_tuple("66mS", 66000000ULL),
+        std::make_tuple("5S", 5000000000ULL),
+        std::make_tuple("345s", 345000000000ULL),
+        std::make_tuple("700ms", 700000000ULL)));
 
-    EXPECT_EQ(aeron_parse_duration_ns("1", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)1);
-
-    EXPECT_EQ(aeron_parse_duration_ns("77777777", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)77777777);
+TEST_P(ParseUtilTestValidDuration, shouldParseValidDuration)
+{
+    uint64_t duration_ns;
+    EXPECT_EQ(aeron_parse_duration_ns(std::get<0>(GetParam()), &duration_ns), 0);
+    EXPECT_EQ(std::get<1>(GetParam()), duration_ns);
 }
 
-TEST_F(ParseUtilTest, shouldParseValidQualifiedDuration)
+class ParseUtilTestMaxDuration : public testing::TestWithParam<std::tuple<const char *, uint64_t>>
 {
-    uint64_t duration_ns = 0;
+};
 
-    EXPECT_EQ(aeron_parse_duration_ns("0ns", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)0);
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestMaxDuration,
+    ParseUtilTestMaxDuration,
+    testing::Values(
+        std::make_tuple("9223372036854775us", 9223372036854775000ULL),
+        std::make_tuple("9223372036854ms", 9223372036854000000ULL),
+        std::make_tuple("9223372036s", 9223372036000000000ULL),
+        std::make_tuple("9223372036854776us", (uint64_t)LLONG_MAX),
+        std::make_tuple("9223372036855ms", (uint64_t)LLONG_MAX),
+        std::make_tuple("9223372037s", (uint64_t)LLONG_MAX),
+        std::make_tuple("70000000000s", (uint64_t)LLONG_MAX)));
 
-    EXPECT_EQ(aeron_parse_duration_ns("1ns", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)1);
-
-    EXPECT_EQ(aeron_parse_duration_ns("64ns", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)64);
-
-    EXPECT_EQ(aeron_parse_duration_ns("0us", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_duration_ns("1us", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("7us", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)7 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("7000us", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)7000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("0ms", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_duration_ns("1ms", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)1000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("7ms", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)7000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("7000ms", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)7000 * 1000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("0s", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)0);
-
-    EXPECT_EQ(aeron_parse_duration_ns("1s", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)1000 * 1000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("7s", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)7000 * 1000 * 1000);
-
-    EXPECT_EQ(aeron_parse_duration_ns("700s", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)700 * 1000 * 1000 * 1000);
-}
-
-TEST_F(ParseUtilTest, shouldParseMaxQualifiedDuration)
+TEST_P(ParseUtilTestMaxDuration, shouldParseMaxQualifiedDuration)
 {
-    uint64_t duration_ns = 0;
-
-    EXPECT_EQ(aeron_parse_duration_ns("70000000000s", &duration_ns), 0);
-    EXPECT_EQ(duration_ns, (uint64_t)LLONG_MAX);
+    uint64_t duration_ns;
+    EXPECT_EQ(aeron_parse_duration_ns(std::get<0>(GetParam()), &duration_ns), 0);
+    EXPECT_EQ(std::get<1>(GetParam()), duration_ns);
 }
 
 TEST_F(ParseUtilTest, shouldSplitAddress)
