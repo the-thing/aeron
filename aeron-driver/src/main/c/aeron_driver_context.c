@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <errno.h>
 
 #ifdef HAVE_UUID_H
@@ -910,28 +911,28 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
         getenv(AERON_DRIVER_CONDUCTOR_CYCLE_THRESHOLD_ENV_VAR),
         _context->conductor_duty_cycle_stall_tracker.cycle_threshold_ns,
         0,
-        UINT64_C(60) * 60 * 1000 * 1000 * 1000);
+        LLONG_MAX);
 
     _context->sender_duty_cycle_stall_tracker.cycle_threshold_ns = aeron_config_parse_duration_ns(
         AERON_DRIVER_SENDER_CYCLE_THRESHOLD_ENV_VAR,
         getenv(AERON_DRIVER_SENDER_CYCLE_THRESHOLD_ENV_VAR),
         _context->sender_duty_cycle_stall_tracker.cycle_threshold_ns,
         0,
-        UINT64_C(60) * 60 * 1000 * 1000 * 1000);
+        LLONG_MAX);
 
     _context->receiver_duty_cycle_stall_tracker.cycle_threshold_ns = aeron_config_parse_duration_ns(
         AERON_DRIVER_RECEIVER_CYCLE_THRESHOLD_ENV_VAR,
         getenv(AERON_DRIVER_RECEIVER_CYCLE_THRESHOLD_ENV_VAR),
         _context->receiver_duty_cycle_stall_tracker.cycle_threshold_ns,
         0,
-        UINT64_C(60) * 60 * 1000 * 1000 * 1000);
+        LLONG_MAX);
 
     _context->name_resolver_time_stall_tracker.cycle_threshold_ns = aeron_config_parse_duration_ns(
         AERON_DRIVER_NAME_RESOLVER_THRESHOLD_ENV_VAR,
         getenv(AERON_DRIVER_NAME_RESOLVER_THRESHOLD_ENV_VAR),
         _context->name_resolver_time_stall_tracker.cycle_threshold_ns,
         0,
-        UINT64_C(60) * 60 * 1000 * 1000 * 1000);
+        LLONG_MAX);
 
     if ((value = getenv(AERON_DRIVER_SENDER_WILDCARD_PORT_RANGE_ENV_VAR)))
     {
