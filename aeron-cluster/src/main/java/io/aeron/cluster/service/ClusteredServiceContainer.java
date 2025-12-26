@@ -41,6 +41,7 @@ import org.agrona.LangUtil;
 import org.agrona.MarkFile;
 import org.agrona.SemanticVersion;
 import org.agrona.Strings;
+import org.agrona.SystemUtil;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.AgentRunner;
 import org.agrona.concurrent.CountedErrorHandler;
@@ -967,7 +968,8 @@ public final class ClusteredServiceContainer implements AutoCloseable
                     ClusterCounters.allocateServiceCounter(
                         aeron,
                         tempBuffer,
-                        "Cluster container work cycle time exceeded count: threshold=" + cycleThresholdNs + "ns",
+                        "Cluster container work cycle time exceeded count: threshold=" +
+                            SystemUtil.formatDuration(cycleThresholdNs),
                         AeronCounters.CLUSTER_CLUSTERED_SERVICE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID,
                         clusterId,
                         serviceId),
@@ -989,7 +991,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
                         aeron,
                         tempBuffer,
                         "Clustered service max snapshot duration exceeded count: threshold=" +
-                            snapshotDurationThresholdNs,
+                            SystemUtil.formatDuration(snapshotDurationThresholdNs),
                         AeronCounters.CLUSTERED_SERVICE_SNAPSHOT_DURATION_THRESHOLD_EXCEEDED_TYPE_ID,
                         clusterId,
                         serviceId

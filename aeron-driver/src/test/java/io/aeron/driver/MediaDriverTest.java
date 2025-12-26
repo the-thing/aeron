@@ -23,20 +23,25 @@ import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
 import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
+import org.agrona.SystemUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import static io.aeron.driver.status.SystemCounterDescriptor.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(InterruptingTestCallback.class)
@@ -70,21 +75,25 @@ class MediaDriverTest
         }
     }
 
-    @Test
-    void shouldInitializeDutyCycleTrackersWhenNotSet(final @TempDir Path tempDir) throws IOException
+    @ParameterizedTest
+    @EnumSource(ThreadingMode.class)
+    void shouldInitializeDutyCycleTrackersWhenNotSet(
+        final ThreadingMode threadingMode, final @TempDir Path tempDir) throws IOException
     {
         final Path aeronDir = tempDir.resolve("aeron");
         Files.createDirectories(aeronDir);
         final MediaDriver.Context context = new MediaDriver.Context()
             .aeronDirectoryName(aeronDir.toString())
-            .threadingMode(ThreadingMode.SHARED)
+            .threadingMode(threadingMode)
             .dirDeleteOnStart(true)
             .dirDeleteOnShutdown(true)
-            .conductorCycleThresholdNs(123)
-            .senderCycleThresholdNs(456)
-            .receiverCycleThresholdNs(789)
+            .conductorCycleThresholdNs(TimeUnit.SECONDS.toNanos(1))
+            .senderCycleThresholdNs(TimeUnit.MILLISECONDS.toNanos(50))
+            .receiverCycleThresholdNs(TimeUnit.MICROSECONDS.toMillis(3))
             .nameResolverThresholdNs(101010);
 
+        assertNull(context.countersManager());
+        assertNull(context.systemCounters());
         assertNull(context.conductorDutyCycleTracker());
         assertNull(context.senderDutyCycleTracker());
         assertNull(context.receiverDutyCycleTracker());
@@ -98,22 +107,26 @@ class MediaDriverTest
                 context.conductorDutyCycleTracker(),
                 CONDUCTOR_MAX_CYCLE_TIME,
                 CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED,
-                context.conductorCycleThresholdNs());
+                context.conductorCycleThresholdNs(),
+                threadingMode);
             verifyStallTracker(
                 context.senderDutyCycleTracker(),
                 SENDER_MAX_CYCLE_TIME,
                 SENDER_CYCLE_TIME_THRESHOLD_EXCEEDED,
-                context.senderCycleThresholdNs());
+                context.senderCycleThresholdNs(),
+                threadingMode);
             verifyStallTracker(
                 context.receiverDutyCycleTracker(),
                 RECEIVER_MAX_CYCLE_TIME,
                 RECEIVER_CYCLE_TIME_THRESHOLD_EXCEEDED,
-                context.receiverCycleThresholdNs());
+                context.receiverCycleThresholdNs(),
+                threadingMode);
             verifyStallTracker(
                 context.nameResolverTimeTracker(),
                 NAME_RESOLVER_MAX_TIME,
                 NAME_RESOLVER_TIME_THRESHOLD_EXCEEDED,
-                context.nameResolverThresholdNs());
+                context.nameResolverThresholdNs(),
+                threadingMode);
         }
         finally
         {
@@ -193,11 +206,15 @@ class MediaDriverTest
         final DutyCycleTracker dutyCycleTracker,
         final SystemCounterDescriptor maxCycleTimeCounter,
         final SystemCounterDescriptor cycleTimeThresholdExceededCounter,
-        final long cycleTimeThresholdNs)
+        final long cycleTimeThresholdNs,
+        final ThreadingMode threadingMode)
     {
         final DutyCycleStallTracker stallTracker = assertInstanceOf(DutyCycleStallTracker.class, dutyCycleTracker);
         assertEquals(maxCycleTimeCounter.id(), stallTracker.maxCycleTime().id());
         assertEquals(cycleTimeThresholdExceededCounter.id(), stallTracker.cycleTimeThresholdExceededCount().id());
         assertEquals(cycleTimeThresholdNs, stallTracker.cycleTimeThresholdNs());
+        assertThat(stallTracker.maxCycleTime().label(), endsWith(": " + threadingMode));
+        assertThat(stallTracker.cycleTimeThresholdExceededCount().label(), endsWith(
+            ": threshold=" + SystemUtil.formatDuration(cycleTimeThresholdNs) + " " + threadingMode));
     }
 }

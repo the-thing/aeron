@@ -4234,6 +4234,26 @@ public final class MediaDriver implements AutoCloseable
                 MediaDriverVersion.MAJOR_VERSION, MediaDriverVersion.MINOR_VERSION, MediaDriverVersion.PATCH_VERSION);
             systemCounters.get(AERON_VERSION).set(aeronVersion);
             systemCounters.get(CONTROL_PROTOCOL_VERSION).set(ControlProtocolEvents.CONTROL_PROTOCOL_SEMANTIC_VERSION);
+
+            systemCounters.get(CONDUCTOR_MAX_CYCLE_TIME).appendToLabel(": " + threadingMode.name());
+            systemCounters.get(CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED).appendToLabel(
+                ": threshold=" + SystemUtil.formatDuration(conductorCycleThresholdNs) +
+                    " " + threadingMode.name());
+
+            systemCounters.get(SENDER_MAX_CYCLE_TIME).appendToLabel(": " + threadingMode.name());
+            systemCounters.get(SENDER_CYCLE_TIME_THRESHOLD_EXCEEDED).appendToLabel(
+                ": threshold=" + SystemUtil.formatDuration(senderCycleThresholdNs) +
+                    " " + threadingMode.name());
+
+            systemCounters.get(RECEIVER_MAX_CYCLE_TIME).appendToLabel(": " + threadingMode.name());
+            systemCounters.get(RECEIVER_CYCLE_TIME_THRESHOLD_EXCEEDED).appendToLabel(
+                ": threshold=" + SystemUtil.formatDuration(receiverCycleThresholdNs) +
+                    " " + threadingMode.name());
+
+            systemCounters.get(NAME_RESOLVER_MAX_TIME).appendToLabel(": " + threadingMode.name());
+            systemCounters.get(NAME_RESOLVER_TIME_THRESHOLD_EXCEEDED).appendToLabel(
+                ": threshold=" + SystemUtil.formatDuration(nameResolverThresholdNs) +
+                    " " + threadingMode.name());
         }
 
         @SuppressWarnings("MethodLength")

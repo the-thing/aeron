@@ -51,6 +51,7 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.concurrent.TimeUnit;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.AeronCounters.ARCHIVE_CONTROL_SESSIONS_TYPE_ID;
@@ -665,6 +666,7 @@ class ArchiveContextTest
         try
         {
             final Archive.Context ctx = TestContexts.localhostArchive();
+            ctx.archiveId(42);
             final ConfigurationException exception =
                 assertThrowsExactly(ConfigurationException.class, ctx::conclude);
             assertEquals("ERROR - invalid errorBufferLength=" + errorBufferLength, exception.getMessage());
@@ -1060,25 +1062,52 @@ class ArchiveContextTest
 
     @ParameterizedTest
     @EnumSource(ArchiveThreadingMode.class)
-    void shouldExposeThreadingModeInfoViaConductorDutyCycleTrackers(final ArchiveThreadingMode threadingMode)
+    void shouldExposeThreadingModeInfoViaDutyCycleTrackers(final ArchiveThreadingMode threadingMode)
     {
-        final long thresholdNs = 123456789;
         context
-            .conductorCycleThresholdNs(thresholdNs)
+            .conductorCycleThresholdNs(TimeUnit.MILLISECONDS.toNanos(150))
+            .recorderCycleThresholdNs(TimeUnit.SECONDS.toNanos(2))
+            .replayerCycleThresholdNs(TimeUnit.MICROSECONDS.toNanos(879))
             .threadingMode(threadingMode)
             .archiveId(888);
 
         context.conclude();
 
-        final DutyCycleStallTracker dutyCycleTracker = (DutyCycleStallTracker)context.conductorDutyCycleTracker();
-        assertNotNull(dutyCycleTracker);
+        final DutyCycleStallTracker conductorDutyCycleTracker =
+            (DutyCycleStallTracker)context.conductorDutyCycleTracker();
+        assertNotNull(conductorDutyCycleTracker);
         assertEquals(
             "archive-conductor max cycle time in ns: " + threadingMode + " - archiveId=" + context.archiveId(),
-            dutyCycleTracker.maxCycleTime().label());
+            conductorDutyCycleTracker.maxCycleTime().label());
         assertEquals(
-            "archive-conductor work cycle time exceeded count: threshold=" + thresholdNs + "ns " +
-            threadingMode + " - archiveId=" + context.archiveId(),
-            dutyCycleTracker.cycleTimeThresholdExceededCount().label());
+            "archive-conductor work cycle time exceeded count: threshold=150ms " + threadingMode +
+                " - archiveId=" + context.archiveId(),
+            conductorDutyCycleTracker.cycleTimeThresholdExceededCount().label());
+
+        if (ArchiveThreadingMode.DEDICATED == threadingMode)
+        {
+            final DutyCycleStallTracker recorderDutyCycleTracker =
+                (DutyCycleStallTracker)context.recorderDutyCycleTracker();
+            assertNotNull(recorderDutyCycleTracker);
+            assertEquals(
+                "archive-recorder max cycle time in ns: " + threadingMode + " - archiveId=" + context.archiveId(),
+                recorderDutyCycleTracker.maxCycleTime().label());
+            assertEquals(
+                "archive-recorder work cycle time exceeded count: threshold=2s " + threadingMode +
+                    " - archiveId=" + context.archiveId(),
+                recorderDutyCycleTracker.cycleTimeThresholdExceededCount().label());
+
+            final DutyCycleStallTracker replayerDutyCycleTracker =
+                (DutyCycleStallTracker)context.replayerDutyCycleTracker();
+            assertNotNull(replayerDutyCycleTracker);
+            assertEquals(
+                "archive-replayer max cycle time in ns: " + threadingMode + " - archiveId=" + context.archiveId(),
+                replayerDutyCycleTracker.maxCycleTime().label());
+            assertEquals(
+                "archive-replayer work cycle time exceeded count: threshold=879us " + threadingMode +
+                    " - archiveId=" + context.archiveId(),
+                replayerDutyCycleTracker.cycleTimeThresholdExceededCount().label());
+        }
     }
 
     @Test

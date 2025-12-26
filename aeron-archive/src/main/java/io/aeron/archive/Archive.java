@@ -1390,7 +1390,7 @@ public final class Archive implements AutoCloseable
                         tempBuffer,
                         AeronCounters.ARCHIVE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID,
                         "archive-conductor work cycle time exceeded count: threshold=" +
-                            conductorCycleThresholdNs + "ns " + threadingMode.name(),
+                            SystemUtil.formatDuration(conductorCycleThresholdNs) + " " + threadingMode.name(),
                         archiveId),
                     conductorCycleThresholdNs);
             }
@@ -1422,14 +1422,14 @@ public final class Archive implements AutoCloseable
                             aeron,
                             tempBuffer,
                             AeronCounters.ARCHIVE_MAX_CYCLE_TIME_TYPE_ID,
-                            "archive-recorder max cycle time in ns",
+                            "archive-recorder max cycle time in ns: " + threadingMode.name(),
                             archiveId),
                         ArchiveCounters.allocate(
                             aeron,
                             tempBuffer,
                             AeronCounters.ARCHIVE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID,
                             "archive-recorder work cycle time exceeded count: threshold=" +
-                                recorderCycleThresholdNs + "ns",
+                                SystemUtil.formatDuration(recorderCycleThresholdNs) + " " + threadingMode.name(),
                             archiveId),
                         recorderCycleThresholdNs);
                 }
@@ -1441,14 +1441,14 @@ public final class Archive implements AutoCloseable
                             aeron,
                             tempBuffer,
                             AeronCounters.ARCHIVE_MAX_CYCLE_TIME_TYPE_ID,
-                            "archive-replayer max cycle time in ns",
+                            "archive-replayer max cycle time in ns: " + threadingMode.name(),
                             archiveId),
                         ArchiveCounters.allocate(
                             aeron,
                             tempBuffer,
                             AeronCounters.ARCHIVE_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID,
                             "archive-replayer work cycle time exceeded count: threshold=" +
-                                replayerCycleThresholdNs + "ns",
+                                SystemUtil.formatDuration(replayerCycleThresholdNs) + " " + threadingMode.name(),
                             archiveId),
                         replayerCycleThresholdNs);
                 }

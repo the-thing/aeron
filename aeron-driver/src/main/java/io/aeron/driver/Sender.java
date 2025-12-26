@@ -18,7 +18,6 @@ package io.aeron.driver;
 import io.aeron.ChannelUri;
 import io.aeron.driver.media.ControlTransportPoller;
 import io.aeron.driver.media.SendChannelEndpoint;
-import io.aeron.driver.status.DutyCycleStallTracker;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.concurrent.Agent;
 import org.agrona.concurrent.CachedNanoClock;
@@ -100,16 +99,6 @@ public final class Sender extends SenderRhsPadding implements Agent
         cachedNanoClock.update(nowNs);
         dutyCycleTracker.update(nowNs);
         reResolutionDeadlineNs = nowNs + reResolutionCheckIntervalNs;
-
-        if (dutyCycleTracker instanceof DutyCycleStallTracker)
-        {
-            final DutyCycleStallTracker dutyCycleStallTracker = (DutyCycleStallTracker)dutyCycleTracker;
-            final String threadingModeName = conductorProxy.threadingMode().name();
-
-            dutyCycleStallTracker.maxCycleTime().appendToLabel(": " + threadingModeName);
-            dutyCycleStallTracker.cycleTimeThresholdExceededCount().appendToLabel(
-                ": threshold=" + dutyCycleStallTracker.cycleTimeThresholdNs() + "ns " + threadingModeName);
-        }
     }
 
     /**

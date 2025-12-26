@@ -19,7 +19,6 @@ import io.aeron.driver.media.DataTransportPoller;
 import io.aeron.driver.media.ReceiveChannelEndpoint;
 import io.aeron.driver.media.ReceiveDestinationTransport;
 import io.aeron.driver.media.UdpChannel;
-import io.aeron.driver.status.DutyCycleStallTracker;
 import org.agrona.collections.ArrayListUtil;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.concurrent.Agent;
@@ -79,16 +78,6 @@ public final class Receiver implements Agent
         cachedNanoClock.update(nowNs);
         dutyCycleTracker.update(nowNs);
         reResolutionDeadlineNs = nowNs + reResolutionCheckIntervalNs;
-
-        if (dutyCycleTracker instanceof DutyCycleStallTracker)
-        {
-            final DutyCycleStallTracker dutyCycleStallTracker = (DutyCycleStallTracker)dutyCycleTracker;
-
-            dutyCycleStallTracker.maxCycleTime().appendToLabel(": " + conductorProxy.threadingMode().name());
-            dutyCycleStallTracker.cycleTimeThresholdExceededCount().appendToLabel(
-                ": threshold=" + dutyCycleStallTracker.cycleTimeThresholdNs() + "ns " +
-                conductorProxy.threadingMode().name());
-        }
     }
 
     /**

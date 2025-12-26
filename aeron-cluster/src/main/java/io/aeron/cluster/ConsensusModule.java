@@ -1963,7 +1963,8 @@ public final class ConsensusModule implements AutoCloseable
                         aeron, buffer, "Cluster max cycle time in ns",
                         AeronCounters.CLUSTER_MAX_CYCLE_TIME_TYPE_ID, clusterId),
                     ClusterCounters.allocate(
-                        aeron, buffer, "Cluster work cycle time exceeded count: threshold=" + cycleThresholdNs + "ns",
+                        aeron, buffer, "Cluster work cycle time exceeded count: threshold=" +
+                            SystemUtil.formatDuration(cycleThresholdNs),
                         AeronCounters.CLUSTER_CYCLE_TIME_THRESHOLD_EXCEEDED_TYPE_ID, clusterId),
                     cycleThresholdNs);
             }
@@ -1981,7 +1982,7 @@ public final class ConsensusModule implements AutoCloseable
                         aeron,
                         buffer,
                         "Total max snapshot duration exceeded count: threshold=" +
-                            totalSnapshotDurationThresholdNs + "ns",
+                            SystemUtil.formatDuration(totalSnapshotDurationThresholdNs),
                         AeronCounters.CLUSTER_TOTAL_SNAPSHOT_DURATION_THRESHOLD_EXCEEDED_TYPE_ID,
                         clusterId),
                     totalSnapshotDurationThresholdNs);
