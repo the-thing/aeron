@@ -15,13 +15,14 @@
  */
 package io.aeron;
 
+import org.agrona.SystemUtil;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 import static io.aeron.CommonContext.MAX_RESEND_PARAM_NAME;
 import static io.aeron.CommonContext.PUBLICATION_WINDOW_LENGTH_PARAM_NAME;
@@ -30,6 +31,7 @@ import static io.aeron.CommonContext.UNTETHERED_LINGER_TIMEOUT_PARAM_NAME;
 import static io.aeron.CommonContext.UNTETHERED_RESTING_TIMEOUT_PARAM_NAME;
 import static io.aeron.CommonContext.UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME;
 import static io.aeron.CommonContext.RESPONSE_CORRELATION_ID_PARAM_NAME;
+import static java.util.concurrent.TimeUnit.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -99,7 +101,7 @@ class ChannelUriStringBuilderTest
             .ttl(9)
             .termLength(1024 * 128);
 
-        assertEquals("aeron:udp?endpoint=localhost:9999|term-length=131072|ttl=9", builder.build());
+        assertEquals("aeron:udp?endpoint=localhost:9999|term-length=128k|ttl=9", builder.build());
     }
 
     @Test
@@ -114,7 +116,7 @@ class ChannelUriStringBuilderTest
             .termOffset(64);
 
         assertEquals(
-            "aeron:udp?endpoint=address:9999|term-length=131072|init-term-id=777|term-id=999|term-offset=64",
+            "aeron:udp?endpoint=address:9999|term-length=128k|init-term-id=777|term-id=999|term-offset=64",
             builder.build());
     }
 
@@ -128,7 +130,7 @@ class ChannelUriStringBuilderTest
             .socketRcvbufLength(4096);
 
         assertEquals(
-            "aeron:udp?endpoint=address:9999|so-sndbuf=8192|so-rcvbuf=4096",
+            "aeron:udp?endpoint=address:9999|so-sndbuf=8k|so-rcvbuf=4k",
             builder.build());
     }
 
@@ -141,7 +143,7 @@ class ChannelUriStringBuilderTest
             .receiverWindowLength(8192);
 
         assertEquals(
-            "aeron:udp?endpoint=address:9999|rcv-wnd=8192",
+            "aeron:udp?endpoint=address:9999|rcv-wnd=8k",
             builder.build());
     }
 
@@ -154,9 +156,7 @@ class ChannelUriStringBuilderTest
             .linger(lingerNs);
 
         assertSame(lingerNs, builder.linger());
-        assertEquals(
-            "aeron:ipc?linger=987654321123456789",
-            builder.build());
+        assertEquals("aeron:ipc?linger=987654321123456789ns", builder.build());
     }
 
     @Test
@@ -180,7 +180,7 @@ class ChannelUriStringBuilderTest
             IllegalArgumentException.class,
             () -> new ChannelUriStringBuilder().media("udp").endpoint("address:9999").linger(-1L));
 
-        assertEquals("linger value cannot be negative: -1", exception.getMessage());
+        assertEquals("`linger` value cannot be negative: -1", exception.getMessage());
     }
 
     @Test
@@ -189,7 +189,7 @@ class ChannelUriStringBuilderTest
         final ChannelUriStringBuilder builder = new ChannelUriStringBuilder();
         builder.linger(ChannelUri.parse("aeron:ipc?linger=7200s"));
 
-        assertEquals(TimeUnit.HOURS.toNanos(2), builder.linger());
+        assertEquals(HOURS.toNanos(2), builder.linger());
     }
 
     @Test
@@ -222,11 +222,11 @@ class ChannelUriStringBuilderTest
     {
         final String uri = "aeron-spy:aeron:udp?endpoint=127.0.0.1:0|interface=127.0.0.1|control=127.0.0.2:0|" +
             "control-mode=manual|tags=2,4|alias=foo|cc=cubic|fc=min|reliable=false|ttl=16|mtu=8992|" +
-            "term-length=1048576|init-term-id=5|term-offset=64|term-id=4353|session-id=2314234|gtag=3|" +
-            "linger=100000055000001|sparse=true|eos=true|tether=false|group=false|ssc=true|so-sndbuf=8388608|" +
-            "so-rcvbuf=2097152|rcv-wnd=1048576|media-rcv-ts-offset=reserved|channel-rcv-ts-offset=0|" +
-            "channel-snd-ts-offset=8|response-endpoint=127.0.0.3:0|response-correlation-id=12345|nak-delay=100000|" +
-            "untethered-window-limit-timeout=1000|untethered-resting-timeout=5000|stream-id=87|pub-wnd=10224";
+            "term-length=1m|init-term-id=5|term-offset=64|term-id=4353|session-id=2314234|gtag=3|" +
+            "linger=100000055000001ns|sparse=true|eos=true|tether=false|group=false|ssc=true|so-sndbuf=8m|" +
+            "so-rcvbuf=2m|rcv-wnd=1m|media-rcv-ts-offset=reserved|channel-rcv-ts-offset=0|" +
+            "channel-snd-ts-offset=8|response-endpoint=127.0.0.3:0|response-correlation-id=12345|nak-delay=100us|" +
+            "untethered-window-limit-timeout=1us|untethered-resting-timeout=5us|stream-id=87|pub-wnd=10224";
 
         final ChannelUri fromString = ChannelUri.parse(uri);
         final ChannelUri fromBuilder = ChannelUri.parse(new ChannelUriStringBuilder(uri).build());
@@ -369,11 +369,14 @@ class ChannelUriStringBuilderTest
 
         final ChannelUri uri = ChannelUri.parse(builder.build());
         assertEquals(
-            Long.toString(untetheredWindowLimitTimeoutNs), uri.get(UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME));
+            SystemUtil.formatDuration(untetheredWindowLimitTimeoutNs),
+            uri.get(UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME));
         assertEquals(
-            Long.toString(untetheredLingerTimeoutNs), uri.get(UNTETHERED_LINGER_TIMEOUT_PARAM_NAME));
+            SystemUtil.formatDuration(untetheredLingerTimeoutNs),
+            uri.get(UNTETHERED_LINGER_TIMEOUT_PARAM_NAME));
         assertEquals(
-            Long.toString(untetheredRestingTimeoutNs), uri.get(UNTETHERED_RESTING_TIMEOUT_PARAM_NAME));
+            SystemUtil.formatDuration(untetheredRestingTimeoutNs),
+            uri.get(UNTETHERED_RESTING_TIMEOUT_PARAM_NAME));
     }
 
     @ParameterizedTest
@@ -393,5 +396,37 @@ class ChannelUriStringBuilderTest
         final ChannelUri channelUri = ChannelUri.parse("aeron:udp?" + RESPONSE_CORRELATION_ID_PARAM_NAME +
             "=" + responseCorrelationId);
         assertDoesNotThrow(() -> new ChannelUriStringBuilder().responseCorrelationId(channelUri));
+    }
+
+    @Test
+    void shouldFormatSizeAndDurationsWhenCreatingChannelString()
+    {
+        final String channel = new ChannelUriStringBuilder()
+            .media("udp")
+            .endpoint("localhost:5050")
+            .receiverWindowLength(1024)
+            .mtu(8192)
+            .termLength(4 * 1024 * 1024)
+            .socketSndbufLength(64 * 1024)
+            .socketRcvbufLength(32 * 1024)
+            .publicationWindowLength(1024 * 1024)
+            .untetheredWindowLimitTimeoutNs(MICROSECONDS.toNanos(100))
+            .untetheredLingerTimeoutNs(MILLISECONDS.toNanos(3))
+            .untetheredRestingTimeoutNs(SECONDS.toNanos(1))
+            .linger(MILLISECONDS.toNanos(50))
+            .nakDelay(123456789L)
+            .maxResend(1000)
+            .tether(true)
+            .rejoin(false)
+            .streamId(-87)
+            .initialPosition(17 * 1024 * 1024, -9, 4 * 1024 * 1024)
+            .build();
+        assertEquals(
+            Map.of(),
+            ChannelUri.parse(channel).diff(
+            ChannelUri.parse("aeron:udp?endpoint=localhost:5050|mtu=8k|term-length=4m|rcv-wnd=1k|so-sndbuf=64k|" +
+                "so-rcvbuf=32k|pub-wnd=1m|untethered-linger-timeout=3ms|untethered-window-limit-timeout=100us|" +
+                "untethered-resting-timeout=1s|linger=50ms|nak-delay=123456789ns|max-resend=1000|rejoin=false|" +
+                "tether=true|stream-id=-87|term-id=-5|init-term-id=-9|term-offset=1048576")));
     }
 }

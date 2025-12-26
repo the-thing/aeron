@@ -16,6 +16,7 @@
 package io.aeron;
 
 import io.aeron.logbuffer.LogBufferDescriptor;
+import org.agrona.SystemUtil;
 
 import static io.aeron.ChannelUri.SPY_QUALIFIER;
 import static io.aeron.CommonContext.*;
@@ -987,12 +988,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder linger(final Long lingerNs)
     {
-        if (null != lingerNs && lingerNs < 0)
-        {
-            throw new IllegalArgumentException("linger value cannot be negative: " + lingerNs);
-        }
-
-        this.linger = lingerNs;
+        this.linger = requireNonNegative(lingerNs, LINGER_PARAM_NAME);
         return this;
     }
 
@@ -1657,7 +1653,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder socketSndbufLength(final Integer socketSndbufLength)
     {
-        this.socketSndbufLength = socketSndbufLength;
+        this.socketSndbufLength = requireNonNegative(socketSndbufLength, SOCKET_SNDBUF_PARAM_NAME);
         return this;
     }
 
@@ -1708,7 +1704,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder socketRcvbufLength(final Integer socketRcvbufLength)
     {
-        this.socketRcvbufLength = socketRcvbufLength;
+        this.socketRcvbufLength = requireNonNegative(socketRcvbufLength, SOCKET_RCVBUF_PARAM_NAME);
         return this;
     }
 
@@ -1760,7 +1756,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder receiverWindowLength(final Integer receiverWindowLength)
     {
-        this.receiverWindowLength = receiverWindowLength;
+        this.receiverWindowLength = requireNonNegative(receiverWindowLength, RECEIVER_WINDOW_LENGTH_PARAM_NAME);
         return this;
     }
 
@@ -2098,6 +2094,19 @@ public final class ChannelUriStringBuilder
     /**
      * The delay to apply before sending a NAK in response to a gap being detected by the receiver.
      *
+     * @param nakDelayNs in nanoseconds.
+     * @return this for a fluent API.
+     * @see CommonContext#NAK_DELAY_PARAM_NAME
+     */
+    public ChannelUriStringBuilder nakDelay(final Long nakDelayNs)
+    {
+        this.nakDelay = requireNonNegative(nakDelayNs, NAK_DELAY_PARAM_NAME);
+        return this;
+    }
+
+    /**
+     * The delay to apply before sending a NAK in response to a gap being detected by the receiver.
+     *
      * @param channelUri the existing URI to extract the nakDelay from.
      * @return this for a fluent API.
      * @see CommonContext#NAK_DELAY_PARAM_NAME
@@ -2143,7 +2152,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder untetheredWindowLimitTimeoutNs(final Long timeout)
     {
-        this.untetheredWindowLimitTimeoutNs = timeout;
+        this.untetheredWindowLimitTimeoutNs = requireNonNegative(timeout, UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME);
         return this;
     }
 
@@ -2196,7 +2205,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder untetheredLingerTimeoutNs(final Long timeout)
     {
-        this.untetheredLingerTimeoutNs = timeout;
+        this.untetheredLingerTimeoutNs = requireNonNegative(timeout, UNTETHERED_LINGER_TIMEOUT_PARAM_NAME);
         return this;
     }
 
@@ -2249,7 +2258,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder untetheredRestingTimeoutNs(final Long timeout)
     {
-        this.untetheredRestingTimeoutNs = timeout;
+        this.untetheredRestingTimeoutNs = requireNonNegative(timeout, UNTETHERED_RESTING_TIMEOUT_PARAM_NAME);
         return this;
     }
 
@@ -2288,7 +2297,7 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder maxResend(final Integer maxResend)
     {
-        this.maxResend = maxResend;
+        this.maxResend = requireNonNegative(maxResend, MAX_RESEND_PARAM_NAME);
         return this;
     }
 
@@ -2315,8 +2324,7 @@ public final class ChannelUriStringBuilder
             }
             catch (final NumberFormatException ex)
             {
-                throw new IllegalArgumentException(
-                    MAX_RESEND_PARAM_NAME + " must be a number", ex);
+                throw new IllegalArgumentException(MAX_RESEND_PARAM_NAME + " must be a number", ex);
             }
         }
     }
@@ -2376,8 +2384,7 @@ public final class ChannelUriStringBuilder
             }
             catch (final NumberFormatException ex)
             {
-                throw new IllegalArgumentException(
-                    STREAM_ID_PARAM_NAME + " must be a number", ex);
+                throw new IllegalArgumentException(STREAM_ID_PARAM_NAME + " must be a number", ex);
             }
         }
     }
@@ -2391,7 +2398,8 @@ public final class ChannelUriStringBuilder
      */
     public ChannelUriStringBuilder publicationWindowLength(final Integer publicationWindowLength)
     {
-        this.publicationWindowLength = publicationWindowLength;
+        this.publicationWindowLength =
+            requireNonNegative(publicationWindowLength, PUBLICATION_WINDOW_LENGTH_PARAM_NAME);
         return this;
     }
 
@@ -2456,8 +2464,8 @@ public final class ChannelUriStringBuilder
         appendParameter(sb, INTERFACE_PARAM_NAME, networkInterface);
         appendParameter(sb, MDC_CONTROL_PARAM_NAME, controlEndpoint);
         appendParameter(sb, MDC_CONTROL_MODE_PARAM_NAME, controlMode);
-        appendParameter(sb, MTU_LENGTH_PARAM_NAME, mtu);
-        appendParameter(sb, TERM_LENGTH_PARAM_NAME, termLength);
+        appendSize(sb, MTU_LENGTH_PARAM_NAME, mtu);
+        appendSize(sb, TERM_LENGTH_PARAM_NAME, termLength);
         appendParameter(sb, INITIAL_TERM_ID_PARAM_NAME, initialTermId);
         appendParameter(sb, TERM_ID_PARAM_NAME, termId);
         appendParameter(sb, TERM_OFFSET_PARAM_NAME, termOffset);
@@ -2469,7 +2477,7 @@ public final class ChannelUriStringBuilder
 
         appendParameter(sb, TTL_PARAM_NAME, ttl);
         appendParameter(sb, RELIABLE_STREAM_PARAM_NAME, reliable);
-        appendParameter(sb, LINGER_PARAM_NAME, linger);
+        appendDuration(sb, LINGER_PARAM_NAME, linger);
         appendParameter(sb, ALIAS_PARAM_NAME, alias);
         appendParameter(sb, CONGESTION_CONTROL_PARAM_NAME, cc);
         appendParameter(sb, FLOW_CONTROL_PARAM_NAME, fc);
@@ -2480,21 +2488,21 @@ public final class ChannelUriStringBuilder
         appendParameter(sb, GROUP_PARAM_NAME, group);
         appendParameter(sb, REJOIN_PARAM_NAME, rejoin);
         appendParameter(sb, SPIES_SIMULATE_CONNECTION_PARAM_NAME, ssc);
-        appendParameter(sb, SOCKET_SNDBUF_PARAM_NAME, socketSndbufLength);
-        appendParameter(sb, SOCKET_RCVBUF_PARAM_NAME, socketRcvbufLength);
-        appendParameter(sb, RECEIVER_WINDOW_LENGTH_PARAM_NAME, receiverWindowLength);
+        appendSize(sb, SOCKET_SNDBUF_PARAM_NAME, socketSndbufLength);
+        appendSize(sb, SOCKET_RCVBUF_PARAM_NAME, socketRcvbufLength);
+        appendSize(sb, RECEIVER_WINDOW_LENGTH_PARAM_NAME, receiverWindowLength);
         appendParameter(sb, MEDIA_RCV_TIMESTAMP_OFFSET_PARAM_NAME, mediaReceiveTimestampOffset);
         appendParameter(sb, CHANNEL_RECEIVE_TIMESTAMP_OFFSET_PARAM_NAME, channelReceiveTimestampOffset);
         appendParameter(sb, CHANNEL_SEND_TIMESTAMP_OFFSET_PARAM_NAME, channelSendTimestampOffset);
         appendParameter(sb, RESPONSE_ENDPOINT_PARAM_NAME, responseEndpoint);
         appendParameter(sb, RESPONSE_CORRELATION_ID_PARAM_NAME, responseCorrelationId);
-        appendParameter(sb, NAK_DELAY_PARAM_NAME, nakDelay);
-        appendParameter(sb, UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME, untetheredWindowLimitTimeoutNs);
-        appendParameter(sb, UNTETHERED_LINGER_TIMEOUT_PARAM_NAME, untetheredLingerTimeoutNs);
-        appendParameter(sb, UNTETHERED_RESTING_TIMEOUT_PARAM_NAME, untetheredRestingTimeoutNs);
+        appendDuration(sb, NAK_DELAY_PARAM_NAME, nakDelay);
+        appendDuration(sb, UNTETHERED_WINDOW_LIMIT_TIMEOUT_PARAM_NAME, untetheredWindowLimitTimeoutNs);
+        appendDuration(sb, UNTETHERED_LINGER_TIMEOUT_PARAM_NAME, untetheredLingerTimeoutNs);
+        appendDuration(sb, UNTETHERED_RESTING_TIMEOUT_PARAM_NAME, untetheredRestingTimeoutNs);
         appendParameter(sb, MAX_RESEND_PARAM_NAME, maxResend);
         appendParameter(sb, STREAM_ID_PARAM_NAME, streamId);
-        appendParameter(sb, PUBLICATION_WINDOW_LENGTH_PARAM_NAME, publicationWindowLength);
+        appendSize(sb, PUBLICATION_WINDOW_LENGTH_PARAM_NAME, publicationWindowLength);
 
         final char lastChar = sb.charAt(sb.length() - 1);
         if (lastChar == '|' || lastChar == '?')
@@ -2505,6 +2513,14 @@ public final class ChannelUriStringBuilder
         return sb.toString();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    public String toString()
+    {
+        return build();
+    }
+
     private static void appendParameter(final StringBuilder sb, final String paramName, final Object paramValue)
     {
         if (null != paramValue)
@@ -2513,12 +2529,38 @@ public final class ChannelUriStringBuilder
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public String toString()
+    private static void appendDuration(final StringBuilder sb, final String paramName, final Long valueNs)
     {
-        return build();
+        if (null != valueNs)
+        {
+            sb.append(paramName).append('=').append(SystemUtil.formatDuration(valueNs)).append('|');
+        }
+    }
+
+    private static void appendSize(final StringBuilder sb, final String paramName, final Integer value)
+    {
+        if (null != value)
+        {
+            sb.append(paramName).append('=').append(SystemUtil.formatSize(value)).append('|');
+        }
+    }
+
+    private static Long requireNonNegative(final Long value, final String name)
+    {
+        if (null != value && value < 0)
+        {
+            throw new IllegalArgumentException("`" + name + "` value cannot be negative: " + value);
+        }
+        return value;
+    }
+
+    private static Integer requireNonNegative(final Integer value, final String name)
+    {
+        if (null != value && value < 0)
+        {
+            throw new IllegalArgumentException("`" + name + "` value cannot be negative: " + value);
+        }
+        return value;
     }
 
     private static String prefixTag(final boolean isTagged, final Long value)
