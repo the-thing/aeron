@@ -110,8 +110,6 @@ import static io.aeron.driver.PublicationParams.getPublicationParams;
 import static io.aeron.driver.PublicationParams.validateMtuForSndbuf;
 import static io.aeron.driver.PublicationParams.validateSpiesSimulateConnection;
 import static io.aeron.driver.SubscriptionParams.validateInitialWindowForRcvBuf;
-import static io.aeron.driver.status.SystemCounterDescriptor.CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED;
-import static io.aeron.driver.status.SystemCounterDescriptor.CONDUCTOR_MAX_CYCLE_TIME;
 import static io.aeron.driver.status.SystemCounterDescriptor.ERRORS;
 import static io.aeron.driver.status.SystemCounterDescriptor.FREE_FAILS;
 import static io.aeron.driver.status.SystemCounterDescriptor.IMAGES_REJECTED;
