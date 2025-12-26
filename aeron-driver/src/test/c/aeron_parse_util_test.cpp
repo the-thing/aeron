@@ -101,7 +101,8 @@ TEST_P(ParseUtilTestTooLargeSize, shouldRejectTooLargeValue)
 
 TEST_F(ParseUtilTest, formatSizeShouldRejectValuesLargerThanLLongMaxValue)
 {
-    EXPECT_EQ(-1, aeron_format_size64(ULLONG_MAX, NULL, 0));
+    char buff[64] = {};
+    EXPECT_EQ(-1, aeron_format_size64(ULLONG_MAX, buff, 0));
     EXPECT_EQ(EINVAL, aeron_errcode());
     std::string err = std::string(aeron_errmsg());
     EXPECT_NE(std::string::npos, err.find("value is out of range: 18446744073709551615"));
@@ -118,9 +119,9 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(0ULL, "0"),
         std::make_tuple(1ULL, "1"),
         std::make_tuple(77777777ULL, "77777777"),
-        std::make_tuple(9223372036854775807ULL, "9223372036854775807"),
+        std::make_tuple(LLONG_MAX, "9223372036854775807"),
         std::make_tuple(1024ULL, "1k"),
-        std::make_tuple( 1024 * 1024ULL, "1m"),
+        std::make_tuple(1024 * 1024ULL, "1m"),
         std::make_tuple(1024 * 1024 * 1024ULL, "1g"),
         std::make_tuple(5023 * 1024ULL,"5023k"),
         std::make_tuple(9 * 1024 * 1024ULL, "9m"),
@@ -205,6 +206,48 @@ TEST_P(ParseUtilTestMaxDuration, shouldParseMaxQualifiedDuration)
     uint64_t duration_ns;
     EXPECT_EQ(aeron_parse_duration_ns(std::get<0>(GetParam()), &duration_ns), 0);
     EXPECT_EQ(std::get<1>(GetParam()), duration_ns);
+}
+
+TEST_F(ParseUtilTest, formatDurationShouldRejectValuesLargerThanLLongMaxValue)
+{
+    char buff[64] = {};
+    EXPECT_EQ(-1, aeron_format_duration_ns(ULLONG_MAX, buff, 0));
+    EXPECT_EQ(EINVAL, aeron_errcode());
+    std::string err = std::string(aeron_errmsg());
+    EXPECT_NE(std::string::npos, err.find("duration is out of range: 18446744073709551615"));
+}
+
+class ParseUtilTestFormatDuration : public testing::TestWithParam<std::tuple<uint64_t, const char *>>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestFormatDuration,
+    ParseUtilTestFormatDuration,
+    testing::Values(
+        std::make_tuple(0ULL, "0ns"),
+        std::make_tuple(12345ULL, "12345ns"),
+        std::make_tuple(456000ULL, "456us"),
+        std::make_tuple(1000000ULL, "1ms"),
+        std::make_tuple(123000000ULL, "123ms"),
+        std::make_tuple(1ULL, "1ns"),
+        std::make_tuple(1000ULL, "1us"),
+        std::make_tuple(1000000ULL, "1ms"),
+        std::make_tuple(1000000000ULL, "1s"),
+        std::make_tuple(66000000ULL, "66ms"),
+        std::make_tuple(5000000000ULL, "5s"),
+        std::make_tuple(345000000000ULL, "345s"),
+        std::make_tuple(700000000ULL, "700ms"),
+        std::make_tuple(9223372036854775000ULL, "9223372036854775us"),
+        std::make_tuple(9223372036854000000ULL, "9223372036854ms"),
+        std::make_tuple(9223372036000000000ULL, "9223372036s"),
+        std::make_tuple(LLONG_MAX, "9223372036854775807ns")));
+
+TEST_P(ParseUtilTestFormatDuration, shouldFormatDuration)
+{
+    char buff[64] = {};
+    EXPECT_EQ(aeron_format_duration_ns(std::get<0>(GetParam()), buff, sizeof(buff)), 0);
+    EXPECT_STREQ(buff, std::get<1>(GetParam()));
 }
 
 TEST_F(ParseUtilTest, shouldSplitAddress)

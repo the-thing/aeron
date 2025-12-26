@@ -266,6 +266,68 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
     return 0;
 }
 
+int aeron_format_duration_ns(uint64_t duration_ns, char *buffer, size_t buffer_size)
+{
+    if (duration_ns > LLONG_MAX)
+    {
+        AERON_SET_ERR(EINVAL, "duration is out of range: %" PRIu64, duration_ns);
+        return -1;
+    }
+
+    if (duration_ns >= AERON_ONE_SECOND_NS)
+    {
+        uint64_t result = duration_ns / AERON_ONE_SECOND_NS;
+        if (duration_ns == result * AERON_ONE_SECOND_NS)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "s", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    if (duration_ns >= AERON_ONE_MILLISECOND_NS)
+    {
+        uint64_t result = duration_ns / AERON_ONE_MILLISECOND_NS;
+        if (duration_ns == result * AERON_ONE_MILLISECOND_NS)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "ms", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    if (duration_ns >= AERON_ONE_MICROSECOND_NS)
+    {
+        uint64_t result = duration_ns / AERON_ONE_MICROSECOND_NS;
+        if (duration_ns == result * AERON_ONE_MICROSECOND_NS)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "us", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    int rc = snprintf(buffer, buffer_size, "%" PRIu64 "ns", duration_ns);
+    if (rc < 0)
+    {
+        AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
+        return -1;
+    }
+    return 0;
+}
+
 bool aeron_parse_bool(const char *str, bool def)
 {
     if (NULL != str)
