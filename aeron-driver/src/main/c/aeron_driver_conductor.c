@@ -1024,8 +1024,8 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
             &conductor->counters_manager, AERON_SYSTEM_COUNTER_RESOLUTION_CHANGES, (size_t)label_length, label);
     }
 
-    label_length = snprintf(label, sizeof(label), ": %s",
-        aeron_driver_threading_mode_to_string(context->threading_mode));
+    const char* threading_mode  = aeron_driver_threading_mode_to_string(context->threading_mode);
+    label_length = snprintf(label, sizeof(label), ": %s", threading_mode );
     if (label_length > 0)
     {
         aeron_counters_manager_append_to_label(
@@ -1035,8 +1035,7 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
             label);
     }
 
-    label_length = snprintf(label, sizeof(label), ": %s",
-        aeron_driver_threading_mode_to_string(context->threading_mode));
+    label_length = snprintf(label, sizeof(label), ": %s", threading_mode );
     if (label_length > 0)
     {
         aeron_counters_manager_append_to_label(
@@ -1046,8 +1045,7 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
             label);
     }
 
-    label_length = snprintf(label, sizeof(label), ": %s",
-        aeron_driver_threading_mode_to_string(context->threading_mode));
+    label_length = snprintf(label, sizeof(label), ": %s", threading_mode );
     if (label_length > 0)
     {
         aeron_counters_manager_append_to_label(
@@ -1057,42 +1055,54 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
             label);
     }
 
-    label_length = snprintf(label, sizeof(label), ": threshold=%" PRIu64 "ns %s",
-        context->conductor_duty_cycle_stall_tracker.cycle_threshold_ns,
-        aeron_driver_threading_mode_to_string(context->threading_mode));
-    if (label_length > 0)
+    char threshold[32];
+    int threshold_length = aeron_format_duration_ns(
+        context->conductor_duty_cycle_stall_tracker.cycle_threshold_ns, threshold, sizeof(threshold));
+    if (threshold_length > 0)
     {
-        aeron_counters_manager_append_to_label(
-            &conductor->counters_manager,
-            AERON_SYSTEM_COUNTER_CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED,
-            (size_t)label_length,
-            label);
+        label_length = snprintf(label, sizeof(label), ": threshold=%*.s %s",
+            threshold_length, threshold, threading_mode);
+        if (label_length > 0)
+        {
+            aeron_counters_manager_append_to_label(
+                &conductor->counters_manager,
+                AERON_SYSTEM_COUNTER_CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED,
+                (size_t)label_length,
+                label);
+        }
     }
 
-    label_length = snprintf(label, sizeof(label), ": threshold=%" PRIu64 "ns %s",
-        context->sender_duty_cycle_stall_tracker.cycle_threshold_ns,
-        aeron_driver_threading_mode_to_string(context->threading_mode));
-    if (label_length > 0)
+    threshold_length = aeron_format_duration_ns(
+        context->sender_duty_cycle_stall_tracker.cycle_threshold_ns, threshold, sizeof(threshold));
+    if (threshold_length > 0)
     {
-        aeron_counters_manager_append_to_label(
-            &conductor->counters_manager,
-            AERON_SYSTEM_COUNTER_SENDER_CYCLE_TIME_THRESHOLD_EXCEEDED,
-            (size_t)label_length,
-            label);
+        label_length = snprintf(label, sizeof(label), ": threshold=%*.s %s",
+            threshold_length, threshold, threading_mode);
+        if (label_length > 0)
+        {
+            aeron_counters_manager_append_to_label(
+                &conductor->counters_manager,
+                AERON_SYSTEM_COUNTER_SENDER_CYCLE_TIME_THRESHOLD_EXCEEDED,
+                (size_t)label_length,
+                label);
+        }
     }
 
-    label_length = snprintf(label, sizeof(label), ": threshold=%" PRIu64 "ns %s",
-        context->receiver_duty_cycle_stall_tracker.cycle_threshold_ns,
-        aeron_driver_threading_mode_to_string(context->threading_mode));
-    if (label_length > 0)
+    threshold_length = aeron_format_duration_ns(
+        context->receiver_duty_cycle_stall_tracker.cycle_threshold_ns, threshold, sizeof(threshold));
+    if (threshold_length > 0)
     {
-        aeron_counters_manager_append_to_label(
-            &conductor->counters_manager,
-            AERON_SYSTEM_COUNTER_RECEIVER_CYCLE_TIME_THRESHOLD_EXCEEDED,
-            (size_t)label_length,
-            label);
+        label_length = snprintf(label, sizeof(label), ": threshold=%*.s %s",
+            threshold_length, threshold, threading_mode);
+        if (label_length > 0)
+        {
+            aeron_counters_manager_append_to_label(
+                &conductor->counters_manager,
+                AERON_SYSTEM_COUNTER_RECEIVER_CYCLE_TIME_THRESHOLD_EXCEEDED,
+                (size_t)label_length,
+                label);
+        }
     }
-
     context->conductor_duty_cycle_tracker->update(context->conductor_duty_cycle_tracker->state, now_ns);
 
     conductor->context = context;
