@@ -89,7 +89,7 @@ class MediaDriverTest
             .dirDeleteOnShutdown(true)
             .conductorCycleThresholdNs(TimeUnit.SECONDS.toNanos(1))
             .senderCycleThresholdNs(TimeUnit.MILLISECONDS.toNanos(50))
-            .receiverCycleThresholdNs(TimeUnit.MICROSECONDS.toMillis(3))
+            .receiverCycleThresholdNs(TimeUnit.MICROSECONDS.toNanos(3))
             .nameResolverThresholdNs(101010);
 
         assertNull(context.countersManager());
@@ -108,25 +108,29 @@ class MediaDriverTest
                 CONDUCTOR_MAX_CYCLE_TIME,
                 CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED,
                 context.conductorCycleThresholdNs(),
-                threadingMode);
+                ": " + threadingMode,
+                ": threshold=1s " + threadingMode);
             verifyStallTracker(
                 context.senderDutyCycleTracker(),
                 SENDER_MAX_CYCLE_TIME,
                 SENDER_CYCLE_TIME_THRESHOLD_EXCEEDED,
                 context.senderCycleThresholdNs(),
-                threadingMode);
+                ": " + threadingMode,
+                ": threshold=50ms " + threadingMode);
             verifyStallTracker(
                 context.receiverDutyCycleTracker(),
                 RECEIVER_MAX_CYCLE_TIME,
                 RECEIVER_CYCLE_TIME_THRESHOLD_EXCEEDED,
                 context.receiverCycleThresholdNs(),
-                threadingMode);
+                ": " + threadingMode,
+                ": threshold=3us " + threadingMode);
             verifyStallTracker(
                 context.nameResolverTimeTracker(),
                 NAME_RESOLVER_MAX_TIME,
                 NAME_RESOLVER_TIME_THRESHOLD_EXCEEDED,
                 context.nameResolverThresholdNs(),
-                threadingMode);
+                NAME_RESOLVER_MAX_TIME.label(),
+                ": threshold=101010ns");
         }
         finally
         {
@@ -207,14 +211,14 @@ class MediaDriverTest
         final SystemCounterDescriptor maxCycleTimeCounter,
         final SystemCounterDescriptor cycleTimeThresholdExceededCounter,
         final long cycleTimeThresholdNs,
-        final ThreadingMode threadingMode)
+        final String maxCycleLabelSuffix,
+        final String thresholdLabelSuffix)
     {
         final DutyCycleStallTracker stallTracker = assertInstanceOf(DutyCycleStallTracker.class, dutyCycleTracker);
         assertEquals(maxCycleTimeCounter.id(), stallTracker.maxCycleTime().id());
         assertEquals(cycleTimeThresholdExceededCounter.id(), stallTracker.cycleTimeThresholdExceededCount().id());
         assertEquals(cycleTimeThresholdNs, stallTracker.cycleTimeThresholdNs());
-        assertThat(stallTracker.maxCycleTime().label(), endsWith(": " + threadingMode));
-        assertThat(stallTracker.cycleTimeThresholdExceededCount().label(), endsWith(
-            ": threshold=" + SystemUtil.formatDuration(cycleTimeThresholdNs) + " " + threadingMode));
+        assertThat(stallTracker.maxCycleTime().label(), endsWith(maxCycleLabelSuffix));
+        assertThat(stallTracker.cycleTimeThresholdExceededCount().label(), endsWith(thresholdLabelSuffix));
     }
 }

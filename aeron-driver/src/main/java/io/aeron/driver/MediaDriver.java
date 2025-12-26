@@ -4250,10 +4250,8 @@ public final class MediaDriver implements AutoCloseable
                 ": threshold=" + SystemUtil.formatDuration(receiverCycleThresholdNs) +
                     " " + threadingMode.name());
 
-            systemCounters.get(NAME_RESOLVER_MAX_TIME).appendToLabel(": " + threadingMode.name());
             systemCounters.get(NAME_RESOLVER_TIME_THRESHOLD_EXCEEDED).appendToLabel(
-                ": threshold=" + SystemUtil.formatDuration(nameResolverThresholdNs) +
-                    " " + threadingMode.name());
+                ": threshold=" + SystemUtil.formatDuration(nameResolverThresholdNs));
         }
 
         @SuppressWarnings("MethodLength")
