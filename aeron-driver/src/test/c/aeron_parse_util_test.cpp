@@ -108,7 +108,7 @@ TEST_F(ParseUtilTest, formatSizeShouldRejectValuesLargerThanLLongMaxValue)
     EXPECT_NE(std::string::npos, err.find("value is out of range: 18446744073709551615"));
 }
 
-class ParseUtilTestFormatSize : public testing::TestWithParam<std::tuple<uint64_t, const char *>>
+class ParseUtilTestFormatSize : public testing::TestWithParam<std::tuple<uint64_t, const char *, int>>
 {
 };
 
@@ -116,25 +116,25 @@ INSTANTIATE_TEST_SUITE_P(
     ParseUtilTestFormatSize,
     ParseUtilTestFormatSize,
     testing::Values(
-        std::make_tuple(0ULL, "0"),
-        std::make_tuple(1ULL, "1"),
-        std::make_tuple(77777777ULL, "77777777"),
-        std::make_tuple(LLONG_MAX, "9223372036854775807"),
-        std::make_tuple(1024ULL, "1k"),
-        std::make_tuple(1024 * 1024ULL, "1m"),
-        std::make_tuple(1024 * 1024 * 1024ULL, "1g"),
-        std::make_tuple(5023 * 1024ULL,"5023k"),
-        std::make_tuple(9 * 1024 * 1024ULL, "9m"),
-        std::make_tuple(5 * 1024 * 1024 * 1024ULL, "5g"),
-        std::make_tuple(8589934591 * 1024 * 1024 * 1024ULL, "8589934591g"),
-        std::make_tuple(8796093022207 * 1024 * 1024ULL, "8796093022207m"),
-        std::make_tuple(9007199254740991 * 1024ULL, "9007199254740991k")));
+        std::make_tuple(0ULL, "0", 1),
+        std::make_tuple(1ULL, "1", 1),
+        std::make_tuple(77777777ULL, "77777777", 8),
+        std::make_tuple(LLONG_MAX, "9223372036854775807", 19),
+        std::make_tuple(1024ULL, "1k", 2),
+        std::make_tuple(1024 * 1024ULL, "1m", 2),
+        std::make_tuple(1024 * 1024 * 1024ULL, "1g", 2),
+        std::make_tuple(5023 * 1024ULL,"5023k", 5),
+        std::make_tuple(9 * 1024 * 1024ULL, "9m", 2),
+        std::make_tuple(5 * 1024 * 1024 * 1024ULL, "5g", 2),
+        std::make_tuple(8589934591 * 1024 * 1024 * 1024ULL, "8589934591g", 11),
+        std::make_tuple(8796093022207 * 1024 * 1024ULL, "8796093022207m", 14),
+        std::make_tuple(9007199254740991 * 1024ULL, "9007199254740991k", 17)));
 
 TEST_P(ParseUtilTestFormatSize, shouldFormatSize)
 {
     char buff[64] = {};
 
-    EXPECT_EQ(aeron_format_size64(std::get<0>(GetParam()), buff, sizeof(buff)), 0);
+    EXPECT_EQ(aeron_format_size64(std::get<0>(GetParam()), buff, sizeof(buff)), std::get<2>(GetParam()));
     EXPECT_STREQ(buff, std::get<1>(GetParam()));
 }
 
@@ -217,7 +217,7 @@ TEST_F(ParseUtilTest, formatDurationShouldRejectValuesLargerThanLLongMaxValue)
     EXPECT_NE(std::string::npos, err.find("duration is out of range: 18446744073709551615"));
 }
 
-class ParseUtilTestFormatDuration : public testing::TestWithParam<std::tuple<uint64_t, const char *>>
+class ParseUtilTestFormatDuration : public testing::TestWithParam<std::tuple<uint64_t, const char *, int>>
 {
 };
 
@@ -225,28 +225,28 @@ INSTANTIATE_TEST_SUITE_P(
     ParseUtilTestFormatDuration,
     ParseUtilTestFormatDuration,
     testing::Values(
-        std::make_tuple(0ULL, "0ns"),
-        std::make_tuple(12345ULL, "12345ns"),
-        std::make_tuple(456000ULL, "456us"),
-        std::make_tuple(1000000ULL, "1ms"),
-        std::make_tuple(123000000ULL, "123ms"),
-        std::make_tuple(1ULL, "1ns"),
-        std::make_tuple(1000ULL, "1us"),
-        std::make_tuple(1000000ULL, "1ms"),
-        std::make_tuple(1000000000ULL, "1s"),
-        std::make_tuple(66000000ULL, "66ms"),
-        std::make_tuple(5000000000ULL, "5s"),
-        std::make_tuple(345000000000ULL, "345s"),
-        std::make_tuple(700000000ULL, "700ms"),
-        std::make_tuple(9223372036854775000ULL, "9223372036854775us"),
-        std::make_tuple(9223372036854000000ULL, "9223372036854ms"),
-        std::make_tuple(9223372036000000000ULL, "9223372036s"),
-        std::make_tuple(LLONG_MAX, "9223372036854775807ns")));
+        std::make_tuple(0ULL, "0ns", 3),
+        std::make_tuple(12345ULL, "12345ns", 7),
+        std::make_tuple(456000ULL, "456us",5),
+        std::make_tuple(1000000ULL, "1ms", 3),
+        std::make_tuple(123000000ULL, "123ms", 5),
+        std::make_tuple(1ULL, "1ns", 3),
+        std::make_tuple(1000ULL, "1us", 3),
+        std::make_tuple(1000000ULL, "1ms", 3),
+        std::make_tuple(1000000000ULL, "1s", 2),
+        std::make_tuple(66000000ULL, "66ms", 4),
+        std::make_tuple(5000000000ULL, "5s", 2),
+        std::make_tuple(345000000000ULL, "345s", 4),
+        std::make_tuple(700000000ULL, "700ms", 5),
+        std::make_tuple(9223372036854775000ULL, "9223372036854775us", 18),
+        std::make_tuple(9223372036854000000ULL, "9223372036854ms", 15),
+        std::make_tuple(9223372036000000000ULL, "9223372036s", 11),
+        std::make_tuple(LLONG_MAX, "9223372036854775807ns", 21)));
 
 TEST_P(ParseUtilTestFormatDuration, shouldFormatDuration)
 {
     char buff[64] = {};
-    EXPECT_EQ(aeron_format_duration_ns(std::get<0>(GetParam()), buff, sizeof(buff)), 0);
+    EXPECT_EQ(aeron_format_duration_ns(std::get<0>(GetParam()), buff, sizeof(buff)), std::get<2>(GetParam()));
     EXPECT_STREQ(buff, std::get<1>(GetParam()));
 }
 

@@ -123,7 +123,7 @@ int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size)
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -138,7 +138,7 @@ int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size)
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -153,7 +153,7 @@ int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size)
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -163,7 +163,7 @@ int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size)
         AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
         return -1;
     }
-    return 0;
+    return rc;
 }
 
 int aeron_parse_duration_ns(const char *str, uint64_t *result)
@@ -285,7 +285,7 @@ int aeron_format_duration_ns(uint64_t duration_ns, char *buffer, size_t buffer_s
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -300,7 +300,7 @@ int aeron_format_duration_ns(uint64_t duration_ns, char *buffer, size_t buffer_s
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -315,7 +315,7 @@ int aeron_format_duration_ns(uint64_t duration_ns, char *buffer, size_t buffer_s
                 AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
                 return -1;
             }
-            return 0;
+            return rc;
         }
     }
 
@@ -325,7 +325,7 @@ int aeron_format_duration_ns(uint64_t duration_ns, char *buffer, size_t buffer_s
         AERON_SET_ERR(rc, "failed to format value: %" PRIu64, duration_ns);
         return -1;
     }
-    return 0;
+    return rc;
 }
 
 bool aeron_parse_bool(const char *str, bool def)
