@@ -71,7 +71,7 @@ int aeron_parse_size64(const char *str, uint64_t *result)
                 {
                     return -1;
                 }
-                *result = value * 1024;
+                *result = value * AERON_ONE_KILOBYTE;
                 break;
 
             case 'm':
@@ -80,7 +80,7 @@ int aeron_parse_size64(const char *str, uint64_t *result)
                 {
                     return -1;
                 }
-                *result = value * 1024 * 1024;
+                *result = value * AERON_ONE_MEGABYTE;
                 break;
 
             case 'g':
@@ -89,7 +89,7 @@ int aeron_parse_size64(const char *str, uint64_t *result)
                 {
                     return -1;
                 }
-                *result = value * 1024 * 1024 * 1024;
+                *result = value * AERON_ONE_GIGABYTE;
                 break;
 
             default:
@@ -101,6 +101,68 @@ int aeron_parse_size64(const char *str, uint64_t *result)
         *result = value;
     }
 
+    return 0;
+}
+
+int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size)
+{
+    if (value > LLONG_MAX)
+    {
+        AERON_SET_ERR(EINVAL, "value is out of range: %" PRIu64, value);
+        return -1;
+    }
+
+    if (value >= AERON_ONE_GIGABYTE)
+    {
+        uint64_t result = value / AERON_ONE_GIGABYTE;
+        if (value == result * AERON_ONE_GIGABYTE)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "g", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    if (value >= AERON_ONE_MEGABYTE)
+    {
+        uint64_t result = value / AERON_ONE_MEGABYTE;
+        if (value == result * AERON_ONE_MEGABYTE)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "m", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    if (value >= AERON_ONE_KILOBYTE)
+    {
+        uint64_t result = value / AERON_ONE_KILOBYTE;
+        if (value == result * AERON_ONE_KILOBYTE)
+        {
+            int rc = snprintf(buffer, buffer_size, "%" PRIu64 "k", result);
+            if (rc < 0)
+            {
+                AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
+                return -1;
+            }
+            return 0;
+        }
+    }
+
+    int rc = snprintf(buffer, buffer_size, "%" PRIu64, value);
+    if (rc < 0)
+    {
+        AERON_SET_ERR(rc, "failed to format value: %" PRIu64, value);
+        return -1;
+    }
     return 0;
 }
 
@@ -144,7 +206,7 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 }
                 else
                 {
-                    *result = value * 1000000000;
+                    *result = value * AERON_ONE_SECOND_NS;
                 }
                 break;
 
@@ -161,7 +223,7 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 }
                 else
                 {
-                    *result = value * 1000000;
+                    *result = value * AERON_ONE_MILLISECOND_NS;
                 }
                 break;
 
@@ -178,7 +240,7 @@ int aeron_parse_duration_ns(const char *str, uint64_t *result)
                 }
                 else
                 {
-                    *result = value * 1000;
+                    *result = value * AERON_ONE_MICROSECOND_NS;
                 }
                 break;
 

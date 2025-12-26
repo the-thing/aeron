@@ -43,6 +43,7 @@ typedef struct aeron_parsed_interface_stct
 aeron_parsed_interface_t;
 
 int aeron_parse_size64(const char *str, uint64_t *result);
+int aeron_format_size64(uint64_t value, char *buffer, size_t buffer_size);
 
 int aeron_parse_duration_ns(const char *str, uint64_t *result);
 

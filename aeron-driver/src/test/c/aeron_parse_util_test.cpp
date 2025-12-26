@@ -21,6 +21,7 @@
 
 extern "C"
 {
+#include "util/aeron_error.h"
 #include "util/aeron_parse_util.h"
 }
 
@@ -91,11 +92,49 @@ INSTANTIATE_TEST_SUITE_P(
         "9223372036854775807m",
         "9223372036854775807k" ));
 
-TEST_P(ParseUtilTestTooLargeSize, shouldRejecttooLargeValue)
+TEST_P(ParseUtilTestTooLargeSize, shouldRejectTooLargeValue)
 {
     uint64_t value = 0;
     EXPECT_EQ(aeron_parse_size64(GetParam(), &value), -1);
     EXPECT_EQ(value, 0);
+}
+
+TEST_F(ParseUtilTest, formatSizeShouldRejectValuesLargerThanLLongMaxValue)
+{
+    EXPECT_EQ(-1, aeron_format_size64(ULLONG_MAX, NULL, 0));
+    EXPECT_EQ(EINVAL, aeron_errcode());
+    std::string err = std::string(aeron_errmsg());
+    EXPECT_NE(std::string::npos, err.find("value is out of range: 18446744073709551615"));
+}
+
+class ParseUtilTestFormatSize : public testing::TestWithParam<std::tuple<uint64_t, const char *>>
+{
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    ParseUtilTestFormatSize,
+    ParseUtilTestFormatSize,
+    testing::Values(
+        std::make_tuple(0ULL, "0"),
+        std::make_tuple(1ULL, "1"),
+        std::make_tuple(77777777ULL, "77777777"),
+        std::make_tuple(9223372036854775807ULL, "9223372036854775807"),
+        std::make_tuple(1024ULL, "1k"),
+        std::make_tuple( 1024 * 1024ULL, "1m"),
+        std::make_tuple(1024 * 1024 * 1024ULL, "1g"),
+        std::make_tuple(5023 * 1024ULL,"5023k"),
+        std::make_tuple(9 * 1024 * 1024ULL, "9m"),
+        std::make_tuple(5 * 1024 * 1024 * 1024ULL, "5g"),
+        std::make_tuple(8589934591 * 1024 * 1024 * 1024ULL, "8589934591g"),
+        std::make_tuple(8796093022207 * 1024 * 1024ULL, "8796093022207m"),
+        std::make_tuple(9007199254740991 * 1024ULL, "9007199254740991k")));
+
+TEST_P(ParseUtilTestFormatSize, shouldFormatSize)
+{
+    char buff[64] = {};
+
+    EXPECT_EQ(aeron_format_size64(std::get<0>(GetParam()), buff, sizeof(buff)), 0);
+    EXPECT_STREQ(buff, std::get<1>(GetParam()));
 }
 
 TEST_F(ParseUtilTest, shouldNotParseInvalidDuration)
