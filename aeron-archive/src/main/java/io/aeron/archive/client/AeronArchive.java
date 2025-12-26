@@ -4244,7 +4244,7 @@ public final class AeronArchive implements AutoCloseable
             .sessionId((Integer)null)
             .responseCorrelationId(replayParams.subscriptionRegistrationId())
             .termId((Integer)null).initialTermId((Integer)null).termOffset((Integer)null)
-            .termLength(64 * 1024)
+            .termLength(context.controlTermBufferLength())
             .spiesSimulateConnection(false);
 
         final String channel = uriBuilder.build();
