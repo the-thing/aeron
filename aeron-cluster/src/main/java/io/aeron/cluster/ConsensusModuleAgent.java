@@ -103,6 +103,7 @@ import static io.aeron.CommonContext.MDC_CONTROL_MODE_PARAM_NAME;
 import static io.aeron.CommonContext.MDC_CONTROL_PARAM_NAME;
 import static io.aeron.CommonContext.MTU_LENGTH_PARAM_NAME;
 import static io.aeron.CommonContext.REJOIN_PARAM_NAME;
+import static io.aeron.CommonContext.RELIABLE_STREAM_PARAM_NAME;
 import static io.aeron.CommonContext.SESSION_ID_PARAM_NAME;
 import static io.aeron.CommonContext.SPIES_SIMULATE_CONNECTION_PARAM_NAME;
 import static io.aeron.CommonContext.SPY_PREFIX;
@@ -3868,6 +3869,7 @@ final class ConsensusModuleAgent
         }
 
         ingressUri.put(REJOIN_PARAM_NAME, "false");
+        ingressUri.put(RELIABLE_STREAM_PARAM_NAME, "true");
 
         final Subscription subscription = aeron.addSubscription(
             ingressUri.toString(), ctx.ingressStreamId(), null, this::onUnavailableIngressImage);
