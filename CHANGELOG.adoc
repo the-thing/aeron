@@ -18,6 +18,8 @@ It's also possible to specify the port used with the resolved address by using t
 
 === Changelog
 
+* **[Cluster]** Unconditionally set reliable=true on the ingress subscription to ensure that the ingress stream is
+reliable.
 * **[Cluster]** Ignore unknown schema messages (e.g. from Sequencer) in `EgressPoller`.
 * **[Archive]** Ensure that errors from `ReplaySession` are both captured in the error log and sent to the control session.
 * **[C]** fix: double free in `aeron_archive_context_t`. (https://github.com/aeron-io/aeron/pull/1897[#1897])
