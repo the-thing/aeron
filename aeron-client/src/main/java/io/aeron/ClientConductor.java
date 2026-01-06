@@ -29,6 +29,7 @@ import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.SemanticVersion;
+import org.agrona.SystemUtil;
 import org.agrona.collections.ArrayListUtil;
 import org.agrona.collections.Long2ObjectHashMap;
 import org.agrona.collections.LongHashSet;
@@ -1838,7 +1839,8 @@ final class ClientConductor implements Agent
         }
         while (deadlineNs - nanoClock.nanoTime() > 0);
 
-        throw new DriverTimeoutException("no response from MediaDriver within " + driverTimeoutNs + "ns");
+        throw new DriverTimeoutException("no response from MediaDriver within " +
+            SystemUtil.formatDuration(driverTimeoutNs));
     }
 
     private int checkTimeouts(final long nowNs)
@@ -1864,8 +1866,8 @@ final class ClientConductor implements Agent
             terminateConductor();
 
             throw new ConductorServiceTimeoutException(
-                "service interval exceeded: timeout=" + interServiceTimeoutNs +
-                "ns, interval=" + (nowNs - timeOfLastServiceNs) + "ns");
+                "service interval exceeded: timeout=" + SystemUtil.formatDuration(interServiceTimeoutNs) +
+                ", interval=" + SystemUtil.formatDuration(nowNs - timeOfLastServiceNs));
         }
     }
 

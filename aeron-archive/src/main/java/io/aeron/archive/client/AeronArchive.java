@@ -43,6 +43,7 @@ import org.agrona.ErrorHandler;
 import org.agrona.LangUtil;
 import org.agrona.SemanticVersion;
 import org.agrona.Strings;
+import org.agrona.SystemUtil;
 import org.agrona.concurrent.AgentInvoker;
 import org.agrona.concurrent.BackoffIdleStrategy;
 import org.agrona.concurrent.IdleStrategy;
@@ -2357,7 +2358,8 @@ public final class AeronArchive implements AutoCloseable
         if (deadlineNs - nanoClock.nanoTime() < 0)
         {
             throw new TimeoutException(
-                errorMessage + " - correlationId=" + correlationId + " messageTimeout=" + messageTimeoutNs + "ns");
+                errorMessage + " - correlationId=" + correlationId + " messageTimeout=" +
+                SystemUtil.formatDuration(messageTimeoutNs));
         }
 
         if (Thread.currentThread().isInterrupted())
