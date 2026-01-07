@@ -576,7 +576,7 @@ public final class ConsensusModule implements AutoCloseable
          * configuration with the endpoints replaced with those provided by {@link #CLUSTER_MEMBERS_PROP_NAME}.
          */
         @Config
-        public static final String CONSENSUS_CHANNEL_DEFAULT = "aeron:udp?term-length=64k";
+        public static final String CONSENSUS_CHANNEL_DEFAULT = "aeron:udp";
 
         /**
          * Stream id within a channel for communicating consensus messages.

@@ -118,6 +118,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 public final class TestCluster implements AutoCloseable
 {
+    static final int TERM_LENGTH = 64 * 1024;
     static final int SEGMENT_FILE_LENGTH = 128 * 1024;
     static final long CATALOG_CAPACITY = 128 * 1024;
 
@@ -125,6 +126,7 @@ public final class TestCluster implements AutoCloseable
     static final String ARCHIVE_LOCAL_CONTROL_CHANNEL = "aeron:ipc";
     static final String EGRESS_CHANNEL = "aeron:udp?term-length=128k|endpoint=localhost:0|alias=egress";
     static final String INGRESS_CHANNEL = "aeron:udp?term-length=128k|alias=ingress";
+    static final String CONSENSUS_CHANNEL = "aeron:udp?alias=consensus";
     static final long LEADER_HEARTBEAT_TIMEOUT_NS = TimeUnit.SECONDS.toNanos(1);
     static final long LEADER_HEARTBEAT_INTERVAL_NS = TimeUnit.MILLISECONDS.toNanos(100);
     static final long ELECTION_TIMEOUT_NS = TimeUnit.MILLISECONDS.toNanos(500);
@@ -336,7 +338,9 @@ public final class TestCluster implements AutoCloseable
             .receiverWildcardPortRange(receiverWildcardPortRanges[index])
             .dirDeleteOnShutdown(true)
             .dirDeleteOnStart(true)
-            .imageLivenessTimeoutNs(imageLivenessTimeoutNs);
+            .imageLivenessTimeoutNs(imageLivenessTimeoutNs)
+            .ipcPublicationTermWindowLength(TERM_LENGTH)
+            .publicationTermBufferLength(TERM_LENGTH);
 
         context.archiveContext
             .archiveId(index)
@@ -366,6 +370,7 @@ public final class TestCluster implements AutoCloseable
             .clusterDir(new File(baseDirName, "consensus-module"))
             .ingressChannel(ingressChannel)
             .logChannel(logChannel)
+            .consensusChannel(CONSENSUS_CHANNEL)
             .replicationChannel(clusterReplicationChannel(index))
             .archiveContext(context.aeronArchiveContext.clone()
                 .controlRequestChannel(context.archiveContext.localControlChannel())
@@ -817,7 +822,9 @@ public final class TestCluster implements AutoCloseable
                 .receiverWildcardPortRange("20710 20719")
                 .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
                 .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
-                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs);
+                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs)
+                .ipcPublicationTermWindowLength(TERM_LENGTH)
+                .publicationTermBufferLength(TERM_LENGTH);
 
             clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
         }
@@ -827,7 +834,7 @@ public final class TestCluster implements AutoCloseable
     private void setIngressEndpoints(final AeronCluster.Context clientCtx)
     {
         final ChannelUri ingressChannelUri = ChannelUri.parse(ingressChannel);
-        if (!ingressChannelUri.containsKey(CommonContext.ENDPOINT_PARAM_NAME))
+        if (ingressChannelUri.isUdp() && !ingressChannelUri.containsKey(CommonContext.ENDPOINT_PARAM_NAME))
         {
             clientCtx.ingressEndpoints(clusterMemberEndpoints);
         }
