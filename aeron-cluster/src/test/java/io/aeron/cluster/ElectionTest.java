@@ -169,7 +169,7 @@ class ElectionTest
         final ClusterMember[] clusterMembers = prepareClusterMembers();
         final ClusterMember candidateMember = clusterMembers[0];
         when(consensusModuleAgent.logRecordingId()).thenReturn(RECORDING_ID);
-        when(consensusModuleAgent.quorumPosition()).thenReturn(commitPosition);
+        when(consensusModuleAgent.quorumPositionBoundedByLeaderLog(anyLong())).thenReturn(commitPosition);
 
         ctx.appointedLeaderId(candidateMember.id()).appVersion(appVersion);
 
@@ -1478,7 +1478,7 @@ class ElectionTest
 
         // Until the quorum position moves to the leader's append position
         // we stay in the same state and emit new leadership terms.
-        when(consensusModuleAgent.quorumPosition()).thenReturn(followerLogPosition);
+        when(consensusModuleAgent.quorumPositionBoundedByLeaderLog(anyLong())).thenReturn(followerLogPosition);
         election.doWork(clock.increment(1));
         verifyNoMoreInteractions(electionStateCounter);
         verify(consensusPublisher).newLeadershipTerm(
@@ -1516,7 +1516,7 @@ class ElectionTest
         );
 
         // Begin replay once a quorum of followers has caught up.
-        when(consensusModuleAgent.quorumPosition()).thenReturn(leaderLogPosition);
+        when(consensusModuleAgent.quorumPositionBoundedByLeaderLog(anyLong())).thenReturn(leaderLogPosition);
         election.doWork(clock.increment(1));
         verify(electionStateCounter).setRelease(ElectionState.LEADER_REPLAY.code());
     }
@@ -1542,7 +1542,8 @@ class ElectionTest
         final long quorumPosition2 = 2 * quorumPosition1;
         final int logSessionId = 5;
         final long logRecordingId = 842384023;
-        when(consensusModuleAgent.quorumPosition()).thenReturn(quorumPosition1, quorumPosition2, Long.MIN_VALUE);
+        when(consensusModuleAgent.quorumPositionBoundedByLeaderLog(anyLong()))
+            .thenReturn(quorumPosition1, quorumPosition2, Long.MIN_VALUE);
         when(consensusModuleAgent.addLogPublication(logPosition)).thenReturn(logSessionId);
         when(consensusModuleAgent.logRecordingId()).thenReturn(logRecordingId);
 

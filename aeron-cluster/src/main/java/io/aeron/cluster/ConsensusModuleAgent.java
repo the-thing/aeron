@@ -158,6 +158,7 @@ final class ConsensusModuleAgent
     private long terminationLeadershipTermId = NULL_VALUE;
     private long notifiedCommitPosition = 0;
     private long lastAppendPosition = NULL_POSITION;
+    private long lastQuorumBacktrackCommitPosition = NULL_POSITION;
     private long timeOfLastLogUpdateNs = 0;
     private long timeOfLastAppendPositionUpdateNs = 0;
     private long timeOfLastAppendPositionSendNs = 0;
@@ -1455,6 +1456,8 @@ final class ConsensusModuleAgent
             logAdapter.asyncRemoveDestination(liveLogDestination);
             liveLogDestination = null;
         }
+
+        lastQuorumBacktrackCommitPosition = NULL_POSITION;
 
         final long logSubscriptionRegistrationId = logAdapter.disconnect(ctx.countedErrorHandler());
         logPublisher.disconnect(ctx.countedErrorHandler());
@@ -3207,9 +3210,9 @@ final class ConsensusModuleAgent
         final long appendPosition,
         final short flags)
     {
-        final long position = Math.max(appendPosition, lastAppendPosition);
-        if ((position > lastAppendPosition ||
-            nowNs >= (timeOfLastAppendPositionSendNs + leaderHeartbeatIntervalNs)))
+        final long position = max(appendPosition, lastAppendPosition);
+        if (position > lastAppendPosition ||
+            nowNs >= (timeOfLastAppendPositionSendNs + leaderHeartbeatIntervalNs))
         {
             if (consensusPublisher.appendPosition(publication, leadershipTermId, position, memberId, flags))
             {
@@ -3329,15 +3332,22 @@ final class ConsensusModuleAgent
     {
         if (null != appendPosition)
         {
-            return updateLeaderPosition(nowNs, appendPosition.get());
+            final long leaderAppendPosition = appendPosition.get();
+            return updateLeaderPosition(
+                nowNs, leaderAppendPosition, quorumPositionBoundedByLeaderLog(leaderAppendPosition));
         }
 
         return 0;
     }
 
-    long quorumPosition()
+    long quorumPositionBoundedByLeaderLog(final long leaderAppendPosition)
     {
-        return ClusterMember.quorumPosition(activeMembers, rankedPositions);
+        final long quorumPosition = ClusterMember.quorumPosition(activeMembers, rankedPositions);
+        // there are two main cases here:
+        // 1) `quorumPosition <= leaderAppendPosition` - followers track leader
+        // 2) `quorumPosition > leaderAppendPosition` - leader's Archive is slow so that followers are able to persist
+        // log and notify their appendPosition faster
+        return min(quorumPosition, leaderAppendPosition);
     }
 
     long timeOfLastLeaderUpdateNs()
@@ -3345,22 +3355,27 @@ final class ConsensusModuleAgent
         return timeOfLastLeaderUpdateNs;
     }
 
-    int updateLeaderPosition(final long nowNs, final long position)
+    int updateLeaderPosition(final long nowNs, final long appendPosition, final long quorumPosition)
     {
-        thisMember.logPosition(position).timeOfLastAppendPositionNs(nowNs);
-        final long commitPosition = min(quorumPosition(), position);
+        thisMember.logPosition(appendPosition).timeOfLastAppendPositionNs(nowNs);
 
-        final long leaderPosition = this.commitPosition.getPlain();
-        if (commitPosition > leaderPosition ||
-            (commitPosition == leaderPosition &&
-            nowNs >= (timeOfLastLogUpdateNs + leaderHeartbeatIntervalNs)))
+        final long leaderCommitPosition = commitPosition.getPlain();
+        if (quorumPosition > leaderCommitPosition ||
+            nowNs >= (timeOfLastLogUpdateNs + leaderHeartbeatIntervalNs))
         {
-            publishCommitPosition(commitPosition, leadershipTermId);
+            if (quorumPosition < leaderCommitPosition && leaderCommitPosition > lastQuorumBacktrackCommitPosition)
+            {
+                lastQuorumBacktrackCommitPosition = leaderCommitPosition;
+                ctx.countedErrorHandler().onError(new ClusterEvent("quorum position went backwards: " +
+                    "leaderCommitPosition=" + leaderCommitPosition + " quorumPosition=" + quorumPosition));
+            }
 
-            this.commitPosition.setRelease(commitPosition);
+            publishCommitPosition(quorumPosition, leadershipTermId);
+
+            commitPosition.proposeMaxRelease(quorumPosition);
             timeOfLastLogUpdateNs = nowNs;
 
-            sweepUncommittedEntriesTo(commitPosition);
+            sweepUncommittedEntriesTo(quorumPosition);
             return 1;
         }
 
