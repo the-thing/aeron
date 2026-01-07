@@ -486,7 +486,7 @@
         <field name="logSessionId"              id="11" type="int32"/>
         <field name="appVersion"                id="12" type="version_t"/>
         <field name="isStartup"                 id="13" type="BooleanType"/>
-        <field name="commitPosition"            id="14" type="int64" presence="optional" sinceVersion="15"/>
+        <field name="commitPosition"            id="14" type="int64" sinceVersion="15"/>
     </sbe:message>
 
     <!-- keep this under 32 - 8 = 24 bytes for efficiency -->
