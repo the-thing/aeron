@@ -24,8 +24,6 @@ import org.agrona.*;
 
 import java.util.Arrays;
 
-import static io.aeron.cluster.client.AeronCluster.SESSION_HEADER_LENGTH;
-
 final class ContainerClientSession implements ClientSession
 {
     private final long id;
@@ -36,8 +34,6 @@ final class ContainerClientSession implements ClientSession
     private final ClusteredServiceAgent clusteredServiceAgent;
     private Publication responsePublication;
     private boolean isClosing;
-    private int maxPayloadLength;
-    private int maxMessageLength;
 
     ContainerClientSession(
         final long sessionId,
@@ -102,16 +98,6 @@ final class ContainerClientSession implements ClientSession
         return clusteredServiceAgent.tryClaim(id, responsePublication, length, bufferClaim);
     }
 
-    public int maxPayloadLength()
-    {
-        return maxPayloadLength;
-    }
-
-    public int maxMessageLength()
-    {
-        return maxMessageLength;
-    }
-
     void connect(final Aeron aeron)
     {
         try
@@ -119,8 +105,6 @@ final class ContainerClientSession implements ClientSession
             if (null == responsePublication)
             {
                 responsePublication = aeron.addPublication(responseChannel, responseStreamId);
-                maxPayloadLength = responsePublication.maxPayloadLength() - SESSION_HEADER_LENGTH;
-                maxMessageLength = responsePublication.maxMessageLength() - SESSION_HEADER_LENGTH;
             }
         }
         catch (final RegistrationException ex)
