@@ -81,17 +81,28 @@ TEST_F(AllocTest, shouldAllocateMemoryIfPointerIsNullWithoutZeroingItOut)
     aeron_free(ptr);
 }
 
-TEST_F(AllocTest, shouldExtendMemoryToANewSize)
+TEST_F(AllocTest, shouldReallocMemory)
 {
     char *ptr = nullptr;
     size_t original_size = 50;
     EXPECT_EQ(0, aeron_alloc(reinterpret_cast<void**>(&ptr), original_size));
     EXPECT_NE(nullptr, ptr);
+    memset(ptr, 'a', original_size);
 
     size_t new_size = 120;
     EXPECT_EQ(0, aeron_reallocf(reinterpret_cast<void**>(&ptr), new_size));
     EXPECT_NE(nullptr, ptr);
-    ptr[119] = 'x';
+    memset(ptr + original_size, 'x', new_size - original_size);
+
+    char tmp[120];
+    memset(tmp, 'a', original_size);
+    memset(tmp + original_size, 'x', new_size - original_size);
+    EXPECT_EQ(0, memcmp(ptr, tmp, new_size));
+
+    new_size = 30;
+    EXPECT_EQ(0, aeron_reallocf(reinterpret_cast<void**>(&ptr), new_size));
+    EXPECT_NE(nullptr, ptr);
+    EXPECT_EQ(0, memcmp(ptr, tmp, new_size));
 
     aeron_free(ptr);
 }

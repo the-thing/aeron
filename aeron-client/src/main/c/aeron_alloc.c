@@ -22,7 +22,6 @@
 #include "util/aeron_platform.h"
 
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <inttypes.h>
 
@@ -90,6 +89,7 @@ int aeron_reallocf(void **ptr, size_t size)
         if (0 == size)
         {
             *ptr = NULL;
+            return 0;
         }
         else
         {
@@ -99,11 +99,8 @@ int aeron_reallocf(void **ptr, size_t size)
             return -1;
         }
     }
-    else
-    {
-        *ptr = new_ptr;
-    }
 
+    *ptr = new_ptr;
     return 0;
 }
 #else
@@ -111,8 +108,11 @@ int aeron_reallocf(void **ptr, size_t size)
 {
     if (NULL == (*ptr = reallocf(*ptr, size)))
     {
-        AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory to a new size %" PRIu64, (uint64_t)size);
-        return -1;
+        if (0 != size)
+        {
+            AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory to a new size %" PRIu64, (uint64_t)size);
+            return -1;
+        }
     }
     return 0;
 }
