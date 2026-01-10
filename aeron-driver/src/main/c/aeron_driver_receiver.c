@@ -47,10 +47,8 @@ int aeron_driver_receiver_init(
     receiver->recv_buffers.vector_capacity = context->receiver_io_vector_capacity;
     for (size_t i = 0; i < receiver->recv_buffers.vector_capacity; i++)
     {
-        size_t offset = 0;
         if (aeron_alloc_aligned(
             (void **)&receiver->recv_buffers.buffers[i],
-            &offset,
             AERON_DRIVER_RECEIVER_MAX_UDP_PACKET_LENGTH,
             AERON_CACHE_LINE_LENGTH) < 0)
         {
@@ -58,7 +56,7 @@ int aeron_driver_receiver_init(
             return -1;
         }
 
-        receiver->recv_buffers.iov[i].iov_base = receiver->recv_buffers.buffers[i] + offset;
+        receiver->recv_buffers.iov[i].iov_base = receiver->recv_buffers.buffers[i];
         receiver->recv_buffers.iov[i].iov_len = AERON_DRIVER_RECEIVER_MAX_UDP_PACKET_LENGTH;
     }
 
@@ -268,7 +266,7 @@ void aeron_driver_receiver_on_close(void *clientd)
 
     for (size_t i = 0; i < receiver->recv_buffers.vector_capacity; i++)
     {
-        aeron_free(receiver->recv_buffers.buffers[i]);
+        aeron_free_aligned(receiver->recv_buffers.buffers[i]);
     }
 
     aeron_free(receiver->images.array);

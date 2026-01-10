@@ -32,6 +32,7 @@ function(aeron_c_client_test name file)
 endfunction()
 
 if (AERON_UNIT_TESTS)
+    aeron_c_client_test(alloc_test aeron_alloc_test.cpp)
     aeron_c_client_test(array_to_ptr_hash_map_test collections/aeron_array_to_ptr_hash_map_test.cpp)
     aeron_c_client_test(int64_to_ptr_hash_map_test collections/aeron_int64_to_ptr_hash_map_test.cpp)
     aeron_c_client_test(int64_counter_map_test collections/aeron_int64_counter_map_test.cpp)

@@ -26,7 +26,6 @@
 
 #include "concurrent/aeron_thread.h"
 #include "util/aeron_error.h"
-#include "aeron_alloc.h"
 #include "command/aeron_control_protocol.h"
 
 #define AERON_ERR_TRAILER "...\n"
@@ -145,7 +144,8 @@ static aeron_per_thread_error_t *get_required_error_state(void)
 
     if (NULL == error_state)
     {
-        if (aeron_alloc_no_err((void **)&error_state, sizeof(aeron_per_thread_error_t)) < 0)
+        error_state = malloc(sizeof(aeron_per_thread_error_t));
+        if (NULL == error_state)
         {
             fprintf(stderr, "could not create per thread error state, exiting.\n");
             exit(EXIT_FAILURE);
