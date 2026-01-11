@@ -17,6 +17,9 @@
 #if defined(__linux__)
 #define _BSD_SOURCE
 #define _GNU_SOURCE
+#ifdef HAVE_BSDSTDLIB_H
+#include <bsd/stdlib.h>
+#endif
 #endif
 
 #include "util/aeron_platform.h"
@@ -80,44 +83,36 @@ int aeron_alloc_aligned(void **ptr, size_t *offset, size_t size, size_t alignmen
     return 0;
 }
 
-#if defined(__linux__) || defined(AERON_COMPILER_MSVC)
 int aeron_reallocf(void **ptr, size_t size)
 {
+    if (0 == size)
+    {
+        aeron_free(*ptr);
+        *ptr = NULL;
+        return 0;
+    }
+
+#ifdef HAVE_REALLOCF
+    if (NULL == (*ptr = reallocf(*ptr, size)))
+    {
+        AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory with a new size %" PRIu64, (uint64_t)size);
+        return -1;
+    }
+#else
     void *new_ptr = NULL;
     /* mimic reallocf */
     if (NULL == (new_ptr = realloc(*ptr, size)))
     {
-        if (0 == size)
-        {
-            *ptr = NULL;
-            return 0;
-        }
-        else
-        {
-            free(*ptr);
-            *ptr = NULL;
-            AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory to a new size %" PRIu64, (uint64_t)size);
-            return -1;
-        }
+        free(*ptr);
+        *ptr = NULL;
+        AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory with a new size %" PRIu64, (uint64_t)size);
+        return -1;
     }
 
     *ptr = new_ptr;
-    return 0;
-}
-#else
-int aeron_reallocf(void **ptr, size_t size)
-{
-    if (NULL == (*ptr = reallocf(*ptr, size)))
-    {
-        if (0 != size)
-        {
-            AERON_SET_ERR(ENOMEM, "Failed to re-allocate memory to a new size %" PRIu64, (uint64_t)size);
-            return -1;
-        }
-    }
-    return 0;
-}
 #endif
+    return 0;
+}
 
 void aeron_free(void *ptr)
 {
