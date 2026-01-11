@@ -44,7 +44,7 @@ TEST_F(AllocTest, shouldAllocateAlignedMemory)
     EXPECT_EQ(0, offset);
 #endif
 
-    EXPECT_EQ(0, (uintptr_t)ptr % alignment);
+    EXPECT_EQ(0, ((uintptr_t)ptr + offset) % alignment);
     for (size_t i = 0; i < actual_allocated_size; i++)
     {
         EXPECT_EQ(0, ptr[i]);
