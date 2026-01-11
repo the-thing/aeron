@@ -26,6 +26,33 @@ class AllocTest : public testing::Test
 {
 };
 
+TEST_F(AllocTest, shouldAllocateAlignedMemory)
+{
+    char *ptr = nullptr;
+    size_t offset;
+    size_t size = 100;
+    size_t alignment = 64;
+
+    EXPECT_EQ(0, aeron_alloc_aligned(reinterpret_cast<void**>(&ptr), &offset, size, alignment));
+    EXPECT_NE(nullptr, ptr);
+    size_t actual_allocated_size;
+#if defined(AERON_COMPILER_MSVC)
+    actual_allocated_size = size + alignment;
+    EXPECT_NE(0, offset);
+#else
+    actual_allocated_size = size;
+    EXPECT_EQ(0, offset);
+#endif
+
+    EXPECT_EQ(0, (uintptr_t)ptr % alignment);
+    for (size_t i = 0; i < actual_allocated_size; i++)
+    {
+        EXPECT_EQ(0, ptr[i]);
+    }
+
+    aeron_free(ptr);
+}
+
 TEST_F(AllocTest, shouldAllocateAndZeroOutMemory)
 {
     char *ptr = nullptr;
@@ -41,30 +68,14 @@ TEST_F(AllocTest, shouldAllocateAndZeroOutMemory)
     aeron_free(ptr);
 }
 
-TEST_F(AllocTest, shouldAllocateAlignedMemory)
-{
-    char *ptr = nullptr;
-    size_t size = 100;
-    size_t alignment = 64;
-
-    EXPECT_EQ(0, aeron_alloc_aligned(reinterpret_cast<void**>(&ptr), size, alignment));
-    EXPECT_NE(nullptr, ptr);
-    EXPECT_EQ(0, (uintptr_t)ptr % alignment);
-    for (size_t i = 0; i < size; i++)
-    {
-        EXPECT_EQ(0, ptr[i]);
-    }
-
-    aeron_free_aligned(ptr);
-}
-
 TEST_F(AllocTest, shouldFailIfAlignmentIsNotAPowerOfTwo)
 {
     char *ptr = nullptr;
+    size_t offset;
     size_t size = 100;
     size_t alignment = 13;
 
-    EXPECT_EQ(-1, aeron_alloc_aligned(reinterpret_cast<void**>(&ptr), size, alignment));
+    EXPECT_EQ(-1, aeron_alloc_aligned(reinterpret_cast<void**>(&ptr), &offset, size, alignment));
     EXPECT_EQ(nullptr, ptr);
     EXPECT_EQ(EINVAL, aeron_errcode());
     aeron_err_clear();

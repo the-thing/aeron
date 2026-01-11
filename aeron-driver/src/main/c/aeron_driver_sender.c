@@ -49,8 +49,10 @@ int aeron_driver_sender_init(
     sender->recv_buffers.vector_capacity = context->sender_io_vector_capacity;
     for (size_t i = 0; i < sender->recv_buffers.vector_capacity; i++)
     {
+        size_t offset;
         if (aeron_alloc_aligned(
             (void **)&sender->recv_buffers.buffers[i],
+            &offset,
             context->mtu_length,
             AERON_CACHE_LINE_LENGTH) < 0)
         {
@@ -58,7 +60,7 @@ int aeron_driver_sender_init(
             return -1;
         }
 
-        sender->recv_buffers.iov[i].iov_base = sender->recv_buffers.buffers[i];
+        sender->recv_buffers.iov[i].iov_base = sender->recv_buffers.buffers[i] + offset;
         sender->recv_buffers.iov[i].iov_len = (uint32_t)context->mtu_length;
     }
 
@@ -194,7 +196,7 @@ void aeron_driver_sender_on_close(void *clientd)
 
     for (size_t i = 0; i < sender->recv_buffers.vector_capacity; i++)
     {
-        aeron_free_aligned(sender->recv_buffers.buffers[i]);
+        aeron_free(sender->recv_buffers.buffers[i]);
     }
 
     aeron_udp_channel_data_paths_delete(&sender->data_paths);

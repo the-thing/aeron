@@ -55,9 +55,11 @@ endif ()
 
 if (NOT BSDSTDLIB_H_EXISTS)
     check_symbol_exists(arc4random "stdlib.h" ARC4RANDOM_PROTOTYPE_EXISTS)
+    check_symbol_exists(posix_memalign "stdlib.h" POSIX_MEMALIGN_PROTOTYPE_EXISTS)
 else ()
     add_definitions(-DHAVE_BSDSTDLIB_H)
     check_symbol_exists(arc4random "bsd/stdlib.h" ARC4RANDOM_PROTOTYPE_EXISTS)
+    check_symbol_exists(posix_memalign "bsd/stdlib.h" POSIX_MEMALIGN_PROTOTYPE_EXISTS)
 endif ()
 
 check_symbol_exists(fallocate "fcntl.h" FALLOCATE_PROTOTYPE_EXISTS)
@@ -85,6 +87,10 @@ endif ()
 if (DEV_URANDOM_EXISTS EQUAL 0)
     message(STATUS "Found: /dev/urandom")
     add_definitions(-DHAVE_DEV_URANDOM)
+endif ()
+
+if (POSIX_MEMALIGN_PROTOTYPE_EXISTS)
+    add_definitions(-DHAVE_POSIX_MEMALIGN)
 endif ()
 
 set(SOURCE
