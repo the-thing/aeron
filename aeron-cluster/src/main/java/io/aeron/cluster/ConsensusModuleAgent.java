@@ -3404,7 +3404,7 @@ final class ConsensusModuleAgent
         final ReplicationParams replicationParams = new ReplicationParams()
             .dstRecordingId(logRecordingId)
             .stopPosition(stopPosition)
-            .replicationSessionId(aeron.nextSessionId(ctx.logStreamId()));
+            .replicationSessionId((int)aeron.nextCorrelationId());
 
         if (null != responseArchiveEndpoint)
         {
