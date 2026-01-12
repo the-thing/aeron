@@ -978,6 +978,7 @@ final class ConsensusModuleAgent
             final ClusterMember follower = clusterMemberByIdMap.get(followerMemberId);
             if (null != follower && logLeadershipTermId <= this.leadershipTermId)
             {
+                updateMemberLogPosition(follower, logLeadershipTermId, logPosition);
                 stopExistingCatchupReplay(follower);
 
                 final RecordingLog.Entry currentTermEntry = recordingLog.getTermEntry(this.leadershipTermId);
@@ -1146,12 +1147,18 @@ final class ConsensusModuleAgent
             final ClusterMember follower = clusterMemberByIdMap.get(followerMemberId);
             if (null != follower)
             {
-                follower
-                    .logPosition(logPosition)
-                    .timeOfLastAppendPositionNs(clusterClock.timeNanos());
+                updateMemberLogPosition(follower, leadershipTermId, logPosition);
                 trackCatchupCompletion(follower, leadershipTermId, flags);
             }
         }
+    }
+
+    void updateMemberLogPosition(final ClusterMember member, final long leadershipTermId, final long logPosition)
+    {
+        member
+            .leadershipTermId(leadershipTermId)
+            .logPosition(logPosition)
+            .timeOfLastAppendPositionNs(clusterClock.timeNanos());
     }
 
     void onCommitPosition(final long leadershipTermId, final long logPosition, final int leaderMemberId)
@@ -3200,7 +3207,7 @@ final class ConsensusModuleAgent
     {
         final long recordedPosition = null != appendPosition ? appendPosition.get() : logRecordingStopPosition;
         return updateFollowerPosition(
-            leaderMember.publication(), nowNs, this.leadershipTermId, recordedPosition, APPEND_POSITION_FLAG_NONE);
+            leaderMember.publication(), nowNs, leadershipTermId, recordedPosition, APPEND_POSITION_FLAG_NONE);
     }
 
     private int updateFollowerPosition(

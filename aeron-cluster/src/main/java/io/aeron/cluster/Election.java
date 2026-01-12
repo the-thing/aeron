@@ -316,9 +316,7 @@ class Election
         final ClusterMember follower = clusterMemberByIdMap.get(followerMemberId);
         if (null != follower && thisMember.id() != followerMemberId)
         {
-            follower
-                .leadershipTermId(logLeadershipTermId)
-                .logPosition(logPosition);
+            consensusModuleAgent.updateMemberLogPosition(follower, logLeadershipTermId, logPosition);
 
             if (logLeadershipTermId < this.leadershipTermId)
             {
@@ -415,9 +413,8 @@ class Election
             {
                 follower
                     .candidateTermId(candidateTermId)
-                    .leadershipTermId(logLeadershipTermId)
-                    .logPosition(logPosition)
                     .vote(vote ? Boolean.TRUE : Boolean.FALSE);
+                consensusModuleAgent.updateMemberLogPosition(follower, logLeadershipTermId, logPosition);
             }
         }
     }
@@ -562,11 +559,7 @@ class Election
             final ClusterMember follower = clusterMemberByIdMap.get(followerMemberId);
             if (null != follower)
             {
-                follower
-                    .leadershipTermId(leadershipTermId)
-                    .logPosition(logPosition)
-                    .timeOfLastAppendPositionNs(ctx.clusterClock().timeNanos());
-
+                consensusModuleAgent.updateMemberLogPosition(follower, leadershipTermId, logPosition);
                 consensusModuleAgent.trackCatchupCompletion(follower, leadershipTermId, flags);
             }
         }
@@ -843,7 +836,10 @@ class Election
 
             workCount++;
             isLeaderStartup = isNodeStartup;
-            thisMember.leadershipTermId(leadershipTermId).logPosition(appendPosition);
+            thisMember
+                .leadershipTermId(leadershipTermId)
+                .logPosition(appendPosition)
+                .timeOfLastAppendPositionNs(nowNs);
         }
         else
         {
@@ -1204,6 +1200,8 @@ class Election
     {
         int workCount = 0;
 
+        // We would stop sending `commitPosition` if `quorumPosition` regresses (goes backwards) during election. This
+        // is fine, because the NewLeadershipTerm continues to be sent on a regular interval.
         if (lastPublishedCommitPosition < quorumPosition ||
             (lastPublishedCommitPosition == quorumPosition &&
             hasIntervalExpired(nowNs, timeOfLastCommitPositionUpdateNs, ctx.leaderHeartbeatIntervalNs())))

@@ -52,6 +52,7 @@ import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anyShort;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
@@ -123,6 +124,15 @@ class ElectionTest
 
                 return existingCandidateTermId;
             });
+        doAnswer(invocation ->
+        {
+            final ClusterMember member = invocation.getArgument(0);
+            member
+                .leadershipTermId(invocation.getArgument(1))
+                .logPosition(invocation.getArgument(2))
+                .timeOfLastAppendPositionNs(clock.timeNanos());
+            return null;
+        }).when(consensusModuleAgent).updateMemberLogPosition(any(ClusterMember.class), anyLong(), anyLong());
     }
 
     @Test
