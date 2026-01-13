@@ -20,6 +20,7 @@ import io.aeron.ChannelUri;
 import io.aeron.ChannelUriStringBuilder;
 import io.aeron.CommonContext;
 import io.aeron.Counter;
+import io.aeron.Image;
 import io.aeron.Publication;
 import io.aeron.Subscription;
 import io.aeron.archive.ArchiveThreadingMode;
@@ -46,6 +47,7 @@ import io.aeron.cluster.client.EgressListener;
 import io.aeron.cluster.codecs.EventCode;
 import io.aeron.cluster.codecs.MessageHeaderDecoder;
 import io.aeron.cluster.codecs.NewLeadershipTermEventDecoder;
+import io.aeron.cluster.codecs.SessionMessageHeaderDecoder;
 import io.aeron.cluster.service.Cluster;
 import io.aeron.driver.Configuration;
 import io.aeron.driver.MediaDriver;
@@ -192,6 +194,8 @@ public final class TestCluster implements AutoCloseable
     private Function<Aeron, Counter> errorCounterSupplier;
     private Function<Aeron, Counter> snapshotCounterSupplier;
     private Supplier<ConsensusModuleExtension> extensionSupplier;
+    private IntFunction<SendChannelEndpointSupplier> sendChannelEndpointSupplier;
+    private IntFunction<ReceiveChannelEndpointSupplier> receiveChannelEndpointSupplier;
 
     private TestCluster(
         final int clusterId,
@@ -219,6 +223,69 @@ public final class TestCluster implements AutoCloseable
         this.clusterConsensusEndpoints = clusterConsensusEndpoints(0, memberCount);
         this.appointedLeaderId = appointedLeaderId;
         this.byHostInvalidInitialResolutions = byHostInvalidInitialResolutions;
+    }
+
+    public static long awaitLeaderLogRecording(
+        final TestCluster cluster, final TestNode leader, final int expectedMessageCount)
+    {
+        final long firstLeaderLogRecordingId =
+            RecordingPos.getRecordingId(leader.mediaDriver().counters(), leader.logRecordingCounterId());
+        final MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
+        final SessionMessageHeaderDecoder sessionHeaderDecoder = new SessionMessageHeaderDecoder();
+
+        // await leader to record all ingress messages
+        try (AeronArchive aeronArchive = AeronArchive.connect(new AeronArchive.Context()
+            .clientName("test")
+            .aeronDirectoryName(cluster.startClientMediaDriver().aeronDirectoryName())
+            .controlRequestChannel(leader.archive().context().controlChannel())
+            .controlRequestStreamId(leader.archive().context().controlStreamId())
+            .controlResponseChannel("aeron:udp?endpoint=localhost:0")))
+        {
+            final Aeron aeron = aeronArchive.context().aeron();
+            final String replayChannel = "aeron:udp?endpoint=localhost:18181";
+            final int replayStreamId = 1111;
+            final long replaySubscriptionId = aeronArchive.startReplay(
+                firstLeaderLogRecordingId, 0, AeronArchive.REPLAY_ALL_AND_FOLLOW, replayChannel, replayStreamId);
+            final int sessionId = (int)replaySubscriptionId;
+            final Subscription subscription =
+                aeron.addSubscription(ChannelUri.addSessionId(replayChannel, sessionId), replayStreamId);
+            Tests.awaitConnected(subscription);
+
+            final Image image = subscription.imageBySessionId(sessionId);
+            assertNotNull(image);
+            final MutableInteger messageCount = new MutableInteger();
+            final FragmentHandler fragmentHandler = (buffer, offset, length, header) ->
+            {
+                messageHeaderDecoder.wrap(buffer, offset);
+                if (MessageHeaderDecoder.SCHEMA_ID == messageHeaderDecoder.schemaId() &&
+                    SessionMessageHeaderDecoder.TEMPLATE_ID == messageHeaderDecoder.templateId())
+                {
+                    sessionHeaderDecoder.wrap(
+                        buffer,
+                        offset + MessageHeaderDecoder.ENCODED_LENGTH,
+                        messageHeaderDecoder.blockLength(),
+                        messageHeaderDecoder.version());
+                    messageCount.increment();
+                }
+            };
+
+            final Supplier<String> messageSupplier = () -> "awaiting expectedMessageCount=" + expectedMessageCount +
+                ", currentMessageCount=" + messageCount.get();
+            while (messageCount.get() < expectedMessageCount)
+            {
+                if (0 == image.poll(fragmentHandler, 100))
+                {
+                    Tests.yieldingIdle(messageSupplier);
+                }
+            }
+
+            final long position = image.position();
+
+            subscription.close();
+            aeronArchive.stopReplay(replaySubscriptionId);
+
+            return position;
+        }
     }
 
     public int clusterId()
@@ -340,7 +407,9 @@ public final class TestCluster implements AutoCloseable
             .dirDeleteOnStart(true)
             .imageLivenessTimeoutNs(imageLivenessTimeoutNs)
             .ipcPublicationTermWindowLength(TERM_LENGTH)
-            .publicationTermBufferLength(TERM_LENGTH);
+            .publicationTermBufferLength(TERM_LENGTH)
+            .sendChannelEndpointSupplier(sendChannelEndpointSupplier.apply(index))
+            .receiveChannelEndpointSupplier(receiveChannelEndpointSupplier.apply(index));
 
         context.archiveContext
             .archiveId(index)
@@ -437,7 +506,10 @@ public final class TestCluster implements AutoCloseable
             .receiverWildcardPortRange(receiverWildcardPortRanges[index])
             .dirDeleteOnStart(true)
             .dirDeleteOnShutdown(true)
-            .nameResolver(new RedirectingNameResolver(nodeNameMappings(index, index + 1)));
+            .nameResolver(new RedirectingNameResolver(nodeNameMappings(index, index + 1)))
+            .imageLivenessTimeoutNs(imageLivenessTimeoutNs)
+            .ipcPublicationTermWindowLength(TERM_LENGTH)
+            .publicationTermBufferLength(TERM_LENGTH);
 
         context.archiveContext
             .archiveId(index)
@@ -870,7 +942,7 @@ public final class TestCluster implements AutoCloseable
         CloseHelper.close(client);
     }
 
-    public void sendMessages(final int messageCount)
+    public int sendMessages(final int messageCount)
     {
         for (int i = 0; i < messageCount; i++)
         {
@@ -885,6 +957,7 @@ public final class TestCluster implements AutoCloseable
                 throw new ClusterException(msg, ex);
             }
         }
+        return messageCount;
     }
 
     public void sendLargeMessages(final int messageCount)
@@ -971,16 +1044,17 @@ public final class TestCluster implements AutoCloseable
         }
     }
 
-    public void sendAndAwaitMessages(final int messageCount)
+    public int sendAndAwaitMessages(final int messageCount)
     {
-        sendAndAwaitMessages(messageCount, messageCount);
+        return sendAndAwaitMessages(messageCount, messageCount);
     }
 
-    public void sendAndAwaitMessages(final int sendCount, final int awaitCount)
+    public int sendAndAwaitMessages(final int messageCount, final int awaitCount)
     {
-        sendMessages(sendCount);
+        sendMessages(messageCount);
         awaitResponseMessageCount(awaitCount);
         awaitServicesMessageCount(awaitCount);
+        return messageCount;
     }
 
     public void pollUntilMessageSent(final int messageLength)
@@ -2194,6 +2268,8 @@ public final class TestCluster implements AutoCloseable
         private long electionStatusIntervalNs = ELECTION_STATUS_INTERVAL_NS;
         private long startupCanvassTimeoutNs = STARTUP_CANVASS_TIMEOUT_NS;
         private long terminationTimeoutNs = TERMINATION_TIMEOUT_NS;
+        private IntFunction<SendChannelEndpointSupplier> sendChannelEndpointSupplier = (memberId) -> null;
+        private IntFunction<ReceiveChannelEndpointSupplier> receiveChannelEndpointSupplier = (memberId) -> null;
 
         public Builder withLeaderHeartbeatTimeoutNs(final long leaderHeartbeatTimeoutNs)
         {
@@ -2288,6 +2364,20 @@ public final class TestCluster implements AutoCloseable
         public Builder withServiceSupplier(final IntFunction<TestNode.TestService[]> serviceSupplier)
         {
             this.serviceSupplier = serviceSupplier;
+            return this;
+        }
+
+        public Builder withSendChannelEndpointSupplier(
+            final IntFunction<SendChannelEndpointSupplier> sendChannelEndpointSupplier)
+        {
+            this.sendChannelEndpointSupplier = sendChannelEndpointSupplier;
+            return this;
+        }
+
+        public Builder withReceiveChannelEndpointSupplier(
+            final IntFunction<ReceiveChannelEndpointSupplier> receiveChannelEndpointSupplier)
+        {
+            this.receiveChannelEndpointSupplier = receiveChannelEndpointSupplier;
             return this;
         }
 
@@ -2426,6 +2516,8 @@ public final class TestCluster implements AutoCloseable
             testCluster.hostnames(hostnames);
             testCluster.errorCounterSupplier = errorCounterSupplier;
             testCluster.snapshotCounterSupplier = snapshotCounterSupplier;
+            testCluster.sendChannelEndpointSupplier = sendChannelEndpointSupplier;
+            testCluster.receiveChannelEndpointSupplier = receiveChannelEndpointSupplier;
 
             try
             {

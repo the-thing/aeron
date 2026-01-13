@@ -47,6 +47,7 @@ import io.aeron.cluster.service.ClusteredServiceContainer;
 import io.aeron.cluster.service.SnapshotDurationTracker;
 import io.aeron.driver.MediaDriver;
 import io.aeron.driver.ThreadingMode;
+import io.aeron.driver.ext.DebugReceiveChannelEndpoint;
 import io.aeron.logbuffer.BufferClaim;
 import io.aeron.logbuffer.ControlledFragmentHandler;
 import io.aeron.logbuffer.Header;
@@ -65,6 +66,7 @@ import io.aeron.test.Tests;
 import io.aeron.test.cluster.ClusterTests;
 import io.aeron.test.cluster.TestCluster;
 import io.aeron.test.cluster.TestNode;
+import io.aeron.test.driver.StreamIdLossGenerator;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.AsciiEncoding;
 import org.agrona.BitUtil;
@@ -78,7 +80,10 @@ import org.agrona.collections.MutableBoolean;
 import org.agrona.collections.MutableInteger;
 import org.agrona.collections.MutableLong;
 import org.agrona.concurrent.AgentTerminationException;
+import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
+import org.agrona.concurrent.errors.ErrorConsumer;
+import org.agrona.concurrent.errors.ErrorLogReader;
 import org.agrona.concurrent.status.CountersReader;
 import org.hamcrest.CoreMatchers;
 import org.junit.jupiter.api.Test;
@@ -98,6 +103,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntFunction;
 import java.util.function.Predicate;
+import java.util.stream.IntStream;
 import java.util.zip.CRC32;
 
 import static io.aeron.AeronCounters.CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID;
@@ -126,6 +132,7 @@ import static io.aeron.test.cluster.ClusterTests.startPublisherThread;
 import static io.aeron.test.cluster.TestCluster.aCluster;
 import static io.aeron.test.cluster.TestCluster.awaitElectionClosed;
 import static io.aeron.test.cluster.TestCluster.awaitElectionState;
+import static io.aeron.test.cluster.TestCluster.awaitLeaderLogRecording;
 import static io.aeron.test.cluster.TestCluster.ingressEndpoint;
 import static io.aeron.test.cluster.TestNode.atMost;
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
@@ -137,7 +144,9 @@ import static org.agrona.concurrent.status.CountersReader.NULL_COUNTER_ID;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -323,9 +332,9 @@ class ClusterTest
         systemTestWatcher.cluster(cluster);
 
         final TestNode leader = cluster.awaitLeader();
-        TestCluster.awaitElectionClosed(cluster.node(0));
-        TestCluster.awaitElectionClosed(cluster.node(1));
-        TestCluster.awaitElectionClosed(cluster.node(2));
+        awaitElectionClosed(cluster.node(0));
+        awaitElectionClosed(cluster.node(1));
+        awaitElectionClosed(cluster.node(2));
 
         cluster.node(0).isTerminationExpected(true);
         cluster.node(1).isTerminationExpected(true);
@@ -1375,7 +1384,7 @@ class ClusterTest
         cluster.awaitResponseMessageCount(messageCount * 3);
 
         final TestNode lateJoiningNode = cluster.startStaticNode(originalLeader.index(), true);
-        TestCluster.awaitElectionClosed(lateJoiningNode);
+        awaitElectionClosed(lateJoiningNode);
 
         cluster.awaitServiceMessageCount(lateJoiningNode, messageCount * 3);
     }
@@ -1861,11 +1870,11 @@ class ClusterTest
         }
 
         final TestNode lateJoiningNode = cluster.startStaticNode(4, true);
-        TestCluster.awaitElectionClosed(lateJoiningNode);
+        awaitElectionClosed(lateJoiningNode);
         cluster.awaitServiceMessageCount(lateJoiningNode, totalMessages);
 
         final TestNode node = cluster.startStaticNode(partialNode, false);
-        TestCluster.awaitElectionClosed(node);
+        awaitElectionClosed(node);
         cluster.awaitServiceMessageCount(node, totalMessages);
 
         cluster.connectClient();
@@ -3111,6 +3120,100 @@ class ClusterTest
         }
 
         cluster.stopAllNodes();
+    }
+
+    @Test
+    @InterruptAfter(20)
+    void shouldHandleQuorumPositionGoingBackwards()
+    {
+        final int clusterSize = 3;
+        final List<StreamIdLossGenerator> lossGenerators = IntStream.range(0, clusterSize)
+            .mapToObj(i -> new StreamIdLossGenerator()).toList();
+        cluster = aCluster()
+            .withStaticNodes(clusterSize)
+            .withReceiveChannelEndpointSupplier((memberId) ->
+                (udpChannel, dispatcher, statusIndicator, context) ->
+                {
+                    final StreamIdLossGenerator lossGenerator = lossGenerators.get(memberId);
+                    return new DebugReceiveChannelEndpoint(
+                        udpChannel, dispatcher, statusIndicator, context, lossGenerator, lossGenerator);
+                })
+            .start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        final List<TestNode> followers = cluster.followers();
+        TestNode fastFollower = followers.get(0);
+        final TestNode slowFollower = followers.get(1);
+        final ClusterMember[] clusterMembers =
+            ClusterMember.parse(leader.consensusModule().context().clusterMembers());
+
+        cluster.connectClient();
+
+        int sentMessages = cluster.sendAndAwaitMessages(100);
+        final long slowFollowerAppendPosition = slowFollower.appendPosition();
+
+        final StreamIdLossGenerator slowFollowerLossGenerator = lossGenerators.get(slowFollower.memberId());
+        slowFollowerLossGenerator.enable(slowFollower.consensusModule().context().logStreamId());
+
+        sentMessages += cluster.sendMessages(200);
+        cluster.awaitResponseMessageCount(sentMessages);
+        cluster.awaitServiceMessageCount(leader, sentMessages);
+        cluster.awaitServiceMessageCount(fastFollower, sentMessages);
+
+        final long quorumPosition = leader.commitPosition();
+
+        // stop the fast follower to cause quorum position regression
+        fastFollower.isTerminationExpected(true);
+        fastFollower.close();
+
+        sentMessages += cluster.sendMessages(150);
+        final long leaderAppendPosition = awaitLeaderLogRecording(cluster, leader, sentMessages);
+        assertEquals(quorumPosition, leader.commitPosition(), "commit-pos cannot go backwards");
+
+        final AtomicBuffer errorBuffer = leader.consensusModule().context().errorLog().buffer();
+        final String expectedError = "quorum position went backwards: leaderCommitPosition=" + quorumPosition +
+            " quorumPosition=" + slowFollowerAppendPosition;
+        final MutableBoolean found = new MutableBoolean(false);
+        final ErrorConsumer errorConsumer =
+            (observationCount, firstObservationTimestamp, lastObservationTimestamp, encodedException) ->
+            {
+                if (encodedException.contains("quorum position went backwards:"))
+                {
+                    found.set(true);
+                    assertEquals(1, observationCount);
+                    assertThat(encodedException, containsString(expectedError));
+                }
+            };
+        while (!found.get())
+        {
+            if (0 == ErrorLogReader.read(errorBuffer, errorConsumer))
+            {
+                Tests.sleep(1);
+            }
+        }
+
+        slowFollowerLossGenerator.disable();
+
+        fastFollower = cluster.startStaticNode(fastFollower.memberId(), false);
+
+        while (slowFollower.appendPosition() < leaderAppendPosition)
+        {
+            assertThat(
+                "leader commit-pos went backwards",
+                leader.commitPosition(),
+                allOf(greaterThanOrEqualTo(quorumPosition), lessThanOrEqualTo(leaderAppendPosition)));
+            assertThat(
+                "follower commit-pos went backwards",
+                slowFollower.commitPosition(),
+                allOf(greaterThanOrEqualTo(slowFollowerAppendPosition), lessThanOrEqualTo(leaderAppendPosition)));
+        }
+
+        awaitElectionClosed(fastFollower);
+        cluster.awaitResponseMessageCount(sentMessages);
+        cluster.awaitServicesMessageCount(sentMessages);
+
+        assertEquals(1, ErrorLogReader.read(errorBuffer, errorConsumer));
     }
 
     private static List<RuntimeException> terminalExceptions()
