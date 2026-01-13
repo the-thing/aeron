@@ -72,7 +72,11 @@ class ClusterMemberTest
             assertEquals(
                 "ingressEndpoint,consensusEndpoint,logEndpoint,catchupEndpoint,archiveEndpoint", member.endpoints());
         }
+    }
 
+    @Test
+    void shouldParseCorrectlyOptionalArchiveResponse()
+    {
         for (final ClusterMember member : membersWithArchiveResponse)
         {
             assertEquals("ingressEndpoint", member.ingressEndpoint());
@@ -86,7 +90,11 @@ class ClusterMemberTest
                 "ingressEndpoint,consensusEndpoint,logEndpoint,catchupEndpoint,archiveEndpoint,archiveResponseEndpoint",
                 member.endpoints());
         }
+    }
 
+    @Test
+    void shouldParseCorrectlyOptionalEgressResponseEntry()
+    {
         for (final ClusterMember member : membersWithEgressResponse)
         {
             assertEquals("ingressEndpoint", member.ingressEndpoint());
@@ -116,10 +124,34 @@ class ClusterMemberTest
         }
     }
 
+    @ParameterizedTest
+    @CsvSource({
+        "0,0,0,false",
+        "0,0,1,true",
+        "0,1,1,false",
+        "0,2,1,false",
+        "1,2,1,false",
+        "1,2,5,true",
+        "1,5,5,true",
+        "1,8,5,false",
+        "10,8,1,true",
+        "10,10,1,true",
+        "10,12,1,false"
+    })
+    void shouldCheckMemberIsActive(
+        final long timeOfLastAppendPositionNs,
+        final long nowNs,
+        final long timeoutNs,
+        final boolean expected)
+    {
+        final ClusterMember member = newMember(0).timeOfLastAppendPositionNs(timeOfLastAppendPositionNs);
+        assertEquals(expected, member.isActive(nowNs, timeoutNs));
+    }
+
     @Test
     void shouldRankClusterStart()
     {
-        assertThat(quorumPosition(members, rankedPositions), is(0L));
+        assertThat(quorumPosition(members, rankedPositions, 0, 10), is(0L));
     }
 
     @ParameterizedTest
@@ -148,7 +180,54 @@ class ClusterMemberTest
         members[1].logPosition(member1LogPosition);
         members[2].logPosition(member2LogPosition);
 
-        final long quorumPosition = quorumPosition(members, rankedPositions);
+        final long quorumPosition = quorumPosition(members, rankedPositions, 0, 10);
+        assertEquals(expectedQuorumPosition, quorumPosition);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+        "0,0,0,0,0,0,0,0,0,0,0,10,0",
+        "1,0,2,0,3,0,4,0,5,0,5,10,3",
+        "1,0,2,0,3,0,2,0,5,0,5,10,2",
+        "1,1,2,0,3,1,2,0,5,1,5,5,1",
+        "5,1,2,0,3,1,2,0,1,1,5,5,1",
+        "5,0,2,1,3,0,2,1,1,0,5,5,0",
+        "5,0,2,1,3,0,2,1,1,1,5,5,1",
+        "5,0,2,1,3,1,2,1,1,0,5,5,2",
+        "5,0,2,2,3,3,2,1,1,5,8,7,1",
+        "5,0,2,0,3,0,2,0,1,0,8,7,0",
+        "5,5,2,0,3,0,2,0,1,0,8,7,0",
+        "5,5,2,5,3,0,2,0,1,0,8,7,0",
+        "5,5,2,5,3,5,2,0,1,0,8,7,2",
+        "4,5,2,5,4,5,2,0,1,0,8,7,2",
+        "4,5,2,5,4,5,2,0,3,3,8,7,3",
+    })
+    void shouldOnlyConsiderActiveNodesWhenDeterminingQuorumPosition(
+        final long member0LogPosition,
+        final long member0Timestamp,
+        final long member1LogPosition,
+        final long member1Timestamp,
+        final long member2LogPosition,
+        final long member2Timestamp,
+        final long member3LogPosition,
+        final long member3Timestamp,
+        final long member4LogPosition,
+        final long member4Timestamp,
+        final long nowNs,
+        final long timeoutNs,
+        final long expectedQuorumPosition)
+    {
+        final ClusterMember[] clusterMembers = new ClusterMember[]
+        {
+            newMember(0, 0, member0LogPosition).timeOfLastAppendPositionNs(member0Timestamp),
+            newMember(1, 0, member1LogPosition).timeOfLastAppendPositionNs(member1Timestamp),
+            newMember(2, 0, member2LogPosition).timeOfLastAppendPositionNs(member2Timestamp),
+            newMember(3, 0, member3LogPosition).timeOfLastAppendPositionNs(member3Timestamp),
+            newMember(4, 0, member4LogPosition).timeOfLastAppendPositionNs(member4Timestamp)
+        };
+        final long[] positions = new long[quorumThreshold(clusterMembers.length)];
+
+        final long quorumPosition = quorumPosition(clusterMembers, positions, nowNs, timeoutNs);
         assertEquals(expectedQuorumPosition, quorumPosition);
     }
 
@@ -386,8 +465,7 @@ class ClusterMemberTest
 
     private static ClusterMember newMember(final int id, final long leadershipTermId, final long logPosition)
     {
-        final ClusterMember clusterMember = newMember(id);
-        return clusterMember.leadershipTermId(leadershipTermId).logPosition(logPosition);
+        return newMember(id).leadershipTermId(leadershipTermId).logPosition(logPosition);
     }
 
     private static ClusterMember newMember(final int id)

@@ -100,17 +100,17 @@ public final class ClusterMember
     /**
      * Construct a new member of the cluster.
      *
-     * @param id                        unique id for the member.
-     * @param ingressEndpoint           address and port endpoint to which cluster clients send ingress.
-     * @param consensusEndpoint         address and port endpoint to which other cluster members connect.
-     * @param logEndpoint               address and port endpoint to which the log is replicated.
-     * @param catchupEndpoint           address and port endpoint to which a stream is replayed for catchup to the
-     *                                  leader.
-     * @param archiveEndpoint           address and port endpoint to which the archive control channel can be reached.
-     * @param archiveResponseEndpoint   address and port endpoint to which the archive control response channel can be
-     *                                  reached.
-     * @param egressResponseEndpoint    address and port endpoint to which the egress response channel can be reached.
-     * @param endpoints                 comma separated list of endpoints.
+     * @param id                      unique id for the member.
+     * @param ingressEndpoint         address and port endpoint to which cluster clients send ingress.
+     * @param consensusEndpoint       address and port endpoint to which other cluster members connect.
+     * @param logEndpoint             address and port endpoint to which the log is replicated.
+     * @param catchupEndpoint         address and port endpoint to which a stream is replayed for catchup to the
+     *                                leader.
+     * @param archiveEndpoint         address and port endpoint to which the archive control channel can be reached.
+     * @param archiveResponseEndpoint address and port endpoint to which the archive control response channel can be
+     *                                reached.
+     * @param egressResponseEndpoint  address and port endpoint to which the egress response channel can be reached.
+     * @param endpoints               comma separated list of endpoints.
      */
     public ClusterMember(
         final int id,
@@ -722,13 +722,13 @@ public final class ClusterMember
     /**
      * Add the publications for sending consensus messages to the other members of the cluster.
      *
-     * @param members               of the cluster.
-     * @param thisMember            this member when adding publications.
-     * @param channelTemplate       for the publications.
-     * @param streamId              for the publications.
-     * @param bindConsensusControl  if the control endpoint should be bound for the publication.
-     * @param aeron                 to add the publications to.
-     * @param errorHandler          to log registration exceptions to.
+     * @param members              of the cluster.
+     * @param thisMember           this member when adding publications.
+     * @param channelTemplate      for the publications.
+     * @param streamId             for the publications.
+     * @param bindConsensusControl if the control endpoint should be bound for the publication.
+     * @param aeron                to add the publications to.
+     * @param errorHandler         to log registration exceptions to.
      */
     public static void addConsensusPublications(
         final ClusterMember[] members,
@@ -756,13 +756,13 @@ public final class ClusterMember
     /**
      * Add an exclusive {@link Publication} for communicating to a member on the consensus channel.
      *
-     * @param thisMember            from which the publication is addressed.
-     * @param otherMember           to which the publication is addressed.
-     * @param channelTemplate       for the target member.
-     * @param streamId              for the target member.
-     * @param bindConsensusControl  if the control endpoint should be bound for the publication.
-     * @param aeron                 from which the publication will be created.
-     * @param errorHandler          to log registration exceptions to.
+     * @param thisMember           from which the publication is addressed.
+     * @param otherMember          to which the publication is addressed.
+     * @param channelTemplate      for the target member.
+     * @param streamId             for the target member.
+     * @param bindConsensusControl if the control endpoint should be bound for the publication.
+     * @param aeron                from which the publication will be created.
+     * @param errorHandler         to log registration exceptions to.
      */
     public static void addConsensusPublication(
         final ClusterMember thisMember,
@@ -840,7 +840,7 @@ public final class ClusterMember
      *
      * @param clusterMembers for the current cluster.
      * @param nowNs          for the current time.
-     * @param timeoutNs      after which a follower is not considered active.
+     * @param timeoutNs      after which a member is not considered active.
      * @return true if quorum of cluster members are considered active.
      */
     public static boolean hasActiveQuorum(
@@ -850,7 +850,7 @@ public final class ClusterMember
 
         for (final ClusterMember member : clusterMembers)
         {
-            if (member.isLeader || nowNs <= (member.timeOfLastAppendPositionNs + timeoutNs))
+            if (member.isActive(nowNs, timeoutNs))
             {
                 if (--threshold <= 0)
                 {
@@ -878,9 +878,12 @@ public final class ClusterMember
      *
      * @param members         of the cluster.
      * @param rankedPositions temp array to be used for sorting the positions to avoid allocation.
-     * @return the position reached by a quorum of cluster members.
+     * @param nowNs           for the current time.
+     * @param timeoutNs       after which a member is not considered active.
+     * @return the position reached by a quorum of active cluster members.
      */
-    public static long quorumPosition(final ClusterMember[] members, final long[] rankedPositions)
+    public static long quorumPosition(
+        final ClusterMember[] members, final long[] rankedPositions, final long nowNs, final long timeoutNs)
     {
         final int length = rankedPositions.length;
         for (int i = 0; i < length; i++)
@@ -890,16 +893,18 @@ public final class ClusterMember
 
         for (final ClusterMember member : members)
         {
-            long newPosition = member.logPosition;
-
-            for (int i = 0; i < length; i++)
+            if (member.isActive(nowNs, timeoutNs))
             {
-                final long rankedPosition = rankedPositions[i];
-
-                if (newPosition > rankedPosition)
+                long newPosition = member.logPosition;
+                for (int i = 0; i < length; i++)
                 {
-                    rankedPositions[i] = newPosition;
-                    newPosition = rankedPosition;
+                    final long rankedPosition = rankedPositions[i];
+
+                    if (newPosition > rankedPosition)
+                    {
+                        rankedPositions[i] = newPosition;
+                        newPosition = rankedPosition;
+                    }
                 }
             }
         }
@@ -1321,6 +1326,11 @@ public final class ClusterMember
         }
 
         channelUri.put(MDC_CONTROL_PARAM_NAME, controlEndpoint);
+    }
+
+    boolean isActive(final long nowNs, final long timeoutNs)
+    {
+        return timeOfLastAppendPositionNs + timeoutNs > nowNs;
     }
 
     /**

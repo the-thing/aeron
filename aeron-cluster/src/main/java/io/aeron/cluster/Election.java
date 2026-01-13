@@ -139,7 +139,7 @@ class Election
         this.ctx = ctx;
         this.consensusModuleAgent = consensusModuleAgent;
 
-        final long nowNs = ctx.clusterClock().timeNanos();
+        final long nowNs = nowNs(ctx);
         this.initialTimeOfLastUpdateNs = nowNs - TimeUnit.DAYS.toNanos(1);
         this.timeOfLastUpdateNs = initialTimeOfLastUpdateNs;
         this.timeOfLastCommitPositionUpdateNs = initialTimeOfLastUpdateNs;
@@ -322,11 +322,13 @@ class Election
             {
                 if (Cluster.Role.LEADER == consensusModuleAgent.role())
                 {
+                    final long nowNs = nowNs(ctx);
                     publishNewLeadershipTerm(
                         follower,
                         logLeadershipTermId,
-                        consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition),
-                        ctx.clusterClock().time());
+                        consensusModuleAgent.quorumPositionBoundedByLeaderLog(
+                            appendPosition, nowNs),
+                        nanosToTimestamp(ctx, nowNs));
                 }
             }
             else if (logLeadershipTermId > this.leadershipTermId)
@@ -375,19 +377,21 @@ class Election
             final ClusterMember candidateMember = clusterMemberByIdMap.get(candidateId);
             if (null != candidateMember && Cluster.Role.LEADER == consensusModuleAgent.role())
             {
+                final long nowNs = nowNs(ctx);
                 publishNewLeadershipTerm(
                     candidateMember,
                     logLeadershipTermId,
-                    consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition),
-                    ctx.clusterClock().time());
+                    consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition, nowNs),
+                    nanosToTimestamp(ctx, nowNs));
             }
         }
         else if (CANVASS == state || NOMINATE == state || CANDIDATE_BALLOT == state || FOLLOWER_BALLOT == state)
         {
+            final long nowNs = nowNs(ctx);
             this.candidateTermId = ctx.nodeStateFile().proposeMaxCandidateTermId(
-                candidateTermId, logPosition, ctx.epochClock().time());
+                candidateTermId, logPosition, TimeUnit.MILLISECONDS.convert(nowNs, TimeUnit.NANOSECONDS));
             placeVote(candidateTermId, candidateId, true);
-            state(FOLLOWER_BALLOT, ctx.clusterClock().timeNanos(), "");
+            state(FOLLOWER_BALLOT, nowNs, "");
         }
     }
 
@@ -492,7 +496,7 @@ class Election
                             // is already known. We could look it up from the recording log only to write
                             // it back again...
                             replicationTermBaseLogPosition = NULL_VALUE;
-                            state(FOLLOWER_LOG_REPLICATION, ctx.clusterClock().timeNanos(), "");
+                            state(FOLLOWER_LOG_REPLICATION, nowNs(ctx), "");
                         }
                         else if (appendPosition == nextTermBaseLogPosition)
                         {
@@ -501,7 +505,7 @@ class Election
                                 replicationLeadershipTermId = nextLeadershipTermId;
                                 replicationStopPosition = nextLogPosition;
                                 replicationTermBaseLogPosition = nextTermBaseLogPosition;
-                                state(FOLLOWER_LOG_REPLICATION, ctx.clusterClock().timeNanos(), "");
+                                state(FOLLOWER_LOG_REPLICATION, nowNs(ctx), "");
                             }
                         }
                     }
@@ -526,12 +530,12 @@ class Election
                 }
                 else
                 {
-                    state(FOLLOWER_REPLAY, ctx.clusterClock().timeNanos(), "");
+                    state(FOLLOWER_REPLAY, nowNs(ctx), "");
                 }
             }
             else
             {
-                state(CANVASS, ctx.clusterClock().timeNanos(), "");
+                state(CANVASS, nowNs(ctx), "");
             }
         }
 
@@ -539,7 +543,7 @@ class Election
             logLeadershipTermId == this.logLeadershipTermId &&
             leaderMember.id() == leaderMemberId)
         {
-            replicationDeadlineNs = ctx.clusterClock().timeNanos() + ctx.leaderHeartbeatTimeoutNs();
+            replicationDeadlineNs = nowNs(ctx) + ctx.leaderHeartbeatTimeoutNs();
         }
     }
 
@@ -581,7 +585,7 @@ class Election
             notifiedCommitPosition = max(notifiedCommitPosition, logPosition);
             if (FOLLOWER_LOG_REPLICATION == state)
             {
-                replicationDeadlineNs = ctx.clusterClock().timeNanos() + ctx.leaderHeartbeatTimeoutNs();
+                replicationDeadlineNs = nowNs(ctx) + ctx.leaderHeartbeatTimeoutNs();
             }
         }
         else if (leadershipTermId > this.leadershipTermId && LEADER_READY == state)
@@ -611,7 +615,7 @@ class Election
 
         if (FOLLOWER_CATCHUP == state || FOLLOWER_REPLAY == state)
         {
-            final long nowNs = ctx.clusterClock().convertToNanos(timestamp);
+            final long nowNs = timestampToNanos(ctx, timestamp);
             ensureRecordingLogCoherent(leadershipTermId, termBaseLogPosition, NULL_VALUE, nowNs);
             this.logPosition = logPosition;
             this.logLeadershipTermId = leadershipTermId;
@@ -753,7 +757,7 @@ class Election
         {
             leaderMember = thisMember;
             leadershipTermId = candidateTermId;
-            state(LEADER_LOG_REPLICATION, nowNs, "");
+            state(LEADER_LOG_REPLICATION, nowNs, "unanimous leader");
             workCount++;
         }
         else if (nowNs >= (timeOfLastStateChangeNs + ctx.electionTimeoutNs()))
@@ -762,7 +766,7 @@ class Election
             {
                 leaderMember = thisMember;
                 leadershipTermId = candidateTermId;
-                state(LEADER_LOG_REPLICATION, nowNs, "");
+                state(LEADER_LOG_REPLICATION, nowNs, "quorum leader");
             }
             else
             {
@@ -806,7 +810,7 @@ class Election
 
         thisMember.logPosition(appendPosition).timeOfLastAppendPositionNs(nowNs);
 
-        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition);
+        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition, nowNs);
         workCount += publishNewLeadershipTermOnInterval(quorumPosition, nowNs);
         workCount += publishCommitPositionOnInterval(quorumPosition, nowNs);
 
@@ -852,7 +856,7 @@ class Election
             }
         }
 
-        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition);
+        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition, nowNs);
         workCount += publishNewLeadershipTermOnInterval(quorumPosition, nowNs);
         workCount += publishCommitPositionOnInterval(quorumPosition, nowNs);
 
@@ -870,7 +874,7 @@ class Election
 
     private int leaderReady(final long nowNs)
     {
-        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition);
+        final long quorumPosition = consensusModuleAgent.quorumPositionBoundedByLeaderLog(appendPosition, nowNs);
         int workCount = consensusModuleAgent.updateLeaderPosition(nowNs, appendPosition, quorumPosition);
         workCount += publishNewLeadershipTermOnInterval(quorumPosition, nowNs);
 
@@ -1188,8 +1192,7 @@ class Election
         if (hasUpdateIntervalExpired(nowNs, ctx.leaderHeartbeatIntervalNs()))
         {
             timeOfLastUpdateNs = nowNs;
-            publishNewLeadershipTerm(
-                quorumPosition, ctx.clusterClock().timeUnit().convert(nowNs, TimeUnit.NANOSECONDS));
+            publishNewLeadershipTerm(quorumPosition, nanosToTimestamp(ctx, nowNs));
             workCount++;
         }
 
@@ -1492,7 +1495,7 @@ class Election
             return;
         }
 
-        final long timestamp = ctx.clusterClock().timeUnit().convert(nowNs, TimeUnit.NANOSECONDS);
+        final long timestamp = nanosToTimestamp(ctx, nowNs);
         final RecordingLog recordingLog = ctx.recordingLog();
 
         recordingLog.ensureCoherent(
@@ -1578,6 +1581,21 @@ class Election
         {
             appendPosition = lastAppendPosition;
         }
+    }
+
+    private static long nowNs(final ConsensusModule.Context ctx)
+    {
+        return ctx.clusterClock().timeNanos();
+    }
+
+    private static long nanosToTimestamp(final ConsensusModule.Context ctx, final long timeNs)
+    {
+        return ctx.clusterClock().timeUnit().convert(timeNs, TimeUnit.NANOSECONDS);
+    }
+
+    private static long timestampToNanos(final ConsensusModule.Context ctx, final long timestamp)
+    {
+        return ctx.clusterClock().timeUnit().toNanos(timestamp);
     }
 
     public String toString()

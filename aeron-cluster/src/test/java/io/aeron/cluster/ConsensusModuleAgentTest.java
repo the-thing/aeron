@@ -227,6 +227,8 @@ class ConsensusModuleAgentTest
 
         final long timeMs = startMs + TimeUnit.NANOSECONDS.toMillis(ConsensusModule.Configuration.sessionTimeoutNs());
         clock.update(timeMs, TimeUnit.MILLISECONDS);
+        agent.clusterMember().timeOfLastAppendPositionNs(clock.nanoTime());
+
         agent.doWork();
 
         final long timeoutMs = timeMs + SLOW_TICK_INTERVAL_MS;

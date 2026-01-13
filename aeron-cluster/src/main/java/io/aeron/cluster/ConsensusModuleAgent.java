@@ -3341,15 +3341,16 @@ final class ConsensusModuleAgent
         {
             final long leaderAppendPosition = appendPosition.get();
             return updateLeaderPosition(
-                nowNs, leaderAppendPosition, quorumPositionBoundedByLeaderLog(leaderAppendPosition));
+                nowNs, leaderAppendPosition, quorumPositionBoundedByLeaderLog(leaderAppendPosition, nowNs));
         }
 
         return 0;
     }
 
-    long quorumPositionBoundedByLeaderLog(final long leaderAppendPosition)
+    long quorumPositionBoundedByLeaderLog(final long leaderAppendPosition, final long nowNs)
     {
-        final long quorumPosition = ClusterMember.quorumPosition(activeMembers, rankedPositions);
+        final long quorumPosition =
+            ClusterMember.quorumPosition(activeMembers, rankedPositions, nowNs, leaderHeartbeatTimeoutNs);
         // there are two main cases here:
         // 1) `quorumPosition <= leaderAppendPosition` - followers track leader
         // 2) `quorumPosition > leaderAppendPosition` - leader's Archive is slow so that followers are able to persist
