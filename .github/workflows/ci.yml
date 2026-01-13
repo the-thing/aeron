@@ -43,6 +43,16 @@ jobs:
         run: |
           echo "TMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "TEMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Disable CPU hogs (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true -Force
+          Add-MpPreference -ExclusionPath "C:\" -Force
+          Add-MpPreference -ExclusionPath "D:\" -Force
+          sc config wuauserv start= disabled
+          Stop-Service wuauserv -ErrorAction SilentlyContinue
+          reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\wsl.exe" /v Debugger /t REG_SZ /d "block.exe" /f
+          reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe" /v Debugger /t REG_SZ /d "block.exe" /f
       - name: Setup small temp file system (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -447,6 +457,19 @@ jobs:
         run: |
           echo "TMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
           echo "TEMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Use faster temporary storage (Windows)
+        run: |
+          echo "TMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "TEMP=$env:RUNNER_TEMP" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Disable CPU hogs
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true -Force
+          Add-MpPreference -ExclusionPath "C:\" -Force
+          Add-MpPreference -ExclusionPath "D:\" -Force
+          sc config wuauserv start= disabled
+          Stop-Service wuauserv -ErrorAction SilentlyContinue
+          reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\wsl.exe" /v Debugger /t REG_SZ /d "block.exe" /f
+          reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe" /v Debugger /t REG_SZ /d "block.exe" /f
       - name: Setup small temp file system
         run: |
           $current_size = (Get-PartitionSupportedSize -DiskNumber 1 -PartitionNumber 1)
