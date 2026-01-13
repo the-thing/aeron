@@ -3126,6 +3126,8 @@ class ClusterTest
     @InterruptAfter(20)
     void shouldHandleQuorumPositionGoingBackwards()
     {
+        TestMediaDriver.notSupportedOnCMediaDriver("manual loss generator");
+
         final int clusterSize = 3;
         final List<StreamIdLossGenerator> lossGenerators = IntStream.range(0, clusterSize)
             .mapToObj(i -> new StreamIdLossGenerator()).toList();
