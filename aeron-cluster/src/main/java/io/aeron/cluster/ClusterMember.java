@@ -702,24 +702,6 @@ public final class ClusterMember
     }
 
     /**
-     * Copy votes from one array of members to another where the {@link #id()}s match.
-     *
-     * @param srcMembers to copy the votes from.
-     * @param dstMembers to copy the votes to.
-     */
-    public static void copyVotes(final ClusterMember[] srcMembers, final ClusterMember[] dstMembers)
-    {
-        for (final ClusterMember srcMember : srcMembers)
-        {
-            final ClusterMember dstMember = findMember(dstMembers, srcMember.id);
-            if (null != dstMember)
-            {
-                dstMember.vote = srcMember.vote;
-            }
-        }
-    }
-
-    /**
      * Add the publications for sending consensus messages to the other members of the cluster.
      *
      * @param members              of the cluster.
@@ -913,20 +895,6 @@ public final class ClusterMember
     }
 
     /**
-     * Reset the log position of all the members to the provided value.
-     *
-     * @param clusterMembers to be reset.
-     * @param logPosition    to set for them all.
-     */
-    public static void resetLogPositions(final ClusterMember[] clusterMembers, final long logPosition)
-    {
-        for (final ClusterMember member : clusterMembers)
-        {
-            member.logPosition = logPosition;
-        }
-    }
-
-    /**
      * Has a quorum of members of appended a position to their local log.
      *
      * @param clusterMembers   to check.
@@ -1001,6 +969,9 @@ public final class ClusterMember
      * <p>
      * If a leader has been gracefully closed then it is not included in the membership for considering a unanimous
      * position but will be considered in the membership for quorum.
+     * <p>
+     * <em>Note: all members are considered (i.e. no {@link #isActive(long, long)} check), because this method is called
+     * during {@link ElectionState#CANDIDATE_BALLOT} phase before append position is notified from the followers.</em>
      *
      * @param clusterMembers         to check for votes.
      * @param candidateTermId        for the vote.
@@ -1033,6 +1004,9 @@ public final class ClusterMember
     /**
      * Is this member considered leader by a quorum of members by having positive votes being counted for a majority
      * and no negative votes.
+     * <p>
+     * <em>Note: all members are considered (i.e. no {@link #isActive(long, long)} check), because this method is called
+     * during {@link ElectionState#CANDIDATE_BALLOT} phase before append position is notified from the followers.</em>
      *
      * @param clusterMembers  to check for votes.
      * @param candidateTermId for the vote.
