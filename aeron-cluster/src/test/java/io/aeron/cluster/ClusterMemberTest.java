@@ -23,6 +23,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
 import static io.aeron.cluster.ClusterMember.compareLog;
+import static io.aeron.cluster.ClusterMember.hasQuorumAtPosition;
 import static io.aeron.cluster.ClusterMember.isQuorumCandidate;
 import static io.aeron.cluster.ClusterMember.isQuorumLeader;
 import static io.aeron.cluster.ClusterMember.isUnanimousCandidate;
@@ -488,6 +489,72 @@ class ClusterMemberTest
         final ClusterMember member = newMember(1, 0, logPosition, 0);
         final ClusterMember candidate = newMember(2, 0, 1024, 0);
         assertTrue(member.willVoteFor(candidate));
+    }
+
+    @Test
+    void shouldReturnFalseIfNotActiveWhenDoingPositionChecks()
+    {
+        final long leadershipTermId = 42;
+        final long logPosition = 500;
+        final ClusterMember member = newMember(1, leadershipTermId, logPosition, 0);
+        assertFalse(member.hasReachedPosition(leadershipTermId, logPosition, 5, 3));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = { 0, 10 })
+    void shouldReturnFalseIfLeadershipTermIdDoesNotMatch(final long leadershipTermId)
+    {
+        final long logPosition = 500;
+        final ClusterMember member = newMember(1, 6, logPosition, 0);
+        assertFalse(member.hasReachedPosition(leadershipTermId, logPosition, 5, 10));
+    }
+
+    @Test
+    void shouldReturnFalseIfLogPositionIsLessThan()
+    {
+        final long leadershipTermId = 6;
+        final long logPosition = 500;
+        final ClusterMember member = newMember(1, leadershipTermId, 100, 0);
+        assertFalse(member.hasReachedPosition(leadershipTermId, logPosition, 5, 10));
+    }
+
+    @ParameterizedTest
+    @ValueSource(longs = { 100, Long.MAX_VALUE })
+    void shouldReturnTrueIfLogPositionIsEqualOrGreaterThan(final long logPosition)
+    {
+        final long leadershipTermId = 42;
+        final ClusterMember member = newMember(1, leadershipTermId, logPosition, 10);
+        assertTrue(member.hasReachedPosition(leadershipTermId, 100, 12, 5));
+    }
+
+    @Test
+    void hasQuorumAtPositionReturnFalseIfNotAQuorum()
+    {
+        final ClusterMember[] members = new ClusterMember[]
+        {
+            newMember(10, 2, 100, 0),
+            newMember(20, 18, 600, 0),
+            newMember(30, 10, 800, 0),
+            newMember(40, 19, 800, 0),
+            newMember(50, 10, 1000, 0),
+        };
+
+        assertFalse(hasQuorumAtPosition(members, 10, 800, 0, 10));
+    }
+
+    @Test
+    void hasQuorumAtPositionReturnTrueIfQuorumIsAtPosition()
+    {
+        final ClusterMember[] members = new ClusterMember[]
+        {
+            newMember(10, 2, 100, 0),
+            newMember(20, 10, 600, 0),
+            newMember(30, 10, 800, 0),
+            newMember(40, 19, 800, 0),
+            newMember(50, 10, 1000, 0),
+        };
+
+        assertTrue(hasQuorumAtPosition(members, 10, 600, 5, 10));
     }
 
     private static ClusterMember newMember(

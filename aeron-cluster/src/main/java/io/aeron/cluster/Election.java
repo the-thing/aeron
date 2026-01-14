@@ -879,9 +879,8 @@ class Election
         int workCount = consensusModuleAgent.updateLeaderPosition(nowNs, appendPosition, quorumPosition);
         workCount += publishNewLeadershipTermOnInterval(quorumPosition, nowNs);
 
-        if (ClusterMember.hasVotersAtPosition(clusterMembers, logPosition, leadershipTermId) ||
-            (nowNs >= (timeOfLastStateChangeNs + ctx.leaderHeartbeatTimeoutNs()) &&
-            ClusterMember.hasQuorumAtPosition(clusterMembers, logPosition, leadershipTermId)))
+        if (ClusterMember.hasQuorumAtPosition(
+                clusterMembers, leadershipTermId, logPosition, nowNs, ctx.leaderHeartbeatTimeoutNs()))
         {
             if (consensusModuleAgent.appendNewLeadershipTermEvent(nowNs))
             {

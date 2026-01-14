@@ -927,43 +927,27 @@ public final class ClusterMember
     }
 
     /**
-     * Has the voting members of a cluster arrived at provided position in their log.
-     *
-     * @param clusterMembers   to check.
-     * @param position         to compare the {@link #logPosition()} against.
-     * @param leadershipTermId expected of the members.
-     * @return true if all members have reached this position otherwise false.
-     */
-    public static boolean hasVotersAtPosition(
-        final ClusterMember[] clusterMembers, final long position, final long leadershipTermId)
-    {
-        for (final ClusterMember member : clusterMembers)
-        {
-            if (member.vote != null && (member.logPosition < position || member.leadershipTermId != leadershipTermId))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * Has a quorum of members of appended a position to their local log.
      *
      * @param clusterMembers   to check.
-     * @param position         to compare the {@link #logPosition()} against.
      * @param leadershipTermId expected of the members.
-     * @return true if a quorum of members reached this position otherwise false.
+     * @param position         to compare the {@link #logPosition()} against.
+     * @param nowNs            for the current time.
+     * @param timeoutNs        after which a member is not considered active.
+     * @return {@code true} if a quorum of members reached this position otherwise {@code false}.
      */
     public static boolean hasQuorumAtPosition(
-        final ClusterMember[] clusterMembers, final long position, final long leadershipTermId)
+        final ClusterMember[] clusterMembers,
+        final long leadershipTermId,
+        final long position,
+        final long nowNs,
+        final long timeoutNs)
     {
         int votes = 0;
 
         for (final ClusterMember member : clusterMembers)
         {
-            if (member.leadershipTermId == leadershipTermId && member.logPosition >= position)
+            if (member.hasReachedPosition(leadershipTermId, position, nowNs, timeoutNs))
             {
                 ++votes;
             }
@@ -1337,6 +1321,11 @@ public final class ClusterMember
         // propose themselves as candidates when `timeOfLastAppendPositionNs` on other nodes stops advancing (i.e.
         // node crash, network partition etc.).
         return logPosition != NULL_POSITION && compareLog(this, candidate) <= 0;
+    }
+
+    boolean hasReachedPosition(final long leadershipTermId, final long position, final long nowNs, final long timeoutNs)
+    {
+        return isActive(nowNs, timeoutNs) && leadershipTermId == this.leadershipTermId && logPosition >= position;
     }
 
     /**
