@@ -46,13 +46,13 @@ public final class ClusterMember
     private boolean isLeader;
     private boolean hasTerminated;
     private int id;
-    private long leadershipTermId = Aeron.NULL_VALUE;
-    private long candidateTermId = Aeron.NULL_VALUE;
-    private long catchupReplaySessionId = Aeron.NULL_VALUE;
-    private long catchupReplayCorrelationId = Aeron.NULL_VALUE;
-    private long changeCorrelationId = Aeron.NULL_VALUE;
+    private long leadershipTermId = NULL_VALUE;
+    private long candidateTermId = NULL_VALUE;
+    private long catchupReplaySessionId = NULL_VALUE;
+    private long catchupReplayCorrelationId = NULL_VALUE;
+    private long changeCorrelationId = NULL_VALUE;
     private long logPosition = NULL_POSITION;
-    private long timeOfLastAppendPositionNs = Aeron.NULL_VALUE;
+    private long timeOfLastAppendPositionNs = NULL_VALUE;
     private ExclusivePublication publication;
     private String consensusChannel;
     private final String consensusEndpoint;
@@ -143,8 +143,8 @@ public final class ClusterMember
         isLeader = false;
         hasTerminated = false;
         vote = null;
-        candidateTermId = Aeron.NULL_VALUE;
-        leadershipTermId = Aeron.NULL_VALUE;
+        candidateTermId = NULL_VALUE;
+        leadershipTermId = NULL_VALUE;
         logPosition = NULL_POSITION;
     }
 
@@ -1006,7 +1006,7 @@ public final class ClusterMember
             else
             {
                 member.vote(null)
-                    .candidateTermId(Aeron.NULL_VALUE)
+                    .candidateTermId(NULL_VALUE)
                     .isBallotSent(false);
             }
         }
@@ -1120,7 +1120,7 @@ public final class ClusterMember
      */
     public static void validateMemberEndpoints(final ClusterMember member, final String memberEndpoints)
     {
-        final ClusterMember endpoints = ClusterMember.parseEndpoints(Aeron.NULL_VALUE, memberEndpoints);
+        final ClusterMember endpoints = ClusterMember.parseEndpoints(NULL_VALUE, memberEndpoints);
 
         if (!areSameEndpoints(member, endpoints))
         {
@@ -1168,7 +1168,7 @@ public final class ClusterMember
                 continue;
             }
 
-            if (NULL_POSITION == member.logPosition || compareLog(candidate, member) < 0)
+            if (!member.willVoteFor(candidate))
             {
                 return false;
             }
@@ -1192,12 +1192,10 @@ public final class ClusterMember
 
         for (final ClusterMember member : clusterMembers)
         {
-            if (NULL_POSITION == member.logPosition || compareLog(candidate, member) < 0)
+            if (member.willVoteFor(candidate))
             {
-                continue;
+                ++possibleVotes;
             }
-
-            ++possibleVotes;
         }
 
         return possibleVotes >= ClusterMember.quorumThreshold(clusterMembers.length);
@@ -1331,6 +1329,14 @@ public final class ClusterMember
     boolean isActive(final long nowNs, final long timeoutNs)
     {
         return timeOfLastAppendPositionNs + timeoutNs > nowNs;
+    }
+
+    boolean willVoteFor(final ClusterMember candidate)
+    {
+        // we do not check `isActive()` here, because doing so breaks the nomination phase whereby nodes will no longer
+        // propose themselves as candidates when `timeOfLastAppendPositionNs` on other nodes stops advancing (i.e.
+        // node crash, network partition etc.).
+        return logPosition != NULL_POSITION && compareLog(this, candidate) <= 0;
     }
 
     /**

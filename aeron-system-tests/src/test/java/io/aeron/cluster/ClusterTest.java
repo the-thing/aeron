@@ -3218,6 +3218,67 @@ class ClusterTest
         assertEquals(1, ErrorLogReader.read(errorBuffer, errorConsumer));
     }
 
+    @Test
+    @InterruptAfter(10)
+    void shouldFormClusterAfterFullPartition()
+    {
+        TestMediaDriver.notSupportedOnCMediaDriver("loss generator");
+
+        final int clusterSize = 3;
+        final List<StreamIdLossGenerator> lossGenerators = IntStream.range(0, clusterSize)
+            .mapToObj(i -> new StreamIdLossGenerator()).toList();
+        cluster = aCluster()
+            .withStaticNodes(clusterSize)
+            .withReceiveChannelEndpointSupplier((memberId) ->
+                (udpChannel, dispatcher, statusIndicator, context) ->
+                {
+                    final StreamIdLossGenerator lossGenerator = lossGenerators.get(memberId);
+                    return new DebugReceiveChannelEndpoint(
+                        udpChannel, dispatcher, statusIndicator, context, lossGenerator, lossGenerator);
+                })
+            .start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode oldLeader = cluster.awaitLeader();
+        cluster.connectClient();
+        cluster.sendAndAwaitMessages(1);
+
+        // stop consensus traffic between the nodes
+        for (int i = 0; i < clusterSize; i++)
+        {
+            final StreamIdLossGenerator lossGenerator = lossGenerators.get(i);
+            lossGenerator.enable(cluster.node(i).consensusModule().context().consensusStreamId());
+        }
+
+        // wait for the next round of elections to start on all nodes
+        Tests.await(() ->
+        {
+            for (int i = 0; i < clusterSize; i++)
+            {
+                if (ElectionState.CLOSED == cluster.node(i).electionState())
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        // kill old leader to create a dead node in the members list
+        cluster.stopNode(oldLeader);
+
+        // restore consensus traffic so that election can complete
+        for (final StreamIdLossGenerator lossGenerator : lossGenerators)
+        {
+            lossGenerator.disable();
+        }
+
+        final TestNode leader = cluster.awaitLeader(oldLeader.memberId());
+        assertEquals(2, leader.electionCount());
+
+        cluster.reconnectClient();
+        cluster.sendAndAwaitMessages(1);
+    }
+
     private static List<RuntimeException> terminalExceptions()
     {
         return List.of(
