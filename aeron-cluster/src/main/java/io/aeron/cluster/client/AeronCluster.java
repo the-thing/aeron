@@ -1490,11 +1490,6 @@ public final class AeronCluster implements AutoCloseable
                 ownsAeronClient = true;
             }
 
-            if (!(aeron.context().subscriberErrorHandler() instanceof RethrowingErrorHandler))
-            {
-                throw new ConfigurationException("Aeron.subscriberErrorHandler must use a RethrowingErrorHandler");
-            }
-
             if (null == idleStrategy)
             {
                 idleStrategy = new BackoffIdleStrategy(1, 10, 1000, 1000);
