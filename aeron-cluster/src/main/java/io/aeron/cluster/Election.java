@@ -636,7 +636,6 @@ class Election
     {
         consensusModuleAgent.truncateLogEntry(logLeadershipTermId, newPosition);
         this.appendPosition = newPosition;
-        this.logPosition = min(logPosition, newPosition);
         throw new ClusterEvent("Truncating Cluster Log - memberId=" + memberId +
             " state=" + state +
             " this.logLeadershipTermId=" + logLeadershipTermId +

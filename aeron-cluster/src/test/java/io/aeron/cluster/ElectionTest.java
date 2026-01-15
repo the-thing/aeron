@@ -20,7 +20,6 @@ import io.aeron.Counter;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Subscription;
-import io.aeron.cluster.client.ClusterEvent;
 import io.aeron.cluster.service.Cluster;
 import io.aeron.cluster.service.ClusterMarkFile;
 import io.aeron.exceptions.TimeoutException;
@@ -46,7 +45,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -1919,56 +1917,6 @@ class ElectionTest
             assertEquals(789, election.notifiedCommitPosition());
             assertEquals(4, election.leadershipTermId());
         }
-    }
-
-    @ParameterizedTest
-    @CsvSource({
-        "0,2097152,1048576,0",
-        "200,300,100,100",
-        "2048,2048,512,512" })
-    @SuppressWarnings("MethodLength")
-    void shouldTruncateLog(
-        final long logPosition,
-        final long appendPosition,
-        final long truncatePosition,
-        final long expectedLogPosition)
-    {
-        final long logLeadershipTermId = 4;
-        final long leadershipTermId = 8;
-        final long candidateTermId = leadershipTermId + 3;
-        final long commitPosition = 2048;
-
-        final ClusterMember[] clusterMembers = prepareClusterMembers();
-        final ClusterMember follower = clusterMembers[0];
-        final Election election = newElection(leadershipTermId, logPosition, clusterMembers, follower);
-        Tests.setField(election, "appendPosition", appendPosition);
-
-        final ClusterEvent truncateEvent = assertThrowsExactly(
-            ClusterEvent.class, () -> election.onTruncateLogEntry(
-                follower.id(),
-                ElectionState.CANVASS,
-                logLeadershipTermId,
-                leadershipTermId,
-                candidateTermId,
-                commitPosition,
-                logPosition,
-                appendPosition,
-                appendPosition,
-                truncatePosition));
-        assertEquals("WARN - Truncating Cluster Log - memberId=" + follower.id() +
-            " state=" + ElectionState.CANVASS +
-            " this.logLeadershipTermId=" + logLeadershipTermId +
-            " this.leadershipTermId=" + leadershipTermId +
-            " this.candidateTermId=" + candidateTermId +
-            " this.commitPosition=" + commitPosition +
-            " this.logPosition=" + logPosition +
-            " this.appendPosition=" + appendPosition +
-            " oldPosition=" + appendPosition +
-            " newPosition=" + truncatePosition,
-            truncateEvent.getMessage());
-
-        assertEquals(expectedLogPosition, (long)Tests.getField(election, "logPosition"));
-        assertEquals(truncatePosition, (long)Tests.getField(election, "appendPosition"));
     }
 
     private Election newElection(
