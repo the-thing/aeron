@@ -23,6 +23,7 @@ import io.aeron.ChannelUriStringBuilder;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.UnavailableImageHandler;
 import io.aeron.archive.codecs.ControlResponseCode;
@@ -3106,7 +3107,8 @@ public final class AeronArchive implements AutoCloseable
                     new Aeron.Context()
                         .aeronDirectoryName(aeronDirectoryName)
                         .clientName(clientName.isEmpty() ? "archive-client" : clientName)
-                        .errorHandler(errorHandler));
+                        .errorHandler(errorHandler)
+                        .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE));
                 ownsAeronClient = true;
             }
 
