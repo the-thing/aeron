@@ -211,6 +211,13 @@ public class ClusterComponentLogger implements ComponentLogger
 
         tempBuilder = addEventInstrumentation(
             tempBuilder,
+            REQUEST_VOTE,
+            "ConsensusModuleAgent",
+            ClusterInterceptor.Vote.class,
+            "logOnVote");
+
+        tempBuilder = addEventInstrumentation(
+            tempBuilder,
             CATCHUP_POSITION,
             "ConsensusModuleAgent",
             ClusterInterceptor.CatchupPosition.class,

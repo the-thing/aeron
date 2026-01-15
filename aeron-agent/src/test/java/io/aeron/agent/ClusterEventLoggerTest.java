@@ -22,6 +22,8 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.ringbuffer.ManyToOneRingBuffer;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -50,6 +52,7 @@ import static io.aeron.agent.ClusterEventCode.STOP_CATCHUP;
 import static io.aeron.agent.ClusterEventCode.TERMINATION_ACK;
 import static io.aeron.agent.ClusterEventCode.TERMINATION_POSITION;
 import static io.aeron.agent.ClusterEventCode.TRUNCATE_LOG_ENTRY;
+import static io.aeron.agent.ClusterEventCode.VOTE;
 import static io.aeron.agent.ClusterEventEncoder.MAX_REASON_LENGTH;
 import static io.aeron.agent.ClusterEventEncoder.canvassPositionLength;
 import static io.aeron.agent.ClusterEventEncoder.clusterSessionStateChangeLength;
@@ -669,6 +672,56 @@ class ClusterEventLoggerTest
         final String expectedMessagePattern = "\\[[0-9]+\\.[0-9]+] CLUSTER: REQUEST_VOTE " +
             "\\[36/36]: memberId=3 logLeadershipTermId=12 logPosition=4723489263846823 candidateTermId=-19 " +
             "candidateId=89 protocolVersion=2.5.17";
+
+        assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = { true, false })
+    void logOnVote(final boolean vote)
+    {
+        final long logLeadershipTermId = 8;
+        final long logPosition = 1024;
+        final long candidateTermId = 42;
+        final int candidateId = 5;
+        final int voterId = 1;
+        final int memberId = 4;
+        final int offset = 16;
+        logBuffer.putLong(CAPACITY + TAIL_POSITION_OFFSET, offset);
+
+        logger.logOnVote(
+            memberId, logLeadershipTermId, logPosition, candidateTermId, candidateId, voterId, vote);
+
+        final ClusterEventCode eventCode = VOTE;
+        final int captureLength = 37;
+        verifyLogHeader(logBuffer, offset, eventCode.toEventCodeId(), captureLength, captureLength);
+        int index = encodedMsgOffset(offset) + LOG_HEADER_LENGTH;
+        assertEquals(logLeadershipTermId, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(logPosition, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(candidateTermId, logBuffer.getLong(index, LITTLE_ENDIAN));
+        index += SIZE_OF_LONG;
+        assertEquals(candidateId, logBuffer.getInt(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT;
+        assertEquals(voterId, logBuffer.getInt(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT;
+        assertEquals(memberId, logBuffer.getInt(index, LITTLE_ENDIAN));
+        index += SIZE_OF_INT;
+        assertEquals(vote ? 1 : 0, logBuffer.getByte(index));
+
+        final StringBuilder sb = new StringBuilder();
+        ClusterEventDissector.dissectVote(eventCode, logBuffer, encodedMsgOffset(offset), sb);
+
+        final String expectedMessagePattern = "\\[[0-9]+\\.[0-9]+] CLUSTER: VOTE " +
+            "\\[" + captureLength + "/" + captureLength + "]:" +
+            " memberId=" + memberId +
+            " logLeadershipTermId=" + logLeadershipTermId +
+            " logPosition=" + logPosition +
+            " candidateTermId=" + candidateTermId +
+            " candidateId=" + candidateId +
+            " voterId=" + voterId +
+            " vote=" + vote;
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }

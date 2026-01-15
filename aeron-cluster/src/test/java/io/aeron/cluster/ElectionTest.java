@@ -219,9 +219,9 @@ class ElectionTest
 
         when(consensusModuleAgent.role()).thenReturn(Cluster.Role.CANDIDATE);
         election.onVote(
-            candidateTermId, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[1].id(), true);
+            leadershipTermId, logPosition, candidateTermId, candidateMember.id(), clusterMembers[1].id(), true);
         election.onVote(
-            candidateTermId, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[2].id(), true);
+            leadershipTermId, logPosition, candidateTermId, candidateMember.id(), clusterMembers[2].id(), true);
 
         clock.increment(1);
         election.doWork(clock.nanoTime());
@@ -490,7 +490,7 @@ class ElectionTest
         final long candidateTermId = leadershipTermId + 1;
         when(consensusModuleAgent.role()).thenReturn(Cluster.Role.CANDIDATE);
         election.onVote(
-            candidateTermId, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[2].id(), true);
+            leadershipTermId, logPosition, candidateTermId, candidateMember.id(), clusterMembers[2].id(), true);
         election.doWork(clock.nanoTime());
         verify(electionStateCounter).setRelease(ElectionState.LEADER_LOG_REPLICATION.code());
     }
@@ -571,9 +571,9 @@ class ElectionTest
         final long candidateTermId = leadershipTermId + 1;
         when(consensusModuleAgent.role()).thenReturn(Cluster.Role.CANDIDATE);
         election.onVote(
-            candidateTermId, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[0].id(), true);
+            leadershipTermId, logPosition, candidateTermId, candidateMember.id(), clusterMembers[0].id(), true);
         election.onVote(
-            candidateTermId, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[2].id(), true);
+            leadershipTermId, logPosition, candidateTermId, candidateMember.id(), clusterMembers[2].id(), true);
         election.doWork(clock.nanoTime());
         verify(electionStateCounter).setRelease(ElectionState.LEADER_LOG_REPLICATION.code());
     }
@@ -638,7 +638,7 @@ class ElectionTest
         clock.increment(1);
         when(consensusModuleAgent.role()).thenReturn(Cluster.Role.CANDIDATE);
         election.onVote(
-            leadershipTermId + 1, leadershipTermId, logPosition, candidateMember.id(), clusterMembers[2].id(), false);
+            leadershipTermId, logPosition, leadershipTermId + 1, candidateMember.id(), clusterMembers[2].id(), false);
         election.doWork(clock.nanoTime());
 
         clock.increment(ctx.electionTimeoutNs());
@@ -657,7 +657,7 @@ class ElectionTest
 
         final long candidateTermId = leadershipTermId + 2;
         election.onVote(
-            candidateTermId, leadershipTermId + 1, logPosition, candidateMember.id(), clusterMembers[2].id(), true);
+            leadershipTermId + 1, logPosition, candidateTermId, candidateMember.id(), clusterMembers[2].id(), true);
 
         clock.increment(ctx.electionTimeoutNs());
         election.doWork(clock.nanoTime());
@@ -1481,8 +1481,8 @@ class ElectionTest
         election.doWork(clock.nanoTime());
         verify(electionStateCounter).setRelease(ElectionState.CANDIDATE_BALLOT.code());
 
-        election.onVote(candidateTermId, leadershipTermId, 120, leaderId, leaderId, true);
-        election.onVote(candidateTermId, leadershipTermId, 120, leaderId, followerId, true);
+        election.onVote(leadershipTermId, 120, candidateTermId, leaderId, leaderId, true);
+        election.onVote(leadershipTermId, 120, candidateTermId, leaderId, followerId, true);
 
         clock.increment(2 * ctx.electionTimeoutNs());
         election.doWork(clock.nanoTime());

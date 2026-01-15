@@ -126,9 +126,9 @@ class ConsensusAdapter implements FragmentHandler, AutoCloseable
                     messageHeaderDecoder.version());
 
                 consensusModuleAgent.onVote(
-                    voteDecoder.candidateTermId(),
                     voteDecoder.logLeadershipTermId(),
                     voteDecoder.logPosition(),
+                    voteDecoder.candidateTermId(),
                     voteDecoder.candidateMemberId(),
                     voteDecoder.followerMemberId(),
                     voteDecoder.vote() == BooleanType.TRUE);

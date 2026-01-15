@@ -147,7 +147,14 @@ public enum ClusterEventCode implements EventCode
      *
      * @since 1.49.0
      */
-    CLUSTER_SESSION_STATE_CHANGE(24, ClusterEventDissector::dissectClusterSessionStateChange);
+    CLUSTER_SESSION_STATE_CHANGE(24, ClusterEventDissector::dissectClusterSessionStateChange),
+
+    /**
+     * An actual vote for new leadership, i.e. response to the {@link #REQUEST_VOTE}.
+     *
+     * @since 1.50.0
+     */
+    VOTE(25, ClusterEventDissector::dissectVote);
 
     static final int EVENT_CODE_TYPE = EventCodeType.CLUSTER.getTypeCode();
     private static final ClusterEventCode[] EVENT_CODE_BY_ID;

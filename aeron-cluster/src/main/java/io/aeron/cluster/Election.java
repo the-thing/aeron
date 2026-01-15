@@ -396,11 +396,11 @@ class Election
     }
 
     void onVote(
-        final long candidateTermId,
         final long logLeadershipTermId,
         final long logPosition,
-        final int candidateMemberId,
-        final int followerMemberId,
+        final long candidateTermId,
+        final int candidateId,
+        final int voterId,
         final boolean vote)
     {
         if (INIT == state)
@@ -410,9 +410,9 @@ class Election
 
         if (CANDIDATE_BALLOT == state &&
             candidateTermId == this.candidateTermId &&
-            candidateMemberId == thisMember.id())
+            candidateId == thisMember.id())
         {
-            final ClusterMember follower = clusterMemberByIdMap.get(followerMemberId);
+            final ClusterMember follower = clusterMemberByIdMap.get(voterId);
             if (null != follower)
             {
                 follower

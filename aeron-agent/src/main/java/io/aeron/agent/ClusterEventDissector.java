@@ -234,6 +234,38 @@ final class ClusterEventDissector
         appendSemanticVersion(protocolVersion, builder);
     }
 
+    static void dissectVote(
+        final ClusterEventCode eventCode,
+        final MutableDirectBuffer buffer,
+        final int offset,
+        final StringBuilder builder)
+    {
+        int absoluteOffset = offset;
+        absoluteOffset += dissectLogHeader(CONTEXT, eventCode, buffer, absoluteOffset, builder);
+
+        final long logLeadershipTermId = buffer.getLong(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_LONG;
+        final long logPosition = buffer.getLong(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_LONG;
+        final long candidateTermId = buffer.getLong(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_LONG;
+        final int candidateId = buffer.getInt(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+        final int voterId = buffer.getInt(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+        final int memberId = buffer.getInt(absoluteOffset, LITTLE_ENDIAN);
+        absoluteOffset += SIZE_OF_INT;
+        final boolean vote = 0 != buffer.getByte(absoluteOffset);
+
+        builder.append(": memberId=").append(memberId);
+        builder.append(" logLeadershipTermId=").append(logLeadershipTermId);
+        builder.append(" logPosition=").append(logPosition);
+        builder.append(" candidateTermId=").append(candidateTermId);
+        builder.append(" candidateId=").append(candidateId);
+        builder.append(" voterId=").append(voterId);
+        builder.append(" vote=").append(vote);
+    }
+
     static void dissectCatchupPosition(
         final ClusterEventCode eventCode,
         final MutableDirectBuffer buffer,

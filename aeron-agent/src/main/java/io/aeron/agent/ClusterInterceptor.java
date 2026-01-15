@@ -146,6 +146,23 @@ class ClusterInterceptor
         }
     }
 
+    static class Vote
+    {
+        @Advice.OnMethodEnter
+        static void logOnVote(
+            final int memberId,
+            final long logLeadershipTermId,
+            final long logPosition,
+            final long candidateTermId,
+            final int candidateId,
+            final int voterId,
+            final boolean vote)
+        {
+            LOGGER.logOnVote(
+                memberId, logLeadershipTermId, logPosition, candidateTermId, candidateId, voterId, vote);
+        }
+    }
+
     static class CatchupPosition
     {
         @Advice.OnMethodEnter

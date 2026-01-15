@@ -1038,17 +1038,19 @@ final class ConsensusModuleAgent
     }
 
     void onVote(
-        final long candidateTermId,
         final long logLeadershipTermId,
         final long logPosition,
-        final int candidateMemberId,
-        final int followerMemberId,
+        final long candidateTermId,
+        final int candidateId,
+        final int voterId,
         final boolean vote)
     {
+        logOnVote(
+            memberId, logLeadershipTermId, logPosition, candidateTermId, candidateId, voterId, vote);
         if (null != election)
         {
             election.onVote(
-                candidateTermId, logLeadershipTermId, logPosition, candidateMemberId, followerMemberId, vote);
+                logLeadershipTermId, logPosition, candidateTermId, candidateId, voterId, vote);
         }
     }
 
@@ -2337,6 +2339,17 @@ final class ConsensusModuleAgent
         final long candidateTermId,
         final int candidateId,
         final int protocolVersion)
+    {
+    }
+
+    private static void logOnVote(
+        final int memberId,
+        final long logLeadershipTermId,
+        final long logPosition,
+        final long candidateTermId,
+        final int candidateId,
+        final int voterId,
+        final boolean vote)
     {
     }
 

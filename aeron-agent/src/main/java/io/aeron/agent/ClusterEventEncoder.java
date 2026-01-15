@@ -301,9 +301,43 @@ public final class ClusterEventEncoder
         return encodedLength;
     }
 
-    static int requestVoteLength()
+    static int encodeOnVote(
+        final UnsafeBuffer encodingBuffer,
+        final int offset,
+        final int captureLength,
+        final int length,
+        final int memberId,
+        final long candidateTermId,
+        final long logLeadershipTermId,
+        final long logPosition,
+        final int candidateId,
+        final int voterId,
+        final boolean vote)
     {
-        return 3 * SIZE_OF_LONG + 3 * SIZE_OF_INT;
+        int encodedLength = encodeLogHeader(encodingBuffer, offset, captureLength, length);
+
+        encodingBuffer.putLong(offset + encodedLength, logLeadershipTermId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_LONG;
+
+        encodingBuffer.putLong(offset + encodedLength, logPosition, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_LONG;
+
+        encodingBuffer.putLong(offset + encodedLength, candidateTermId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_LONG;
+
+        encodingBuffer.putInt(offset + encodedLength, candidateId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_INT;
+
+        encodingBuffer.putInt(offset + encodedLength, voterId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_INT;
+
+        encodingBuffer.putInt(offset + encodedLength, memberId, LITTLE_ENDIAN);
+        encodedLength += SIZE_OF_INT;
+
+        encodingBuffer.putByte(offset + encodedLength, (byte)(vote ? 1 : 0));
+        encodedLength += SIZE_OF_BYTE;
+
+        return encodedLength;
     }
 
     static int encodeOnCatchupPosition(
