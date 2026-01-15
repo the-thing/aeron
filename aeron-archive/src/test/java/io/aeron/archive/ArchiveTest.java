@@ -22,6 +22,7 @@ import io.aeron.ChannelUriStringBuilder;
 import io.aeron.Counter;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.archive.Archive.Context;
 import io.aeron.archive.checksum.Checksum;
@@ -131,6 +132,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(InterruptingTestCallback.class)
+@InterruptAfter(10)
 @SuppressWarnings("try")
 class ArchiveTest
 {
@@ -1059,7 +1061,8 @@ class ArchiveTest
                 .archiveId(ThreadLocalRandom.current().nextLong())
                 .aeronDirectoryName(driver.context().aeronDirectoryName()));
             Aeron aeron = Aeron.connect(new Aeron.Context()
-                .aeronDirectoryName(driver.context().aeronDirectoryName()));
+                .aeronDirectoryName(driver.context().aeronDirectoryName())
+                .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE));
             AeronArchive aeronArchive = AeronArchive.connect(TestContexts.localhostAeronArchive()
                 .aeronDirectoryName(null)
                 .aeron(aeron)))
@@ -1192,6 +1195,50 @@ class ArchiveTest
             aeronArchive.close();
 
             Tests.await(() -> countersReader.getCounterState(counterId) == RECORD_RECLAIMED);
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "aeron:udp?endpoint=localhost:0",
+        "aeron:udp?control=localhost:10000|control-mode=response" })
+    void shouldConnectUsingInvokersWithAsyncConnect(final String responseChannel, @TempDir final Path temp)
+    {
+        final String requestChannel = "aeron:udp?endpoint=localhost:8888";
+        try (MediaDriver driver = MediaDriver.launch(new MediaDriver.Context()
+            .aeronDirectoryName(generateRandomDirName())
+            .threadingMode(ThreadingMode.INVOKER));
+            Archive archive = Archive.launch(new Archive.Context()
+                .threadingMode(ArchiveThreadingMode.INVOKER)
+                .mediaDriverAgentInvoker(driver.sharedAgentInvoker())
+                .archiveDir(temp.toFile())
+                .archiveId(42)
+                .controlChannel(requestChannel)
+                .controlStreamId(1919)
+                .replicationChannel("aeron:udp?endpoint=localhost:0")
+                .aeronDirectoryName(driver.context().aeronDirectoryName()));
+            Aeron aeron = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(driver.aeronDirectoryName())
+                .useConductorAgentInvoker(true)
+                .driverAgentInvoker(driver.sharedAgentInvoker())
+                .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)))
+        {
+            final AeronArchive.AsyncConnect asyncConnect = AeronArchive.asyncConnect(
+                new AeronArchive.Context()
+                    .controlRequestChannel(requestChannel)
+                    .controlRequestStreamId(archive.context().controlStreamId())
+                    .controlResponseChannel(responseChannel)
+                    .controlResponseStreamId(9191)
+                    .aeron(aeron)
+                    .agentInvoker(archive.invoker()));
+
+            AeronArchive aeronArchive;
+            while (null == (aeronArchive = asyncConnect.poll()))
+            {
+                Tests.yield();
+            }
+
+            assertEquals(archive.context().archiveId(), aeronArchive.archiveId());
         }
     }
 
