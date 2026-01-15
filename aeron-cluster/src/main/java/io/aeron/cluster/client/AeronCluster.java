@@ -24,6 +24,7 @@ import io.aeron.DirectBufferVector;
 import io.aeron.FragmentAssembler;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.cluster.ConsensusModule;
 import io.aeron.cluster.codecs.AdminRequestEncoder;
@@ -62,6 +63,7 @@ import org.agrona.ErrorHandler;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.SemanticVersion;
 import org.agrona.Strings;
+import org.agrona.SystemUtil;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.collections.Int2ObjectHashMap;
 import org.agrona.concurrent.AgentInvoker;
@@ -152,28 +154,14 @@ public final class AeronCluster implements AutoCloseable
         try
         {
             ctx.conclude();
-
-            final Aeron aeron = ctx.aeron();
-            final long deadlineNs = aeron.context().nanoClock().nanoTime() + ctx.messageTimeoutNs();
-            asyncConnect = new AsyncConnect(ctx, deadlineNs);
-            final AgentInvoker aeronClientInvoker = aeron.conductorAgentInvoker();
-            final AgentInvoker agentInvoker = ctx.agentInvoker();
             final IdleStrategy idleStrategy = ctx.idleStrategy();
+
+            asyncConnect = new AsyncConnect(ctx);
 
             AeronCluster aeronCluster;
             AsyncConnect.State state = asyncConnect.state();
             while (null == (aeronCluster = asyncConnect.poll()))
             {
-                if (null != aeronClientInvoker)
-                {
-                    aeronClientInvoker.invoke();
-                }
-
-                if (null != agentInvoker)
-                {
-                    agentInvoker.invoke();
-                }
-
                 if (state != asyncConnect.state())
                 {
                     state = asyncConnect.state();
@@ -228,9 +216,7 @@ public final class AeronCluster implements AutoCloseable
         {
             ctx.conclude();
 
-            final long deadlineNs = ctx.aeron().context().nanoClock().nanoTime() + ctx.messageTimeoutNs();
-
-            return new AsyncConnect(ctx, deadlineNs);
+            return new AsyncConnect(ctx);
         }
         catch (final Exception ex)
         {
@@ -307,7 +293,7 @@ public final class AeronCluster implements AutoCloseable
             return;
         }
 
-        if (null != publication && publication.isConnected() && State.CONNECTED == state)
+        if (State.CONNECTED == state && null != publication && publication.isConnected())
         {
             closeSession();
         }
@@ -533,7 +519,6 @@ public final class AeronCluster implements AutoCloseable
             }
 
             idleStrategy.idle();
-            invokeInvokers();
         }
 
         return false;
@@ -594,7 +579,6 @@ public final class AeronCluster implements AutoCloseable
             }
 
             idleStrategy.idle();
-            invokeInvokers();
         }
 
         return false;
@@ -704,7 +688,7 @@ public final class AeronCluster implements AutoCloseable
         CloseHelper.close(publication);
         if (null == ctx.ingressEndpoints())
         {
-            publication = addIngressPublication(ctx, ctx.ingressChannel(), ctx.ingressStreamId());
+            publication = addNewLeaderIngressPublication(ctx, ctx.ingressChannel(), ctx.ingressStreamId());
         }
         else
         {
@@ -770,16 +754,24 @@ public final class AeronCluster implements AutoCloseable
         return endpointByIdMap;
     }
 
-    static Publication addIngressPublication(final Context ctx, final String channel, final int streamId)
+    private Publication addNewLeaderIngressPublication(final Context ctx, final String channel, final int streamId)
     {
-        if (ctx.isIngressExclusive())
+        final long registrationId = asyncAddIngressPublication(ctx, channel, streamId);
+        final long deadlineNs = nanoClock.nanoTime() + ctx.messageTimeoutNs();
+        do
         {
-            return ctx.aeron().addExclusivePublication(channel, streamId);
+            final Publication publication = getIngressPublication(ctx, registrationId);
+            if (null != publication)
+            {
+                return publication;
+            }
+            ctx.runAgentInvokers();
         }
-        else
-        {
-            return ctx.aeron().addPublication(channel, streamId);
-        }
+        while (nanoClock.nanoTime() < deadlineNs);
+
+        throw new TimeoutException("failed to add new leader ingress publication (leaderMemberId=" + leaderMemberId +
+            ", leadershipTermId=" + leadershipTermId + ", channel=" + channel + ", streamId=" + streamId +
+            ") within " + SystemUtil.formatDuration(ctx.messageTimeoutNs()));
     }
 
     static long asyncAddIngressPublication(final Context ctx, final String channel, final int streamId)
@@ -811,14 +803,16 @@ public final class AeronCluster implements AutoCloseable
         CloseHelper.closeAll(endpointByIdMap.values());
 
         final Int2ObjectHashMap<MemberIngress> map = parseIngressEndpoints(ctx, ingressEndpoints);
+        endpointByIdMap = map;
+
         final MemberIngress newLeader = map.get(leaderMemberId);
         final ChannelUri channelUri = ChannelUri.parse(ctx.ingressChannel());
         if (channelUri.isUdp())
         {
             channelUri.put(CommonContext.ENDPOINT_PARAM_NAME, newLeader.endpoint);
         }
-        publication = newLeader.publication = addIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
-        endpointByIdMap = map;
+        publication = newLeader.publication =
+            addNewLeaderIngressPublication(ctx, channelUri.toString(), ctx.ingressStreamId());
     }
 
     private void onDisconnected()
@@ -979,7 +973,7 @@ public final class AeronCluster implements AutoCloseable
 
         if (schemaId != MessageHeaderDecoder.SCHEMA_ID)
         {
-            if (controlledEgressListenerExtension != null)
+            if (null != controlledEgressListenerExtension)
             {
                 return controlledEgressListenerExtension.onExtensionMessage(
                     messageHeaderDecoder.blockLength(),
@@ -1144,20 +1138,6 @@ public final class AeronCluster implements AutoCloseable
             }
 
             idleStrategy.idle();
-            invokeInvokers();
-        }
-    }
-
-    private void invokeInvokers()
-    {
-        if (null != ctx.aeron().conductorAgentInvoker())
-        {
-            ctx.aeron().conductorAgentInvoker().invoke();
-        }
-
-        if (null != ctx.agentInvoker())
-        {
-            ctx.agentInvoker().invoke();
         }
     }
 
@@ -1504,9 +1484,15 @@ public final class AeronCluster implements AutoCloseable
                     new Aeron.Context()
                         .aeronDirectoryName(aeronDirectoryName)
                         .errorHandler(errorHandler)
+                        .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
                         .clientName(clientName.isEmpty() ? "cluster-client" : clientName));
 
                 ownsAeronClient = true;
+            }
+
+            if (!(aeron.context().subscriberErrorHandler() instanceof RethrowingErrorHandler))
+            {
+                throw new ConfigurationException("Aeron.subscriberErrorHandler must use a RethrowingErrorHandler");
             }
 
             if (null == idleStrategy)
@@ -2013,6 +1999,9 @@ public final class AeronCluster implements AutoCloseable
          * Set the {@link AgentInvoker} to be invoked in addition to any invoker used by the {@link #aeron()} instance.
          * <p>
          * Useful for when running on a low thread count scenario.
+         * <p>
+         * <em><strong>Note:</strong> it is the responsibility of the user to call {@code agentInvoker} and the
+         * {@code aeron.conductorAgentInvoker()} periodically.</em>
          *
          * @param agentInvoker to be invoked while awaiting a response in the client or when awaiting completion.
          * @return this for a fluent API.
@@ -2072,6 +2061,21 @@ public final class AeronCluster implements AutoCloseable
                 "\n    egressListener=" + egressListener +
                 "\n    controlledEgressListener=" + controlledEgressListener +
                 "\n}";
+        }
+
+        void runAgentInvokers()
+        {
+            final AgentInvoker conductorAgentInvoker = aeron.conductorAgentInvoker();
+            if (null != conductorAgentInvoker)
+            {
+                conductorAgentInvoker.invoke();
+            }
+
+            final AgentInvoker agentInvoker = this.agentInvoker;
+            if (null != agentInvoker)
+            {
+                agentInvoker.invoke();
+            }
         }
     }
 
@@ -2156,6 +2160,11 @@ public final class AeronCluster implements AutoCloseable
         private Int2ObjectHashMap<MemberIngress> memberByIdMap;
         private long ingressRegistrationId = NULL_VALUE;
         private Publication ingressPublication;
+
+        private AsyncConnect(final Context ctx)
+        {
+            this(ctx, ctx.aeron().context().nanoClock().nanoTime() + ctx.messageTimeoutNs());
+        }
 
         AsyncConnect(final Context ctx, final long deadlineNs)
         {
@@ -2245,6 +2254,7 @@ public final class AeronCluster implements AutoCloseable
         public AeronCluster poll()
         {
             checkDeadline();
+            ctx.runAgentInvokers();
 
             switch (state)
             {
@@ -2287,7 +2297,7 @@ public final class AeronCluster implements AutoCloseable
                     egressSubscription.tryResolveChannelEndpointPort() : "<unknown>";
                 final TimeoutException ex = new TimeoutException(
                     "cluster connect timeout: state=" + state +
-                    " messageTimeout=" + ctx.messageTimeoutNs() + "ns" +
+                    " messageTimeout=" + SystemUtil.formatDuration(ctx.messageTimeoutNs()) +
                     " ingressChannel=" + ctx.ingressChannel() +
                     " ingressEndpoints=" + ctx.ingressEndpoints() +
                     " ingressPublication=" + ingressPublication +

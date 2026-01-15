@@ -16,8 +16,10 @@
 package io.aeron.cluster.client;
 
 import io.aeron.Aeron;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.exceptions.ConfigurationException;
 import io.aeron.test.Tests;
+import org.agrona.ErrorHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,17 +27,23 @@ import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AeronClusterContextTest
 {
     private final Aeron aeron = mock(Aeron.class);
+    private final Aeron.Context aeronContext = new Aeron.Context();
     private final AeronCluster.Context context = new AeronCluster.Context();
 
     @BeforeEach
     void before()
     {
+        when(aeron.context()).thenReturn(aeronContext);
+        aeronContext.subscriberErrorHandler(RethrowingErrorHandler.INSTANCE);
+
         context
             .aeron(aeron)
             .ingressChannel("aeron:udp")
@@ -116,5 +124,17 @@ class AeronClusterContextTest
         assertEquals(
             "ERROR - AeronCluster.Context.clientName length must be <= " + Aeron.Configuration.MAX_CLIENT_NAME_LENGTH,
             exception.getMessage());
+    }
+
+    @Test
+    void shouldEnsureSubscriptionErrorHandlerIsRethrowing()
+    {
+        final ErrorHandler errorHandler = mock(ErrorHandler.class);
+        aeronContext.subscriberErrorHandler(errorHandler);
+        assertSame(errorHandler, aeronContext.subscriberErrorHandler());
+
+        final ConfigurationException exception =
+            assertThrowsExactly(ConfigurationException.class, context::conclude);
+        assertEquals("ERROR - Aeron.subscriberErrorHandler must use a RethrowingErrorHandler", exception.getMessage());
     }
 }

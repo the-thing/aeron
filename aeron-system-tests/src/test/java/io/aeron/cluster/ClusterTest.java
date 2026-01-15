@@ -22,6 +22,7 @@ import io.aeron.Counter;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.archive.Archive;
 import io.aeron.archive.ArchiveThreadingMode;
@@ -106,6 +107,7 @@ import java.util.function.Predicate;
 import java.util.stream.IntStream;
 import java.util.zip.CRC32;
 
+import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.AeronCounters.CLUSTER_CONSENSUS_MODULE_ERROR_COUNT_TYPE_ID;
 import static io.aeron.AeronCounters.CLUSTER_SNAPSHOT_COUNTER_TYPE_ID;
 import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
@@ -151,6 +153,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -1847,7 +1850,7 @@ class ClusterTest
         final int termCount = 3;
         int totalMessages = 0;
 
-        int partialNode = Aeron.NULL_VALUE;
+        int partialNode = NULL_VALUE;
 
         for (int i = 0; i < termCount; i++)
         {
@@ -1858,7 +1861,7 @@ class ClusterTest
             totalMessages += messageCount;
             cluster.awaitResponseMessageCount(totalMessages);
 
-            if (Aeron.NULL_VALUE == partialNode)
+            if (NULL_VALUE == partialNode)
             {
                 partialNode = (oldLeader.index() + 1) % 4;
                 cluster.stopNode(cluster.node(partialNode));
@@ -2878,6 +2881,179 @@ class ClusterTest
         }
     }
 
+    @Test
+    @InterruptAfter(30)
+    void clientShouldHandleRedirectResponseWhenInInvokerModeUsingConnect()
+    {
+        cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        final String leaderIngressEndpoint =
+            ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
+
+        final StringBuilder followerIngressEndpoints = new StringBuilder();
+        for (final TestNode node : cluster.followers())
+        {
+            followerIngressEndpoints.append(node.memberId()).append("=")
+                .append(ingressEndpoint(cluster.clusterId(), node.memberId(), cluster.memberCount())).append(",");
+        }
+        followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
+
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+            .newClientMediaDriverContext()
+            .threadingMode(ThreadingMode.INVOKER));
+            Aeron client = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(clientDriver.aeronDirectoryName())
+                .driverAgentInvoker(null) // this is on purpose
+                .useConductorAgentInvoker(true)
+                .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE));
+            AeronCluster aeronCluster = AeronCluster.connect(new AeronCluster.Context()
+                .agentInvoker(clientDriver.sharedAgentInvoker())
+                .aeron(client)
+                .ingressChannel("aeron:udp?alias=ingress")
+                .ingressEndpoints(followerIngressEndpoints.toString())
+                .egressChannel("aeron:udp?endpoint=localhost:0|alias=redirect-test")))
+        {
+            assertNull(client.context().driverAgentInvoker());
+
+            final Publication ingressPublication = aeronCluster.ingressPublication();
+            assertNotNull(ingressPublication);
+            assertEquals(
+                leaderIngressEndpoint,
+                ChannelUri.parse(ingressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+        }
+    }
+
+    @Test
+    @InterruptAfter(30)
+    void clientShouldHandleRedirectResponseWhenInInvokerModeUsingAsyncConnect()
+    {
+        cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        final String leaderIngressEndpoint =
+            ingressEndpoint(cluster.clusterId(), leader.memberId(), cluster.memberCount());
+
+        final StringBuilder followerIngressEndpoints = new StringBuilder();
+        for (final TestNode node : cluster.followers())
+        {
+            followerIngressEndpoints.append(node.memberId()).append("=")
+                .append(ingressEndpoint(cluster.clusterId(), node.memberId(), cluster.memberCount())).append(",");
+        }
+        followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
+
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+            .newClientMediaDriverContext()
+            .threadingMode(ThreadingMode.INVOKER));
+            Aeron client = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(clientDriver.aeronDirectoryName())
+                .driverAgentInvoker(null) // this is on purpose
+                .useConductorAgentInvoker(true)
+                .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE));
+            AeronCluster.AsyncConnect asyncConnect = AeronCluster.asyncConnect(new AeronCluster.Context()
+                .agentInvoker(clientDriver.sharedAgentInvoker())
+                .aeron(client)
+                .ingressChannel("aeron:udp?alias=ingress")
+                .ingressEndpoints(followerIngressEndpoints.toString())
+                .egressChannel("aeron:udp?endpoint=localhost:0|alias=redirect-test")))
+        {
+            assertNull(client.context().driverAgentInvoker());
+
+            AeronCluster aeronCluster;
+            while (null == (aeronCluster = asyncConnect.poll()))
+            {
+                Tests.yield();
+            }
+
+            final Publication ingressPublication = aeronCluster.ingressPublication();
+            assertNotNull(ingressPublication);
+            assertEquals(
+                leaderIngressEndpoint,
+                ChannelUri.parse(ingressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+        }
+    }
+
+    @Test
+    @InterruptAfter(30)
+    void clientShouldHandleLeadershipChangeWhenInInvokerMode()
+    {
+        cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode originalLeader = cluster.awaitLeader();
+        final String leaderIngressEndpoint =
+            ingressEndpoint(cluster.clusterId(), originalLeader.memberId(), cluster.memberCount());
+
+        final MutableInteger onNewLeader = new MutableInteger(NULL_VALUE);
+        final EgressListener egressListener = new EgressListener()
+        {
+            public void onMessage(
+                final long clusterSessionId,
+                final long timestamp,
+                final DirectBuffer buffer,
+                final int offset,
+                final int length,
+                final Header header)
+            {
+            }
+
+            public void onNewLeader(
+                final long clusterSessionId,
+                final long leadershipTermId,
+                final int leaderMemberId,
+                final String ingressEndpoints)
+            {
+                onNewLeader.set(leaderMemberId);
+            }
+        };
+
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+            .newClientMediaDriverContext()
+            .threadingMode(ThreadingMode.INVOKER));
+            Aeron client = Aeron.connect(new Aeron.Context()
+                .aeronDirectoryName(clientDriver.aeronDirectoryName())
+                .driverAgentInvoker(null) // this is on purpose
+                .useConductorAgentInvoker(true)
+                .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE));
+            AeronCluster aeronCluster = AeronCluster.connect(cluster.clientCtx()
+                .agentInvoker(clientDriver.sharedAgentInvoker())
+                .aeron(client)
+                .ingressChannel("aeron:udp?alias=ingress")
+                .egressChannel("aeron:udp?endpoint=localhost:0")
+                .egressListener(egressListener)))
+        {
+            assertNull(client.context().driverAgentInvoker());
+
+            final Publication originalIngressPublication = aeronCluster.ingressPublication();
+            assertNotNull(originalIngressPublication);
+            assertEquals(
+                leaderIngressEndpoint,
+                ChannelUri.parse(originalIngressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+
+            cluster.stopNode(originalLeader);
+
+            final TestNode newLeader = cluster.awaitLeader();
+
+            while (NULL_VALUE == onNewLeader.get())
+            {
+                aeronCluster.pollEgress();
+                client.conductorAgentInvoker().invoke();
+                clientDriver.sharedAgentInvoker().invoke();
+            }
+            assertEquals(newLeader.memberId(), onNewLeader.get());
+
+            final Publication newIngressPublication = aeronCluster.ingressPublication();
+            assertNotNull(newIngressPublication);
+            assertNotSame(originalIngressPublication, newIngressPublication);
+            assertNotEquals(originalIngressPublication.registrationId(), newIngressPublication.registrationId());
+            assertEquals(
+                ingressEndpoint(cluster.clusterId(), newLeader.memberId(), cluster.memberCount()),
+                ChannelUri.parse(newIngressPublication.channel()).get(ENDPOINT_PARAM_NAME));
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = { "valid", "invalid", "wrong port" })
     @InterruptAfter(30)
@@ -3349,7 +3525,7 @@ class ClusterTest
 
     private static final class MyConsensusModuleSnapshotListener implements ConsensusModuleSnapshotListener
     {
-        long nextSessionId = Aeron.NULL_VALUE;
+        long nextSessionId = NULL_VALUE;
 
         @Override
         public void onLoadBeginSnapshot(final int appVersion, final TimeUnit timeUnit,

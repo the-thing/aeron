@@ -19,6 +19,7 @@ import io.aeron.Aeron;
 import io.aeron.ExclusivePublication;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.cluster.codecs.MessageHeaderEncoder;
 import io.aeron.cluster.codecs.NewLeaderEventEncoder;
@@ -64,7 +65,9 @@ class AeronClusterTest
     private final UnsafeBuffer appMessage = new UnsafeBuffer(new byte[8]);
     private final EgressListener egressListener = mock(EgressListener.class);
     private final Aeron aeron = mock(Aeron.class);
-    private final Aeron.Context aeronContext = new Aeron.Context().nanoClock(this::nanoTime);
+    private final Aeron.Context aeronContext = new Aeron.Context()
+        .nanoClock(this::nanoTime)
+        .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE);
     private final AeronCluster.Context context = spy(new AeronCluster.Context()
         .aeron(aeron)
         .ownsAeronClient(false)
@@ -85,11 +88,14 @@ class AeronClusterTest
     @BeforeEach
     void setUp()
     {
-        context.conclude();
-
         when(aeron.context()).thenReturn(aeronContext);
-        when(aeron.addExclusivePublication(context.ingressChannel(), context.ingressStreamId()))
-            .thenReturn(ingressPublication);
+        final long ingressPublicationRegistrationId = 42L;
+        when(ingressPublication.registrationId()).thenReturn(ingressPublicationRegistrationId);
+        when(aeron.asyncAddExclusivePublication(context.ingressChannel(), context.ingressStreamId()))
+            .thenReturn(ingressPublicationRegistrationId);
+        when(aeron.getExclusivePublication(ingressPublicationRegistrationId)).thenReturn(ingressPublication);
+
+        context.conclude();
 
         when(egressSubscription.poll(any(FragmentHandler.class), anyInt())).thenAnswer(invocation ->
         {
@@ -183,7 +189,7 @@ class AeronClusterTest
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
+    @ValueSource(booleans = { false, true })
     void shouldCloseItselfWhenDisconnectedForLongerThanNewLeaderTimeout(final boolean withAppMessages)
     {
         makeIngressPublicationReturn(Publication.NOT_CONNECTED);
@@ -208,7 +214,7 @@ class AeronClusterTest
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
+    @ValueSource(booleans = { false, true })
     void shouldCloseItselfWhenUnableToSendMessageForLongerThanNewLeaderConnectionTimeout(final boolean withAppMessages)
     {
         makeIngressPublicationReturn(Publication.NOT_CONNECTED);

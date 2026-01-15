@@ -22,6 +22,7 @@ import io.aeron.CommonContext;
 import io.aeron.Counter;
 import io.aeron.Image;
 import io.aeron.Publication;
+import io.aeron.RethrowingErrorHandler;
 import io.aeron.Subscription;
 import io.aeron.archive.ArchiveThreadingMode;
 import io.aeron.archive.client.AeronArchive;
@@ -829,6 +830,7 @@ public final class TestCluster implements AutoCloseable
 
         final Aeron aeron = Aeron.connect(new Aeron.Context()
             .useConductorAgentInvoker(true)
+            .subscriberErrorHandler(RethrowingErrorHandler.INSTANCE)
             .aeronDirectoryName(clientMediaDriver.aeronDirectoryName()));
 
         clientCtx
@@ -881,26 +883,31 @@ public final class TestCluster implements AutoCloseable
     {
         if (null == clientMediaDriver)
         {
-            final String aeronDirName = aeronBaseDir + "-client";
-            dataCollector.add(Paths.get(aeronDirName));
-
-            final MediaDriver.Context ctx = new MediaDriver.Context()
-                .threadingMode(ThreadingMode.SHARED)
-                .dirDeleteOnStart(true)
-                .dirDeleteOnShutdown(true)
-                .aeronDirectoryName(aeronDirName)
-                .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
-                .senderWildcardPortRange("20700 20709")
-                .receiverWildcardPortRange("20710 20719")
-                .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
-                .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
-                .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs)
-                .ipcPublicationTermWindowLength(TERM_LENGTH)
-                .publicationTermBufferLength(TERM_LENGTH);
+            final MediaDriver.Context ctx = newClientMediaDriverContext();
 
             clientMediaDriver = TestMediaDriver.launch(ctx, clientDriverOutputConsumer(dataCollector));
         }
         return clientMediaDriver;
+    }
+
+    public MediaDriver.Context newClientMediaDriverContext()
+    {
+        final String aeronDirName = aeronBaseDir + "-client";
+        dataCollector.add(Paths.get(aeronDirName));
+
+        return new MediaDriver.Context()
+            .threadingMode(ThreadingMode.SHARED)
+            .dirDeleteOnStart(true)
+            .dirDeleteOnShutdown(true)
+            .aeronDirectoryName(aeronDirName)
+            .nameResolver(new RedirectingNameResolver(nodeNameMappings()))
+            .senderWildcardPortRange("20700 20709")
+            .receiverWildcardPortRange("20710 20719")
+            .sendChannelEndpointSupplier(clientSendChannelEndpointSupplier)
+            .receiveChannelEndpointSupplier(clientReceiveChannelEndpointSupplier)
+            .imageLivenessTimeoutNs(clientImageLivenessTimeoutNs)
+            .ipcPublicationTermWindowLength(TERM_LENGTH)
+            .publicationTermBufferLength(TERM_LENGTH);
     }
 
     private void setIngressEndpoints(final AeronCluster.Context clientCtx)
