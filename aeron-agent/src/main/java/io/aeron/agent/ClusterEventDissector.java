@@ -124,7 +124,12 @@ final class ClusterEventDissector
 
         builder.append(": memberId=").append(memberId);
         builder.append(' ');
+        final int stateTransitionLength = buffer.getInt(absoluteOffset);
+        absoluteOffset += SIZE_OF_INT;
+        absoluteOffset += buffer.getStringWithoutLengthAscii(absoluteOffset, stateTransitionLength, builder);
+        builder.append(" reason=\"");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        builder.append('"');
     }
 
     static void dissectNoOp(
@@ -170,8 +175,9 @@ final class ClusterEventDissector
         builder.append(" logLeadershipTermId=").append(logLeadershipTermId);
         builder.append(" appendPosition=").append(appendPosition);
         builder.append(" catchupPosition=").append(catchupPosition);
-        builder.append(" reason=");
+        builder.append(" reason=\"");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        builder.append('"');
     }
 
     static void dissectCanvassPosition(
@@ -689,8 +695,9 @@ final class ClusterEventDissector
         builder.append(" leadershipTermId=").append(leadershipTermId);
         builder.append(" logPosition=").append(logPosition);
         builder.append(" appendPosition=").append(appendPosition);
-        builder.append(" reason=");
+        builder.append(" reason=\"");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
+        builder.append('"');
     }
 
     static void dissectClusterSessionStateChange(
@@ -720,6 +727,6 @@ final class ClusterEventDissector
 
         builder.append(" reason=\"");
         buffer.getStringAscii(absoluteOffset, builder, LITTLE_ENDIAN);
-        builder.append("\"");
+        builder.append('"');
     }
 }

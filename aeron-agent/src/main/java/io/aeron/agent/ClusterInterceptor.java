@@ -99,9 +99,10 @@ class ClusterInterceptor
     static class ConsensusModuleStateChange
     {
         @Advice.OnMethodEnter
-        static <E extends Enum<E>> void logStateChange(final int memberId, final E oldState, final E newState)
+        static <E extends Enum<E>> void logStateChange(
+            final int memberId, final E oldState, final E newState, final String reason)
         {
-            LOGGER.logStateChange(STATE_CHANGE, memberId, oldState, newState);
+            LOGGER.logStateChange(STATE_CHANGE, memberId, oldState, newState, reason);
         }
     }
 
@@ -110,7 +111,7 @@ class ClusterInterceptor
         @Advice.OnMethodEnter
         static <E extends Enum<E>> void logRoleChange(final int memberId, final E oldRole, final E newRole)
         {
-            LOGGER.logStateChange(ROLE_CHANGE, memberId, oldRole, newRole);
+            LOGGER.logStateChange(ROLE_CHANGE, memberId, oldRole, newRole, "");
         }
     }
 
@@ -307,7 +308,7 @@ class ClusterInterceptor
         @Advice.OnMethodEnter
         static <E extends Enum<E>> void logStateChange(final E oldState, final E newState, final long nowMs)
         {
-            LOGGER.logStateChange(CLUSTER_BACKUP_STATE_CHANGE, Aeron.NULL_VALUE, oldState, newState);
+            LOGGER.logStateChange(CLUSTER_BACKUP_STATE_CHANGE, Aeron.NULL_VALUE, oldState, newState, "");
         }
     }
 

@@ -343,7 +343,7 @@ final class ConsensusModuleAgent
                 }
             }
 
-            state(ConsensusModule.State.CLOSED);
+            state(ConsensusModule.State.CLOSED, "closed");
         }
 
         markFile.signalTerminated();
@@ -404,7 +404,7 @@ final class ConsensusModuleAgent
             this);
 
         election.doWork(clusterClock.timeNanos());
-        state(ConsensusModule.State.ACTIVE);
+        state(ConsensusModule.State.ACTIVE, "started");
 
         if (null != consensusModuleExtension)
         {
@@ -1089,10 +1089,10 @@ final class ConsensusModuleAgent
 
         if (!ctx.appVersionValidator().isVersionCompatible(ctx.appVersion(), appVersion))
         {
-            ctx.countedErrorHandler().onError(new ClusterException(
-                "incompatible version: " + SemanticVersion.toString(ctx.appVersion()) +
-                " log=" + SemanticVersion.toString(appVersion)));
-            unexpectedTermination();
+            final String error = "incompatible version: " + SemanticVersion.toString(ctx.appVersion()) +
+                " log=" + SemanticVersion.toString(appVersion);
+            ctx.countedErrorHandler().onError(new ClusterException(error, AeronException.Category.FATAL));
+            unexpectedTermination(error);
         }
 
         final long nowNs = clusterClock.timeNanos();
@@ -1401,11 +1401,11 @@ final class ConsensusModuleAgent
         }
     }
 
-    void state(final ConsensusModule.State newState)
+    void state(final ConsensusModule.State newState, final String reason)
     {
         if (newState != state)
         {
-            logStateChange(memberId, state, newState);
+            logStateChange(memberId, state, newState, reason);
             state = newState;
             if (!moduleState.isClosed())
             {
@@ -1420,9 +1420,13 @@ final class ConsensusModuleAgent
     }
 
     private void logStateChange(
-        final int memberId, final ConsensusModule.State oldState, final ConsensusModule.State newState)
+        final int memberId,
+        final ConsensusModule.State oldState,
+        final ConsensusModule.State newState,
+        final String reason)
     {
-        //System.out.println("CM State memberId=" + memberId + " " + oldState + " -> " + newState);
+        // System.out.println("CM State memberId=" + memberId + " " + oldState + " -> " + newState +
+        // " reason=" + reason);
     }
 
     void role(final Cluster.Role newRole)
@@ -1701,15 +1705,15 @@ final class ConsensusModuleAgent
         {
             if (ClusterAction.SUSPEND == action)
             {
-                state(ConsensusModule.State.SUSPENDED);
+                state(ConsensusModule.State.SUSPENDED, "ReplayClusterAction.SUSPENDED");
             }
             else if (ClusterAction.RESUME == action)
             {
-                state(ConsensusModule.State.ACTIVE);
+                state(ConsensusModule.State.ACTIVE, "ReplayClusterAction.ACTIVE");
             }
             else if (ClusterAction.SNAPSHOT == action && CLUSTER_ACTION_FLAGS_DEFAULT == flags)
             {
-                state(ConsensusModule.State.SNAPSHOT);
+                state(ConsensusModule.State.SNAPSHOT, "ReplayClusterAction.SNAPSHOT");
                 totalSnapshotDurationTracker.onSnapshotBegin(clusterClock.timeNanos());
                 if (0 == serviceCount)
                 {
@@ -1739,19 +1743,17 @@ final class ConsensusModuleAgent
 
         if (timeUnit != clusterTimeUnit)
         {
-            ctx.countedErrorHandler().onError(new ClusterException(
-                "incompatible timestamp units: " + clusterTimeUnit + " log=" + timeUnit,
-                AeronException.Category.FATAL));
-            unexpectedTermination();
+            final String error = "incompatible timestamp units: " + clusterTimeUnit + " log=" + timeUnit;
+            ctx.countedErrorHandler().onError(new ClusterException(error, AeronException.Category.FATAL));
+            unexpectedTermination(error);
         }
 
         if (!ctx.appVersionValidator().isVersionCompatible(ctx.appVersion(), appVersion))
         {
-            ctx.countedErrorHandler().onError(new ClusterException(
-                "incompatible version: " + SemanticVersion.toString(ctx.appVersion()) +
-                " log=" + SemanticVersion.toString(appVersion),
-                AeronException.Category.FATAL));
-            unexpectedTermination();
+            final String error = "incompatible version: " + SemanticVersion.toString(ctx.appVersion()) +
+                " log=" + SemanticVersion.toString(appVersion);
+            ctx.countedErrorHandler().onError(new ClusterException(error, AeronException.Category.FATAL));
+            unexpectedTermination(error);
         }
 
         leadershipTermId(leadershipTermId);
@@ -2221,7 +2223,7 @@ final class ConsensusModuleAgent
                     if (ex.errorCode() == ArchiveException.STORAGE_SPACE)
                     {
                         ctx.countedErrorHandler().onError(ex);
-                        unexpectedTermination();
+                        unexpectedTermination(poller.errorMessage());
                     }
 
                     if (null != election)
@@ -2255,8 +2257,9 @@ final class ConsensusModuleAgent
             }
             else if (0 == workCount && !poller.subscription().isConnected())
             {
-                ctx.countedErrorHandler().onError(new ClusterEvent("local archive is not connected"));
-                unexpectedTermination();
+                final String error = "local archive is not connected";
+                ctx.countedErrorHandler().onError(new ClusterEvent(error, AeronException.Category.ERROR));
+                unexpectedTermination(error);
             }
         }
 
@@ -2459,7 +2462,7 @@ final class ConsensusModuleAgent
             if (ex.errorCode() == ArchiveException.STORAGE_SPACE)
             {
                 ctx.countedErrorHandler().onError(ex);
-                unexpectedTermination();
+                unexpectedTermination(ex.getMessage());
             }
 
             throw ex;
@@ -2524,7 +2527,7 @@ final class ConsensusModuleAgent
         }
         else if (ConsensusModule.State.CLOSED == state)
         {
-            unexpectedTermination();
+            unexpectedTermination("State.CLOSED == state");
         }
 
         if (nowNs >= markFileUpdateDeadlineNs)
@@ -2622,7 +2625,7 @@ final class ConsensusModuleAgent
             {
                 if (NULL_POSITION != terminationPosition && logAdapter.position() >= terminationPosition)
                 {
-                    state(ConsensusModule.State.TERMINATING);
+                    state(ConsensusModule.State.TERMINATING, "terminationPosition=" + terminationPosition);
                     if (serviceCount > 0)
                     {
                         serviceProxy.terminationPosition(terminationPosition, ctx.countedErrorHandler());
@@ -2674,7 +2677,7 @@ final class ConsensusModuleAgent
                     final long timestamp = clusterClock.time();
                     if (appendAction(ClusterAction.SUSPEND, timestamp, CLUSTER_ACTION_FLAGS_DEFAULT))
                     {
-                        state(ConsensusModule.State.SUSPENDED);
+                        state(ConsensusModule.State.SUSPENDED, "ClusterControl.SUSPEND");
                     }
                     break;
                 }
@@ -2684,7 +2687,7 @@ final class ConsensusModuleAgent
                     final long timestamp = clusterClock.time();
                     if (appendAction(ClusterAction.SNAPSHOT, timestamp, CLUSTER_ACTION_FLAGS_DEFAULT))
                     {
-                        state(ConsensusModule.State.SNAPSHOT);
+                        state(ConsensusModule.State.SNAPSHOT, "ClusterControl.SNAPSHOT");
                         totalSnapshotDurationTracker.onSnapshotBegin(nowNs);
                         if (0 == serviceCount)
                         {
@@ -2722,7 +2725,7 @@ final class ConsensusModuleAgent
                         terminationPosition = position;
                         terminationLeadershipTermId = leadershipTermId;
 
-                        state(ConsensusModule.State.SNAPSHOT);
+                        state(ConsensusModule.State.SNAPSHOT, "ClusterControl.SHUTDOWN");
                         totalSnapshotDurationTracker.onSnapshotBegin(nowNs);
                         if (0 == serviceCount)
                         {
@@ -2745,7 +2748,7 @@ final class ConsensusModuleAgent
                     {
                         serviceProxy.terminationPosition(terminationPosition, errorHandler);
                     }
-                    state(ConsensusModule.State.TERMINATING);
+                    state(ConsensusModule.State.TERMINATING, "ClusterControl.ABORT");
                     break;
                 }
 
@@ -2762,7 +2765,7 @@ final class ConsensusModuleAgent
                 final long timestamp = clusterClock.time();
                 if (appendAction(ClusterAction.RESUME, timestamp, CLUSTER_ACTION_FLAGS_DEFAULT))
                 {
-                    state(ConsensusModule.State.ACTIVE);
+                    state(ConsensusModule.State.ACTIVE, "ClusterControl.RESUME");
                     ClusterControl.ToggleState.reset(controlToggle);
                 }
 
@@ -3595,7 +3598,7 @@ final class ConsensusModuleAgent
                 ctx.countedErrorHandler().onError(new ClusterException("failed to take snapshot", ex));
                 if (isTerminalError(ex))
                 {
-                    unexpectedTermination();
+                    unexpectedTermination(ex.getMessage());
                 }
             }
         }
@@ -3613,11 +3616,11 @@ final class ConsensusModuleAgent
                 serviceProxy.terminationPosition(terminationPosition, ctx.countedErrorHandler());
             }
             clusterTermination.deadlineNs(clusterClock.timeNanos() + ctx.terminationTimeoutNs());
-            state(ConsensusModule.State.TERMINATING);
+            state(ConsensusModule.State.TERMINATING, "null != clusterTermination");
         }
         else
         {
-            state(ConsensusModule.State.ACTIVE);
+            state(ConsensusModule.State.ACTIVE, "snapshot complete");
             if (Cluster.Role.LEADER == role)
             {
                 ClusterControl.ToggleState.reset(controlToggle);
@@ -3781,12 +3784,14 @@ final class ConsensusModuleAgent
     {
         if (ConsensusModule.State.TERMINATING != state && ConsensusModule.State.QUITTING != state)
         {
-            for (final long clientId : serviceClientIds)
+            for (int i = 0; i < serviceClientIds.length; i++)
             {
+                final long clientId = serviceClientIds[i];
                 if (registrationId == clientId)
                 {
-                    ctx.countedErrorHandler().onError(new ClusterEvent("Aeron client in service closed unexpectedly"));
-                    state(ConsensusModule.State.CLOSED);
+                    final String msg = "Aeron client in service closed unexpectedly: serviceId=" + i;
+                    ctx.countedErrorHandler().onError(new ClusterEvent(msg));
+                    state(ConsensusModule.State.CLOSED, msg);
                     return;
                 }
             }
@@ -3802,11 +3807,11 @@ final class ConsensusModuleAgent
     private void closeAndTerminate()
     {
         tryStopLogRecording();
-        state(ConsensusModule.State.CLOSED);
+        state(ConsensusModule.State.CLOSED, "expected termination");
         throw new ClusterTerminationException(true);
     }
 
-    private void unexpectedTermination()
+    private void unexpectedTermination(final String terminationReason)
     {
         aeron.removeUnavailableCounterHandler(unavailableCounterHandlerRegistrationId);
         if (serviceCount > 0)
@@ -3814,7 +3819,7 @@ final class ConsensusModuleAgent
             serviceProxy.terminationPosition(0, ctx.countedErrorHandler());
         }
         tryStopLogRecording();
-        state(ConsensusModule.State.CLOSED);
+        state(ConsensusModule.State.CLOSED, terminationReason);
         throw new ClusterTerminationException(false);
     }
 

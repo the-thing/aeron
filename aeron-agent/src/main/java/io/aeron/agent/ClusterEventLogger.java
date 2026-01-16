@@ -172,11 +172,12 @@ public final class ClusterEventLogger
      * @param memberId  of the current cluster node.
      * @param oldState  before the change.
      * @param newState  after the change.
+     * @param reason for state to change.
      */
     public <E extends Enum<E>> void logStateChange(
-        final ClusterEventCode eventCode, final int memberId, final E oldState, final E newState)
+        final ClusterEventCode eventCode, final int memberId, final E oldState, final E newState, final String reason)
     {
-        final int length = stateChangeLength(oldState, newState);
+        final int length = stateChangeLength(oldState, newState, reason);
         final int captureLength = captureLength(length);
         final int encodedLength = encodedLength(captureLength);
         final ManyToOneRingBuffer ringBuffer = this.ringBuffer;
@@ -193,8 +194,8 @@ public final class ClusterEventLogger
                     length,
                     memberId,
                     oldState,
-                    newState
-                );
+                    newState,
+                    reason);
             }
             finally
             {

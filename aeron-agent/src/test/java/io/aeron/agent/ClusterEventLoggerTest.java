@@ -186,9 +186,10 @@ class ClusterEventLoggerTest
         final TimeUnit to = SECONDS;
         final int memberId = 42;
         final String payload = from.name() + STATE_SEPARATOR + to.name();
-        final int captureLength = SIZE_OF_INT * 2 + payload.length();
+        final String reason = "this is the way";
+        final int captureLength = ClusterEventEncoder.stateChangeLength(from, to, reason);
 
-        logger.logStateChange(STATE_CHANGE, memberId, from, to);
+        logger.logStateChange(STATE_CHANGE, memberId, from, to, reason);
 
         verifyLogHeader(logBuffer, offset, STATE_CHANGE.toEventCodeId(), captureLength, captureLength);
         final int index = encodedMsgOffset(offset) + LOG_HEADER_LENGTH;
@@ -200,7 +201,7 @@ class ClusterEventLoggerTest
             ClusterEventCode.STATE_CHANGE, logBuffer, encodedMsgOffset(offset), sb);
 
         final String expectedMessagePattern = "\\[[0-9]+\\.[0-9]+] CLUSTER: STATE_CHANGE " +
-            "\\[26/26]: memberId=42 MINUTES -> SECONDS";
+            "\\[45/45]: memberId=42 MINUTES -> SECONDS reason=\"this is the way\"";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }
@@ -265,7 +266,8 @@ class ClusterEventLoggerTest
 
         final String expectedMessagePattern = "\\[[0-9]+\\.[0-9]+] CLUSTER: ELECTION_STATE_CHANGE " +
             "\\[376/376]: memberId=18 ERAS -> null leaderId=-1 candidateTermId=29 leadershipTermId=0 " +
-            "logPosition=100 logLeadershipTermId=-9 appendPosition=16384 catchupPosition=8192 reason=" + trailingReason;
+            "logPosition=100 logLeadershipTermId=-9 appendPosition=16384 catchupPosition=8192 reason=\"" +
+            trailingReason + "\"";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }
@@ -1009,7 +1011,7 @@ class ClusterEventLoggerTest
 
         final String expectedMessagePattern =
             "\\[[0-9]+\\.[0-9]+] CLUSTER: NEW_ELECTION \\[59/59]: memberId=42 " +
-            "leadershipTermId=8 logPosition=9827342 appendPosition=342384382 reason=why an election was started";
+            "leadershipTermId=8 logPosition=9827342 appendPosition=342384382 reason=\"why an election was started\"";
 
         assertThat(sb.toString(), Matchers.matchesPattern(expectedMessagePattern));
     }
