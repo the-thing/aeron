@@ -2382,8 +2382,7 @@ public final class AeronArchive implements AutoCloseable
             checkForDisconnect(subscription);
 
             checkDeadline(deadlineNs, "awaiting response", correlationId);
-            idleStrategy.idle();
-            context.runInvokers();
+            idleStrategy.idle(context.runInvokers());
         }
     }
 
@@ -2520,8 +2519,6 @@ public final class AeronArchive implements AutoCloseable
                 deadlineNs = nanoClock.nanoTime() + messageTimeoutNs;
             }
 
-            context.runInvokers();
-
             if (fragments > 0)
             {
                 continue;
@@ -2530,7 +2527,7 @@ public final class AeronArchive implements AutoCloseable
             checkForDisconnect(poller.subscription());
 
             checkDeadline(deadlineNs, "awaiting recording descriptors", correlationId);
-            idleStrategy.idle();
+            idleStrategy.idle(context.runInvokers());
         }
     }
 
@@ -2559,8 +2556,6 @@ public final class AeronArchive implements AutoCloseable
                 deadlineNs = nanoClock.nanoTime() + messageTimeoutNs;
             }
 
-            context.runInvokers();
-
             if (fragments > 0)
             {
                 continue;
@@ -2569,7 +2564,7 @@ public final class AeronArchive implements AutoCloseable
             checkForDisconnect(poller.subscription());
 
             checkDeadline(deadlineNs, "awaiting subscription descriptors", correlationId);
-            idleStrategy.idle();
+            idleStrategy.idle(context.runInvokers());
         }
     }
 
@@ -3706,19 +3701,21 @@ public final class AeronArchive implements AutoCloseable
                 "\n}";
         }
 
-        void runInvokers()
+        int runInvokers()
         {
+            int workCount = 0;
             final AgentInvoker conductorAgentInvoker = aeron.conductorAgentInvoker();
             if (null != conductorAgentInvoker)
             {
-                conductorAgentInvoker.invoke();
+                workCount += conductorAgentInvoker.invoke();
             }
 
             final AgentInvoker agentInvoker = this.agentInvoker;
             if (null != agentInvoker)
             {
-                agentInvoker.invoke();
+                workCount += agentInvoker.invoke();
             }
+            return workCount;
         }
 
         private ChannelUri applyDefaultParams(final String channel)
@@ -3926,57 +3923,47 @@ public final class AeronArchive implements AutoCloseable
             switch (state)
             {
                 case AWAIT_SUBSCRIPTION:
-                {
                     awaitSubscription();
                     break;
-                }
 
                 case ADD_PUBLICATION:
-                {
                     addPublication();
                     break;
-                }
 
                 case AWAIT_PUBLICATION_CONNECTED:
-                {
                     awaitPublicationConnected();
                     break;
-                }
 
                 case SEND_CONNECT_REQUEST:
-                {
                     sendConnectRequest();
                     break;
-                }
 
                 case AWAIT_SUBSCRIPTION_CONNECTED:
-                {
                     awaitSubscriptionConnected();
                     break;
-                }
 
                 case SEND_ARCHIVE_ID_REQUEST:
-                {
                     sendArchiveIdRequest();
                     break;
-                }
 
                 case SEND_CHALLENGE_RESPONSE:
-                {
                     sendChallengeResponse();
                     break;
-                }
 
                 case AWAIT_CONNECT_RESPONSE:
                 case AWAIT_ARCHIVE_ID_RESPONSE:
                 case AWAIT_CHALLENGE_RESPONSE:
-                {
                     pollForResponse();
                     break;
-                }
+
+                case DONE:
+                    return aeronArchive;
+
+                default:
+                    break;
             }
 
-            return aeronArchive;
+            return null;
         }
 
         private void checkDeadline()
