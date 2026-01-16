@@ -967,9 +967,18 @@ class Election
                 {
                     return publishFollowerAppendPosition(nowNs);
                 }
-
-                logReplay = consensusModuleAgent.newLogReplay(logPosition, min(appendPosition, notifiedCommitPosition));
-                workCount++;
+                else if (logPosition >= notifiedCommitPosition)
+                {
+                    state(CANVASS, nowNs, "log replay rejected: logPosition=" + logPosition + " is " +
+                        (logPosition > notifiedCommitPosition ? "greater than" : "equal to") +
+                        " quorumPosition=" + notifiedCommitPosition);
+                }
+                else
+                {
+                    logReplay =
+                        consensusModuleAgent.newLogReplay(logPosition, min(appendPosition, notifiedCommitPosition));
+                    workCount++;
+                }
             }
             else
             {
