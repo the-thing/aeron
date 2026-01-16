@@ -765,7 +765,7 @@ public final class AeronCluster implements AutoCloseable
             {
                 return publication;
             }
-            ctx.runAgentInvokers();
+            idleStrategy.idle(ctx.runAgentInvokers());
         }
         while (nanoClock.nanoTime() < deadlineNs);
 
@@ -2058,19 +2058,23 @@ public final class AeronCluster implements AutoCloseable
                 "\n}";
         }
 
-        void runAgentInvokers()
+        int runAgentInvokers()
         {
+            int workDone = 0;
+
             final AgentInvoker conductorAgentInvoker = aeron.conductorAgentInvoker();
             if (null != conductorAgentInvoker)
             {
-                conductorAgentInvoker.invoke();
+                workDone += conductorAgentInvoker.invoke();
             }
 
             final AgentInvoker agentInvoker = this.agentInvoker;
             if (null != agentInvoker)
             {
-                agentInvoker.invoke();
+                workDone += agentInvoker.invoke();
             }
+
+            return workDone;
         }
     }
 
