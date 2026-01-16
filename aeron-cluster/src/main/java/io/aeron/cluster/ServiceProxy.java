@@ -20,7 +20,6 @@ import io.aeron.cluster.client.ClusterEvent;
 import io.aeron.cluster.client.ClusterException;
 import io.aeron.cluster.codecs.*;
 import io.aeron.cluster.service.Cluster;
-import io.aeron.exceptions.AeronException;
 import io.aeron.logbuffer.BufferClaim;
 import org.agrona.*;
 
@@ -218,7 +217,7 @@ final class ServiceProxy implements AutoCloseable
             while (--attempts > 0);
 
             errorHandler.onError(new ClusterEvent(
-                "failed to send service termination position: result=" + result, AeronException.Category.WARN));
+                "failed to send service termination position: result=" + Publication.errorString(result)));
         }
     }
 

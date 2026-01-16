@@ -280,9 +280,10 @@ class ClusterTest
     }
 
     @Test
-    @InterruptAfter(30)
+    @InterruptAfter(10)
     void shouldStopClusteredServicesOnAppropriateMessage()
     {
+        systemTestWatcher.ignoreErrorsMatching((error) -> error.contains("publication is not connected"));
         cluster = aCluster().withStaticNodes(3).start();
         systemTestWatcher.cluster(cluster);
 

@@ -1953,6 +1953,10 @@ final class ConsensusModuleAgent
             while (!ServiceAck.hasReached(logPosition, serviceAckId, serviceAckQueues))
             {
                 idle(consensusModuleAdapter.poll());
+                if (ConsensusModule.State.CLOSED == state)
+                {
+                    unexpectedTermination("State.CLOSED == state");
+                }
             }
 
             ServiceAck.removeHead(serviceAckQueues);
