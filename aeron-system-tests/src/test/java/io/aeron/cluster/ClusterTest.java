@@ -2901,9 +2901,9 @@ class ClusterTest
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 
-        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER));
+            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose
@@ -2945,9 +2945,9 @@ class ClusterTest
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 
-        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER));
+            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose
@@ -3010,9 +3010,9 @@ class ClusterTest
             }
         };
 
-        try (MediaDriver clientDriver = MediaDriver.launch(cluster
+        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER));
+            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose

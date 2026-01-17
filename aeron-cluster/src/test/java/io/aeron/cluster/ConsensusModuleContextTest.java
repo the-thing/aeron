@@ -35,9 +35,11 @@ import io.aeron.security.AuthorisationService;
 import io.aeron.security.AuthorisationServiceSupplier;
 import io.aeron.security.DefaultAuthenticatorSupplier;
 import io.aeron.security.SessionProxy;
+import io.aeron.test.SystemTestWatcher;
 import io.aeron.test.TestContexts;
 import io.aeron.test.Tests;
 import io.aeron.test.cluster.TestClusterClock;
+import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -51,6 +53,7 @@ import org.hamcrest.Matchers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -113,6 +116,8 @@ class ConsensusModuleContextTest
 {
     @TempDir
     File clusterDir;
+    @RegisterExtension
+    final SystemTestWatcher systemTestWatcher = new SystemTestWatcher();
 
     private ConsensusModule.Context context;
     private final CountersManager countersManager = Tests.newCountersManager(16 * 1024);
@@ -977,11 +982,11 @@ class ConsensusModuleContextTest
         Files.createDirectories(aeronDir);
 
         final int filePageSize = 1024 * 1024;
-        try (MediaDriver driver = MediaDriver.launch(new MediaDriver.Context()
+        try (TestMediaDriver driver = TestMediaDriver.launch(new MediaDriver.Context()
             .aeronDirectoryName(aeronDir.toString())
             .dirDeleteOnShutdown(true)
             .threadingMode(ThreadingMode.SHARED)
-            .filePageSize(filePageSize)))
+            .filePageSize(filePageSize), systemTestWatcher))
         {
             final ConsensusModule.Context ctx = TestContexts.localhostConsensusModule()
                 .clusterDir(clusterDir)

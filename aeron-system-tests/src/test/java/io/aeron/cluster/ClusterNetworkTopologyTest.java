@@ -31,6 +31,7 @@ import io.aeron.test.InterruptingTestCallback;
 import io.aeron.test.SystemTestWatcher;
 import io.aeron.test.Tests;
 import io.aeron.test.TopologyTest;
+import io.aeron.test.driver.TestMediaDriver;
 import io.aeron.test.launcher.FileResolveUtil;
 import io.aeron.test.launcher.RemoteLaunchClient;
 import org.agrona.IoUtil;
@@ -273,11 +274,10 @@ class ClusterNetworkTopologyTest
                 egressResponse.set(stringAscii);
             };
 
-        try (
-            MediaDriver mediaDriver = MediaDriver.launch(new MediaDriver.Context()
+        try (TestMediaDriver mediaDriver = TestMediaDriver.launch(new MediaDriver.Context()
                 .threadingMode(ThreadingMode.SHARED)
                 .dirDeleteOnStart(true)
-                .dirDeleteOnShutdown(true));
+                .dirDeleteOnShutdown(true), systemTestWatcher);
             AeronCluster.AsyncConnect asyncConnect = AeronCluster.asyncConnect(new AeronCluster.Context()
                 .messageTimeoutNs(SECONDS.toNanos(STARTUP_CANVASS_TIMEOUT_S * 2))
                 .egressListener(egressListener)
