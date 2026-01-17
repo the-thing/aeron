@@ -2886,6 +2886,8 @@ class ClusterTest
     @InterruptAfter(30)
     void clientShouldHandleRedirectResponseWhenInInvokerModeUsingConnect()
     {
+        TestMediaDriver.notSupportedOnCMediaDriver("does not work with ATS enabled");
+
         cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
 
@@ -2901,9 +2903,9 @@ class ClusterTest
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 
-        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
+            .threadingMode(ThreadingMode.INVOKER));
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose
@@ -2930,6 +2932,8 @@ class ClusterTest
     @InterruptAfter(30)
     void clientShouldHandleRedirectResponseWhenInInvokerModeUsingAsyncConnect()
     {
+        TestMediaDriver.notSupportedOnCMediaDriver("does not work with ATS enabled");
+
         cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
 
@@ -2945,9 +2949,9 @@ class ClusterTest
         }
         followerIngressEndpoints.deleteCharAt(followerIngressEndpoints.length() - 1);
 
-        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
+            .threadingMode(ThreadingMode.INVOKER));
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose
@@ -2980,6 +2984,8 @@ class ClusterTest
     @InterruptAfter(30)
     void clientShouldHandleLeadershipChangeWhenInInvokerMode()
     {
+        TestMediaDriver.notSupportedOnCMediaDriver("does not work with ATS enabled");
+
         cluster = aCluster().withStaticNodes(3).withClusterId(4).start();
         systemTestWatcher.cluster(cluster);
 
@@ -3010,9 +3016,9 @@ class ClusterTest
             }
         };
 
-        try (TestMediaDriver clientDriver = TestMediaDriver.launch(cluster
+        try (MediaDriver clientDriver = MediaDriver.launch(cluster
             .newClientMediaDriverContext()
-            .threadingMode(ThreadingMode.INVOKER), systemTestWatcher);
+            .threadingMode(ThreadingMode.INVOKER));
             Aeron client = Aeron.connect(new Aeron.Context()
                 .aeronDirectoryName(clientDriver.aeronDirectoryName())
                 .driverAgentInvoker(null) // this is on purpose
