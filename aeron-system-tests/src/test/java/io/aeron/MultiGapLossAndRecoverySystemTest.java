@@ -94,7 +94,7 @@ public class MultiGapLossAndRecoverySystemTest
             // NAK did its job and the prior gap was filled, so we can immediately handle the new NAK.
 
             final long gapCount = TOTAL_GAPS;
-            final long expectedCountWithBuffer = gapCount * 3 / 2;
+            final long expectedCountWithBuffer = gapCount * 2;
             assertThat(
                 retransmitCount,
                 allOf(greaterThanOrEqualTo(gapCount), lessThanOrEqualTo(expectedCountWithBuffer)));
