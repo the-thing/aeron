@@ -109,6 +109,7 @@ import static io.aeron.cluster.ConsensusModule.Configuration.CONSENSUS_MODULE_ER
 import static io.aeron.cluster.ConsensusModule.Configuration.CONSENSUS_MODULE_STATE_TYPE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.CONTROL_TOGGLE_TYPE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.ELECTION_STATE_TYPE_ID;
+import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.MAX_SERVICE_COUNT;
 import static io.aeron.cluster.ConsensusModule.Configuration.SERVICE_ID;
 import static io.aeron.cluster.ConsensusModule.Configuration.SNAPSHOT_COUNTER_TYPE_ID;
 import static java.lang.Boolean.parseBoolean;
@@ -686,7 +687,7 @@ public final class ConsensusModule implements AutoCloseable
         public static final String SERVICE_COUNT_PROP_NAME = "aeron.cluster.service.count";
 
         /**
-         * The number of services in this cluster instance.
+         * The default number of services in this cluster instance.
          */
         @Config
         public static final int SERVICE_COUNT_DEFAULT = 1;
@@ -1672,6 +1673,11 @@ public final class ConsensusModule implements AutoCloseable
 
             validateLogChannel();
 
+            if (serviceCount < 0 || serviceCount > MAX_SERVICE_COUNT)
+            {
+                throw new ClusterException("service count of range [0, " + MAX_SERVICE_COUNT + "]: " + serviceCount);
+            }
+
             if (null == clusterDir)
             {
                 clusterDir = new File(clusterDirectoryName);
@@ -2081,7 +2087,11 @@ public final class ConsensusModule implements AutoCloseable
 
             if (null != consensusModuleExtension && 0 != serviceCount)
             {
-                throw new ClusterException("Service count must be zero when a ConsensusModuleExtension installed");
+                throw new ClusterException("service count must be zero when ConsensusModuleExtension is enabled");
+            }
+            else if (null == consensusModuleExtension && 0 == serviceCount)
+            {
+                throw new ClusterException("zero services are only supported when ConsensusModuleExtension is enabled");
             }
 
             concludeMarkFile();

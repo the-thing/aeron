@@ -70,6 +70,7 @@ import java.util.function.Supplier;
 import static io.aeron.ChannelUri.addAliasIfAbsent;
 import static io.aeron.CommonContext.driverFilePageSize;
 import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.LIVENESS_TIMEOUT_MS;
+import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.MAX_SERVICE_COUNT;
 import static io.aeron.cluster.service.ClusteredServiceContainer.Configuration.SERVICE_NAME_PROP_NAME;
 import static java.nio.charset.StandardCharsets.US_ASCII;
 import static org.agrona.SystemUtil.getDurationInNanos;
@@ -216,6 +217,11 @@ public final class ClusteredServiceContainer implements AutoCloseable
          */
         @Config
         public static final int SERVICE_ID_DEFAULT = 0;
+
+        /**
+         * The max number of services supported by the cluster instance.
+         */
+        public static final int MAX_SERVICE_COUNT = 128;
 
         /**
          * Name for a clustered service to be the role of the {@link Agent}.
@@ -821,9 +827,10 @@ public final class ClusteredServiceContainer implements AutoCloseable
                 throw new ConcurrentConcludeException();
             }
 
-            if (serviceId < 0 || serviceId > 127)
+            final int maxId = MAX_SERVICE_COUNT - 1;
+            if (serviceId < 0 || serviceId > maxId)
             {
-                throw new ConfigurationException("service id outside allowed range (0-127): " + serviceId);
+                throw new ConfigurationException("service id outside allowed range [0," + maxId + "]: " + serviceId);
             }
 
             if (null == threadFactory)
