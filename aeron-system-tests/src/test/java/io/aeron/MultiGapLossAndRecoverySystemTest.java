@@ -78,7 +78,7 @@ public class MultiGapLossAndRecoverySystemTest
         launch(context);
 
         sendAndReceive(
-            "aeron:udp?endpoint=localhost:10000|term-length=1m|init-term-id=0|term-id=0|term-offset=0|nak-delay=10us",
+            "aeron:udp?endpoint=localhost:10000|term-length=1m|init-term-id=0|term-id=0|term-offset=0|nak-delay=50us",
             10 * 1024 * 1024
         );
 
