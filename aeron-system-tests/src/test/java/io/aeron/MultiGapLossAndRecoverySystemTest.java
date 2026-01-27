@@ -33,15 +33,23 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import java.util.Random;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 
 public class MultiGapLossAndRecoverySystemTest
 {
+    private static final int TOTAL_GAPS = 100;
+    private static final int GAP_LENGTH = 128;
+    private static final int GAP_RADIX = 4096;
+    private static final int TERM_ID = 0;
+
     @RegisterExtension
     final SystemTestWatcher watcher = new SystemTestWatcher();
 
     private final MediaDriver.Context context = new MediaDriver.Context()
+        .aeronDirectoryName(CommonContext.generateRandomDirName())
         .publicationTermBufferLength(LogBufferDescriptor.TERM_MIN_LENGTH)
         .threadingMode(ThreadingMode.SHARED);
     private TestMediaDriver driver;
@@ -49,7 +57,7 @@ public class MultiGapLossAndRecoverySystemTest
     @BeforeEach
     void setUp()
     {
-        TestMediaDriver.enableMultiGapLoss(context, 0, 4096, 100, 100);
+        TestMediaDriver.enableMultiGapLoss(context, TERM_ID, GAP_RADIX, GAP_LENGTH, TOTAL_GAPS);
     }
 
     private void launch(final MediaDriver.Context context)
@@ -70,7 +78,7 @@ public class MultiGapLossAndRecoverySystemTest
         launch(context);
 
         sendAndReceive(
-            "aeron:udp?endpoint=localhost:10000|term-length=1m|init-term-id=0|term-id=0|term-offset=0",
+            "aeron:udp?endpoint=localhost:10000|term-length=1m|init-term-id=0|term-id=0|term-offset=0|nak-delay=10us",
             10 * 1024 * 1024
         );
 
@@ -85,9 +93,16 @@ public class MultiGapLossAndRecoverySystemTest
             // Now, however, the UnicastRetransmitHandler treats new NAKs as a tacit admission that the previous
             // NAK did its job and the prior gap was filled, so we can immediately handle the new NAK.
 
-            final long expectedCountWithBuffer = 300L;
-            assertThat(retransmitCount, lessThanOrEqualTo(expectedCountWithBuffer));
+            final long gapCount = TOTAL_GAPS;
+            final long expectedCountWithBuffer = gapCount * 11 / 10;
+            assertThat(
+                retransmitCount,
+                allOf(greaterThanOrEqualTo(gapCount), lessThanOrEqualTo(expectedCountWithBuffer)));
+            assertThat(
+                nakCount,
+                allOf(greaterThanOrEqualTo(gapCount), lessThanOrEqualTo(expectedCountWithBuffer)));
             assertThat(nakCount, lessThanOrEqualTo(expectedCountWithBuffer));
+            System.out.println(retransmitCount + " " + nakCount);
         }
     }
 
@@ -100,8 +115,8 @@ public class MultiGapLossAndRecoverySystemTest
         r.nextBytes(input);
         final UnsafeBuffer sendBuffer = new UnsafeBuffer();
 
-        int inputPosition = 0;
-        final MutableInteger outputPosition = new MutableInteger(0);
+        int inputPosition = TERM_ID;
+        final MutableInteger outputPosition = new MutableInteger(TERM_ID);
 
         try (Aeron aeron = Aeron.connect(new Aeron.Context().aeronDirectoryName(driver.aeronDirectoryName()));
             ExclusivePublication pub = aeron.addExclusivePublication(channel, streamId);
@@ -123,7 +138,7 @@ public class MultiGapLossAndRecoverySystemTest
                 {
                     final int length = Math.min(input.length - inputPosition, pub.maxMessageLength());
                     sendBuffer.wrap(input, inputPosition, length);
-                    if (0 < pub.offer(sendBuffer))
+                    if (TERM_ID < pub.offer(sendBuffer))
                     {
                         inputPosition += length;
                     }
