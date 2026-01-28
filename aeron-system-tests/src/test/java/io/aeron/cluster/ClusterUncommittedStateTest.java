@@ -52,6 +52,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -83,6 +85,156 @@ public class ClusterUncommittedStateTest
         {
             toggledLossControls[i] = new ToggledLossControl();
         }
+    }
+
+    @ParameterizedTest(name = "ShouldRollbackUncommittedSuspendControlToggle hasService={0}")
+    @ValueSource(booleans = {true, false})
+    @SlowTest
+    @InterruptAfter(20)
+    void shouldRollbackUncommittedSuspendControlToggle(final boolean hasService)
+    {
+        assumeTrue(shouldRunJavaMediaDriver());
+
+        final TestCluster.Builder clusterBuilder = aCluster()
+            .withStaticNodes(NODE_COUNT)
+            .withReceiveChannelEndpointSupplier((memberId) -> toggledLossControls[memberId])
+            .withSendChannelEndpointSupplier((memberId) -> toggledLossControls[memberId]);
+        if (!hasService)
+        {
+            clusterBuilder
+                .withExtensionSuppler(TestNode.TestConsensusModuleExtension::new)
+                .withServiceSupplier(value -> new TestNode.TestService[0]);
+        }
+        cluster = clusterBuilder.start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode firstLeader = cluster.awaitLeader();
+        final ToggledLossControl leaderLossControl = toggledLossControls[firstLeader.memberId()];
+
+        leaderLossControl.toggleLoss(true);
+        Tests.await(() -> 0 < leaderLossControl.droppedOutboundFrames.get() &&
+            0 < leaderLossControl.droppedInboundFrames.get());
+
+        cluster.suspendCluster(firstLeader);
+        Tests.await(() -> ConsensusModule.State.SUSPENDED == firstLeader.moduleState());
+
+        Tests.await(() -> null != cluster.findLeader(firstLeader.memberId()));
+
+        leaderLossControl.toggleLoss(false);
+        Tests.await(() -> ConsensusModule.State.ACTIVE == firstLeader.moduleState());
+    }
+
+    @ParameterizedTest(name = "ShouldRollbackUncommittedResumeControlToggle hasService={0}")
+    @ValueSource(booleans = {true, false})
+    @SlowTest
+    @InterruptAfter(20)
+    void shouldRollbackUncommittedResumeControlToggle(final boolean hasService)
+    {
+        assumeTrue(shouldRunJavaMediaDriver());
+
+        final TestCluster.Builder clusterBuilder = aCluster()
+            .withStaticNodes(NODE_COUNT)
+            .withReceiveChannelEndpointSupplier((memberId) -> toggledLossControls[memberId])
+            .withSendChannelEndpointSupplier((memberId) -> toggledLossControls[memberId]);
+        if (!hasService)
+        {
+            clusterBuilder
+                .withExtensionSuppler(TestNode.TestConsensusModuleExtension::new)
+                .withServiceSupplier(value -> new TestNode.TestService[0]);
+        }
+        cluster = clusterBuilder.start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode firstLeader = cluster.awaitLeader();
+        final ToggledLossControl leaderLossControl = toggledLossControls[firstLeader.memberId()];
+
+        cluster.suspendCluster(firstLeader);
+        Tests.await(() ->
+        {
+            for (int i = 0; i < cluster.memberCount(); ++i)
+            {
+                if (ConsensusModule.State.SUSPENDED != cluster.node(i).moduleState())
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        leaderLossControl.toggleLoss(true);
+        Tests.await(() -> 0 < leaderLossControl.droppedOutboundFrames.get() &&
+            0 < leaderLossControl.droppedInboundFrames.get());
+
+        cluster.resumeCluster(firstLeader);
+        Tests.await(() -> ConsensusModule.State.ACTIVE == firstLeader.moduleState());
+
+        Tests.await(() -> null != cluster.findLeader(firstLeader.memberId()));
+
+        leaderLossControl.toggleLoss(false);
+        Tests.await(() -> ConsensusModule.State.SUSPENDED == firstLeader.moduleState());
+    }
+
+    @ParameterizedTest(name = "ShouldRollbackUncommittedSnapshotToggle hasService={0}")
+    @ValueSource(booleans = {true, false})
+    @SlowTest
+    @InterruptAfter(20)
+    void shouldRollbackUncommittedSnapshotToggle(final boolean hasService)
+    {
+        assumeTrue(shouldRunJavaMediaDriver());
+
+        final TestCluster.Builder clusterBuilder = aCluster()
+            .withStaticNodes(NODE_COUNT)
+            .withReceiveChannelEndpointSupplier((memberId) -> toggledLossControls[memberId])
+            .withSendChannelEndpointSupplier((memberId) -> toggledLossControls[memberId]);
+        if (!hasService)
+        {
+            clusterBuilder
+                .withExtensionSuppler(TestNode.TestConsensusModuleExtension::new)
+                .withServiceSupplier(value -> new TestNode.TestService[0]);
+        }
+        cluster = clusterBuilder.start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode firstLeader = cluster.awaitLeader();
+        final ToggledLossControl leaderLossControl = toggledLossControls[firstLeader.memberId()];
+
+        cluster.suspendCluster(firstLeader);
+        Tests.await(() ->
+        {
+            for (int i = 0; i < cluster.memberCount(); ++i)
+            {
+                if (ConsensusModule.State.SUSPENDED != cluster.node(i).moduleState())
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        leaderLossControl.toggleLoss(true);
+        Tests.await(() -> 0 < leaderLossControl.droppedOutboundFrames.get() &&
+            0 < leaderLossControl.droppedInboundFrames.get());
+
+        cluster.resumeCluster(firstLeader);
+        Tests.await(() -> ConsensusModule.State.ACTIVE == firstLeader.moduleState());
+        Tests.await(() -> ClusterControl.ToggleState.NEUTRAL ==
+            ClusterControl.ToggleState.get(firstLeader.consensusModule().context().controlToggleCounter()));
+
+        cluster.suspendCluster(firstLeader);
+        Tests.await(() -> ConsensusModule.State.SUSPENDED == firstLeader.moduleState());
+
+        cluster.resumeCluster(firstLeader);
+        Tests.await(() -> ConsensusModule.State.ACTIVE == firstLeader.moduleState());
+        Tests.await(() -> ClusterControl.ToggleState.NEUTRAL ==
+            ClusterControl.ToggleState.get(firstLeader.consensusModule().context().controlToggleCounter()));
+
+        cluster.takeSnapshot(firstLeader);
+        Tests.await(() -> ConsensusModule.State.SNAPSHOT == firstLeader.moduleState());
+
+        Tests.await(() -> null != cluster.findLeader(firstLeader.memberId()));
+
+        leaderLossControl.toggleLoss(false);
+        Tests.await(() -> ConsensusModule.State.SUSPENDED == firstLeader.moduleState());
     }
 
     @Test
