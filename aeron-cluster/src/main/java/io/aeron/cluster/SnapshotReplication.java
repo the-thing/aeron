@@ -64,7 +64,7 @@ class SnapshotReplication implements AutoCloseable
     void addSnapshot(final RecordingLog.Snapshot snapshot)
     {
         snapshotsPending.add(snapshot);
-        multipleRecordingReplication.addRecording(snapshot.recordingId, Aeron.NULL_VALUE, Aeron.NULL_VALUE);
+        multipleRecordingReplication.addRecording(snapshot.recordingId(), Aeron.NULL_VALUE, Aeron.NULL_VALUE);
     }
 
     int poll(final long nowNs)
@@ -89,7 +89,7 @@ class SnapshotReplication implements AutoCloseable
         {
             final RecordingLog.Snapshot pendingSnapshot = snapshotsPending.get(i);
             final long dstRecordingId = multipleRecordingReplication.completedDstRecordingId(
-                pendingSnapshot.recordingId);
+                pendingSnapshot.recordingId());
             snapshots.add(retrievedSnapshot(pendingSnapshot, dstRecordingId));
         }
 
@@ -100,11 +100,11 @@ class SnapshotReplication implements AutoCloseable
     {
         return new RecordingLog.Snapshot(
             recordingId,
-            pending.leadershipTermId,
-            pending.termBaseLogPosition,
-            pending.logPosition,
-            pending.timestamp,
-            pending.serviceId);
+            pending.leadershipTermId(),
+            pending.termBaseLogPosition(),
+            pending.logPosition(),
+            pending.timestamp(),
+            pending.serviceId());
     }
 
     /**

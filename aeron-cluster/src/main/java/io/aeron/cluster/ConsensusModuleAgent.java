@@ -57,7 +57,6 @@ import io.aeron.status.LocalSocketAddressStatus;
 import io.aeron.status.ReadableCounter;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
-import org.agrona.ExpandableArrayBuffer;
 import org.agrona.ExpandableRingBuffer;
 import org.agrona.MutableDirectBuffer;
 import org.agrona.SemanticVersion;
@@ -191,7 +190,6 @@ final class ConsensusModuleAgent
     private final DutyCycleTracker dutyCycleTracker;
     private final SnapshotDurationTracker totalSnapshotDurationTracker;
     private final ChannelUri responseChannelTemplate;
-    private final ExpandableArrayBuffer tempBuffer = new ExpandableArrayBuffer();
     private RecordingLog.RecoveryPlan recoveryPlan;
     private AeronArchive archive;
     private AeronArchive extensionArchive;
@@ -348,16 +346,16 @@ final class ConsensusModuleAgent
             aeron,
             ctx.countedErrorHandler());
 
-        final long lastLeadershipTermId = recoveryPlan.lastLeadershipTermId;
+        final long lastLeadershipTermId = recoveryPlan.lastLeadershipTermId();
         final long commitPosition = this.commitPosition.getPlain();
-        final long appendedPosition = recoveryPlan.appendedLogPosition;
+        final long appendedPosition = recoveryPlan.appendedLogPosition();
         logNewElection(memberId, lastLeadershipTermId, commitPosition, appendedPosition, "node started");
 
         election = new Election(
             true,
             NULL_VALUE,
             lastLeadershipTermId,
-            recoveryPlan.lastTermBaseLogPosition,
+            recoveryPlan.lastTermBaseLogPosition(),
             commitPosition,
             appendedPosition,
             activeMembers,
@@ -1610,11 +1608,11 @@ final class ConsensusModuleAgent
             channelUri.put(SPIES_SIMULATE_CONNECTION_PARAM_NAME, Boolean.toString(activeMembers.length == 1));
         }
 
-        final RecordingLog.Log clusterLog = recoveryPlan.log;
+        final RecordingLog.Log clusterLog = recoveryPlan.log();
         if (null != clusterLog)
         {
-            channelUri.initialPosition(appendPosition, clusterLog.initialTermId, clusterLog.termBufferLength);
-            channelUri.put(MTU_LENGTH_PARAM_NAME, Integer.toString(clusterLog.mtuLength));
+            channelUri.initialPosition(appendPosition, clusterLog.initialTermId(), clusterLog.termBufferLength());
+            channelUri.put(MTU_LENGTH_PARAM_NAME, Integer.toString(clusterLog.mtuLength()));
         }
         else
         {
@@ -2689,7 +2687,7 @@ final class ConsensusModuleAgent
     {
         final String channel = ctx.replayChannel();
         final int streamId = ctx.replayStreamId();
-        final int sessionId = (int)archive.startReplay(snapshot.recordingId, 0, NULL_LENGTH, channel, streamId);
+        final int sessionId = (int)archive.startReplay(snapshot.recordingId(), 0, NULL_LENGTH, channel, streamId);
         final String replayChannel = ChannelUri.addSessionId(channel, sessionId);
 
         try (Subscription subscription = aeron.addSubscription(replayChannel, streamId))
@@ -2730,9 +2728,9 @@ final class ConsensusModuleAgent
         }
 
         timerService.currentTime(clusterClock.time());
-        commitPosition.setRelease(snapshot.logPosition);
-        leadershipTermId(snapshot.leadershipTermId);
-        expectedAckPosition = snapshot.logPosition;
+        commitPosition.setRelease(snapshot.logPosition());
+        leadershipTermId(snapshot.leadershipTermId());
+        expectedAckPosition = snapshot.logPosition();
     }
 
     private Image awaitImage(final int sessionId, final Subscription subscription)
@@ -2749,24 +2747,24 @@ final class ConsensusModuleAgent
 
     private Counter addRecoveryStateCounter(final RecordingLog.RecoveryPlan plan)
     {
-        final int snapshotsCount = plan.snapshots.size();
+        final int snapshotsCount = plan.snapshots().size();
 
         if (snapshotsCount > 0)
         {
             final long[] serviceSnapshotRecordingIds = new long[snapshotsCount - 1];
-            final RecordingLog.Snapshot snapshot = plan.snapshots.get(0);
+            final RecordingLog.Snapshot snapshot = plan.snapshots().get(0);
 
             for (int i = 1; i < snapshotsCount; i++)
             {
-                final RecordingLog.Snapshot serviceSnapshot = plan.snapshots.get(i);
-                serviceSnapshotRecordingIds[serviceSnapshot.serviceId] = serviceSnapshot.recordingId;
+                final RecordingLog.Snapshot serviceSnapshot = plan.snapshots().get(i);
+                serviceSnapshotRecordingIds[serviceSnapshot.serviceId()] = serviceSnapshot.recordingId();
             }
 
             return RecoveryState.allocate(
                 aeron,
-                snapshot.leadershipTermId,
-                snapshot.logPosition,
-                snapshot.timestamp,
+                snapshot.leadershipTermId(),
+                snapshot.logPosition(),
+                snapshot.timestamp(),
                 ctx.clusterId(),
                 serviceSnapshotRecordingIds);
         }
@@ -2968,9 +2966,9 @@ final class ConsensusModuleAgent
         final long leadershipTermId = this.leadershipTermId;
         final RecordingLog.Entry termEntry = recordingLog.findTermEntry(leadershipTermId);
         final long termBaseLogPosition = null != termEntry ?
-            termEntry.termBaseLogPosition : recoveryPlan.lastTermBaseLogPosition;
+            termEntry.termBaseLogPosition : recoveryPlan.lastTermBaseLogPosition();
         final long appendedPosition = null != appendPosition ?
-            appendPosition.get() : max(recoveryPlan.appendedLogPosition, logRecordingStopPosition);
+            appendPosition.get() : max(recoveryPlan.appendedLogPosition(), logRecordingStopPosition);
         final long commitPosition = this.commitPosition.getPlain();
 
         logNewElection(memberId, leadershipTermId, commitPosition, appendedPosition, reason);
@@ -3398,16 +3396,16 @@ final class ConsensusModuleAgent
     {
         final RecordingLog.RecoveryPlan recoveryPlan = recordingLog.createRecoveryPlan(
             archive, serviceCount, logRecordingId);
-        if (null != recoveryPlan.log)
+        if (null != recoveryPlan.log())
         {
-            logRecordingId(recoveryPlan.log.recordingId);
+            logRecordingId(recoveryPlan.log().recordingId());
         }
 
         try (Counter ignore = addRecoveryStateCounter(recoveryPlan))
         {
-            if (!recoveryPlan.snapshots.isEmpty())
+            if (!recoveryPlan.snapshots().isEmpty())
             {
-                loadSnapshot(recoveryPlan.snapshots.get(0), archive);
+                loadSnapshot(recoveryPlan.snapshots().get(0), archive);
             }
             else if (null != consensusModuleExtension)
             {

@@ -909,7 +909,7 @@ public final class ClusterBackupAgent implements Agent
         try
         {
             final long snapshotLeadershipTermId = snapshotsRetrieved.isEmpty() ?
-                NULL_VALUE : snapshotsRetrieved.get(0).leadershipTermId;
+                NULL_VALUE : snapshotsRetrieved.get(0).leadershipTermId();
 
             if (null != leaderLogEntry &&
                 recordingLog.isUnknown(leaderLogEntry.leadershipTermId) &&
@@ -932,12 +932,12 @@ public final class ClusterBackupAgent implements Agent
                     final RecordingLog.Snapshot snapshot = snapshotsRetrieved.get(i);
 
                     recordingLog.appendSnapshot(
-                        snapshot.recordingId,
-                        snapshot.leadershipTermId,
-                        snapshot.termBaseLogPosition,
-                        snapshot.logPosition,
-                        snapshot.timestamp,
-                        snapshot.serviceId);
+                        snapshot.recordingId(),
+                        snapshot.leadershipTermId(),
+                        snapshot.termBaseLogPosition(),
+                        snapshot.logPosition(),
+                        snapshot.timestamp(),
+                        snapshot.serviceId());
                 }
 
                 wasRecordingLogUpdated = true;
@@ -1131,11 +1131,11 @@ public final class ClusterBackupAgent implements Agent
         long replayStartPosition = NULL_POSITION;
         for (final RecordingLog.Snapshot snapshot : snapshotsRetrieved)
         {
-            if (ConsensusModule.Configuration.SERVICE_ID == snapshot.serviceId)
+            if (ConsensusModule.Configuration.SERVICE_ID == snapshot.serviceId())
             {
-                if (replayStartPosition < snapshot.logPosition)
+                if (replayStartPosition < snapshot.logPosition())
                 {
-                    replayStartPosition = snapshot.logPosition;
+                    replayStartPosition = snapshot.logPosition();
                 }
             }
         }

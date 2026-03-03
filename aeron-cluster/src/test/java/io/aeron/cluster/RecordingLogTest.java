@@ -20,6 +20,7 @@ import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.RecordingDescriptorConsumer;
 import io.aeron.cluster.client.ClusterException;
 import io.aeron.test.Tests;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -108,11 +109,11 @@ class RecordingLogTest
             final AeronArchive mockArchive = mock(AeronArchive.class);
             final RecordingLog.RecoveryPlan recoveryPlan = recordingLog.createRecoveryPlan(
                 mockArchive, serviceCount, Aeron.NULL_VALUE);
-            assertEquals(2, recoveryPlan.snapshots.size());
-            assertEquals(SERVICE_ID, recoveryPlan.snapshots.get(0).serviceId);
-            assertEquals(2L, recoveryPlan.snapshots.get(0).recordingId);
-            assertEquals(0, recoveryPlan.snapshots.get(1).serviceId);
-            assertEquals(1L, recoveryPlan.snapshots.get(1).recordingId);
+            assertEquals(2, recoveryPlan.snapshots().size());
+            assertEquals(SERVICE_ID, recoveryPlan.snapshots().get(0).serviceId());
+            assertEquals(2L, recoveryPlan.snapshots().get(0).recordingId());
+            assertEquals(0, recoveryPlan.snapshots().get(1).serviceId());
+            assertEquals(1L, recoveryPlan.snapshots().get(1).recordingId());
         }
     }
 
@@ -139,11 +140,11 @@ class RecordingLogTest
             final AeronArchive mockArchive = mock(AeronArchive.class);
             final RecordingLog.RecoveryPlan recoveryPlan = recordingLog.createRecoveryPlan(
                 mockArchive, serviceCount, Aeron.NULL_VALUE);
-            assertEquals(2, recoveryPlan.snapshots.size());
-            assertEquals(SERVICE_ID, recoveryPlan.snapshots.get(0).serviceId);
-            assertEquals(6L, recoveryPlan.snapshots.get(0).recordingId);
-            assertEquals(0, recoveryPlan.snapshots.get(1).serviceId);
-            assertEquals(5L, recoveryPlan.snapshots.get(1).recordingId);
+            assertEquals(2, recoveryPlan.snapshots().size());
+            assertEquals(SERVICE_ID, recoveryPlan.snapshots().get(0).serviceId());
+            assertEquals(6L, recoveryPlan.snapshots().get(0).recordingId());
+            assertEquals(0, recoveryPlan.snapshots().get(1).serviceId());
+            assertEquals(5L, recoveryPlan.snapshots().get(1).recordingId());
         }
     }
 
@@ -178,9 +179,9 @@ class RecordingLogTest
 
             final RecordingLog.RecoveryPlan recoveryPlan = recordingLog.createRecoveryPlan(
                 mockArchive, serviceCount, Aeron.NULL_VALUE);
-            assertEquals(0L, recoveryPlan.log.recordingId);
-            assertEquals(10L, recoveryPlan.log.leadershipTermId);
-            assertEquals(666, recoveryPlan.log.termBaseLogPosition);
+            assertEquals(0L, recoveryPlan.log().recordingId());
+            assertEquals(10L, recoveryPlan.log().leadershipTermId());
+            assertEquals(666, recoveryPlan.log().termBaseLogPosition());
 
             final RecordingLog.Entry lastTerm = recordingLog.findLastTerm();
             assertNotNull(lastTerm);
@@ -259,10 +260,10 @@ class RecordingLogTest
         RecordingLog.addSnapshots(snapshots, entries, 3, entries.size() - 1);
 
         assertEquals(4, snapshots.size());
-        assertEquals(ConsensusModule.Configuration.SERVICE_ID, snapshots.get(0).serviceId);
-        assertEquals(0, snapshots.get(1).serviceId);
-        assertEquals(1, snapshots.get(2).serviceId);
-        assertEquals(2, snapshots.get(3).serviceId);
+        assertEquals(ConsensusModule.Configuration.SERVICE_ID, snapshots.get(0).serviceId());
+        assertEquals(0, snapshots.get(1).serviceId());
+        assertEquals(1, snapshots.get(2).serviceId());
+        assertEquals(2, snapshots.get(3).serviceId());
     }
 
     @Test
@@ -479,6 +480,27 @@ class RecordingLogTest
             final RecordingLog.Entry latestSnapshot = recordingLog.getLatestSnapshot(SERVICE_ID);
             assertNotNull(latestSnapshot);
             assertEquals(6L, latestSnapshot.recordingId);
+        }
+    }
+
+    @Test
+    @Disabled("incomplete")
+    void shouldFindSnapshotAtOrBeforeOrLowest()
+    {
+        try (RecordingLog recordingLog = new RecordingLog(tempDir, true))
+        {
+            long recordingId = 0;
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 777L, 0, 0);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 777L, 0, 1);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 777L, 0, SERVICE_ID);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 888L, 0, 0);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 888L, 0, 1);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 888L, 0, SERVICE_ID);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 890L, 0, 0);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 890L, 0, SERVICE_ID); // Missing one service snapshot
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 999L, 0, 0);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 999L, 0, 1);
+            recordingLog.appendSnapshot(recordingId++, 1L, 500, 999L, 0, SERVICE_ID);
         }
     }
 
@@ -1031,9 +1053,9 @@ class RecordingLogTest
         {
             final RecordingLog.RecoveryPlan recoveryPlan = log.createRecoveryPlan(mockArchive, 1, NULL_VALUE);
 
-            assertEquals(2, recoveryPlan.snapshots.size());
-            assertTrue(recoveryPlan.snapshots.stream().anyMatch((s) -> s.recordingId == 1));
-            assertTrue(recoveryPlan.snapshots.stream().anyMatch((s) -> s.recordingId == 2));
+            assertEquals(2, recoveryPlan.snapshots().size());
+            assertTrue(recoveryPlan.snapshots().stream().anyMatch((s) -> s.recordingId() == 1));
+            assertTrue(recoveryPlan.snapshots().stream().anyMatch((s) -> s.recordingId() == 2));
         }
     }
 

@@ -484,9 +484,9 @@ final class ConsensusPublisher
     {
         backupResponseEncoder.wrapAndApplyHeader(buffer, 0, messageHeaderEncoder)
             .correlationId(session.correlationId())
-            .logRecordingId(recoveryPlan.log.recordingId)
-            .logLeadershipTermId(recoveryPlan.log.leadershipTermId)
-            .logTermBaseLogPosition(recoveryPlan.log.termBaseLogPosition)
+            .logRecordingId(recoveryPlan.log().recordingId())
+            .logLeadershipTermId(recoveryPlan.log().leadershipTermId())
+            .logTermBaseLogPosition(recoveryPlan.log().termBaseLogPosition())
             .lastLeadershipTermId(lastEntry.leadershipTermId)
             .lastTermBaseLogPosition(lastEntry.termBaseLogPosition)
             .commitPositionCounterId(commitPositionCounterId)
@@ -494,18 +494,18 @@ final class ConsensusPublisher
             .memberId(memberId);
 
         final BackupResponseEncoder.SnapshotsEncoder snapshotsEncoder =
-            backupResponseEncoder.snapshotsCount(recoveryPlan.snapshots.size());
-        for (int i = 0, length = recoveryPlan.snapshots.size(); i < length; i++)
+            backupResponseEncoder.snapshotsCount(recoveryPlan.snapshots().size());
+        for (int i = 0, length = recoveryPlan.snapshots().size(); i < length; i++)
         {
-            final RecordingLog.Snapshot snapshot = recoveryPlan.snapshots.get(i);
+            final RecordingLog.Snapshot snapshot = recoveryPlan.snapshots().get(i);
 
             snapshotsEncoder.next()
-                .recordingId(snapshot.recordingId)
-                .leadershipTermId(snapshot.leadershipTermId)
-                .termBaseLogPosition(snapshot.termBaseLogPosition)
-                .logPosition(snapshot.logPosition)
-                .timestamp(snapshot.timestamp)
-                .serviceId(snapshot.serviceId);
+                .recordingId(snapshot.recordingId())
+                .leadershipTermId(snapshot.leadershipTermId())
+                .termBaseLogPosition(snapshot.termBaseLogPosition())
+                .logPosition(snapshot.logPosition())
+                .timestamp(snapshot.timestamp())
+                .serviceId(snapshot.serviceId());
         }
 
         backupResponseEncoder.clusterMembers(clusterMembers);
