@@ -1187,7 +1187,10 @@ public final class RecordingLog implements AutoCloseable
         return latestStandbySnapshots;
     }
 
-
+    List<Entry> findSnapshotAtOrBeforeOrLowest(final long logPosition, final int serviceCount)
+    {
+        return null;
+    }
 
     /**
      * {@inheritDoc}
