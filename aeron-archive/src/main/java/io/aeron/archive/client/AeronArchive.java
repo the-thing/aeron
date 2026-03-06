@@ -61,6 +61,7 @@ import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.CommonContext.CONTROL_MODE_RESPONSE;
 import static io.aeron.CommonContext.MDC_CONTROL_MODE_PARAM_NAME;
 import static io.aeron.CommonContext.MTU_LENGTH_PARAM_NAME;
+import static io.aeron.CommonContext.RESPONSE_CORRELATION_ID_PARAM_NAME;
 import static io.aeron.CommonContext.SESSION_ID_PARAM_NAME;
 import static io.aeron.CommonContext.SPARSE_PARAM_NAME;
 import static io.aeron.CommonContext.TERM_LENGTH_PARAM_NAME;
@@ -3990,10 +3991,10 @@ public final class AeronArchive implements AutoCloseable
             {
                 if (ChannelUri.isControlModeResponse(ctx.controlResponseChannel()))
                 {
-                    final String requestChannel = new ChannelUriStringBuilder(ctx.controlRequestChannel())
-                        .responseCorrelationId(subscription.registrationId())
-                        .toString();
-                    ctx.controlRequestChannel(requestChannel);
+                    final ChannelUri requestChannel = ChannelUri.parse(ctx.controlRequestChannel());
+                    requestChannel.put(
+                        RESPONSE_CORRELATION_ID_PARAM_NAME, Long.toString(subscription.registrationId()));
+                    ctx.controlRequestChannel(requestChannel.toString());
                 }
                 controlResponsePoller = new ControlResponsePoller(subscription);
                 subscriptionRegistrationId = NULL_VALUE;
