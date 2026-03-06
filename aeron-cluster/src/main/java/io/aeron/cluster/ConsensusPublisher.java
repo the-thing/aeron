@@ -15,6 +15,7 @@
  */
 package io.aeron.cluster;
 
+import io.aeron.Aeron;
 import io.aeron.CommonContext;
 import io.aeron.ExclusivePublication;
 import io.aeron.Publication;
@@ -456,16 +457,39 @@ final class ConsensusPublisher
         final String responseChannel,
         final byte[] encodedCredentials)
     {
+        return backupQuery(
+            publication,
+            correlationId,
+            responseStreamId,
+            version,
+            Aeron.NULL_VALUE,
+            responseChannel,
+            encodedCredentials);
+    }
+
+    boolean backupQuery(
+        final ExclusivePublication publication,
+        final long correlationId,
+        final int responseStreamId,
+        final int version,
+        final long logPosition,
+        final String responseChannel,
+        final byte[] encodedCredentials)
+    {
         if (null == publication)
         {
             return false;
         }
+
+        final long logPositionValue = Aeron.NULL_VALUE != logPosition ? logPosition :
+            BackupQueryEncoder.logPositionNullValue();
 
         backupQueryEncoder
             .wrapAndApplyHeader(buffer, 0, messageHeaderEncoder)
             .correlationId(correlationId)
             .responseStreamId(responseStreamId)
             .version(version)
+            .logPosition(logPositionValue)
             .responseChannel(responseChannel)
             .putEncodedCredentials(encodedCredentials, 0, encodedCredentials.length);
 
