@@ -454,24 +454,6 @@ final class ConsensusPublisher
         final long correlationId,
         final int responseStreamId,
         final int version,
-        final String responseChannel,
-        final byte[] encodedCredentials)
-    {
-        return backupQuery(
-            publication,
-            correlationId,
-            responseStreamId,
-            version,
-            Aeron.NULL_VALUE,
-            responseChannel,
-            encodedCredentials);
-    }
-
-    boolean backupQuery(
-        final ExclusivePublication publication,
-        final long correlationId,
-        final int responseStreamId,
-        final int version,
         final long logPosition,
         final String responseChannel,
         final byte[] encodedCredentials)
