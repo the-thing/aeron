@@ -57,7 +57,8 @@ final class ServiceProxy implements AutoCloseable
         final int logStreamId,
         final boolean isStartup,
         final Cluster.Role role,
-        final String channel)
+        final String channel,
+        final boolean isStandby)
     {
         final int length = MessageHeaderEncoder.ENCODED_LENGTH + JoinLogEncoder.BLOCK_LENGTH +
             JoinLogEncoder.logChannelHeaderLength() + channel.length();
@@ -78,6 +79,7 @@ final class ServiceProxy implements AutoCloseable
                     .logStreamId(logStreamId)
                     .isStartup(isStartup ? BooleanType.TRUE : BooleanType.FALSE)
                     .role(role.code())
+                    .isStandby(isStandby ? BooleanType.TRUE : BooleanType.FALSE)
                     .logChannel(channel);
 
                 bufferClaim.commit();

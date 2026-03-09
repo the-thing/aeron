@@ -1767,7 +1767,8 @@ final class ConsensusModuleAgent
                 streamId,
                 isStartup,
                 role,
-                logChannel);
+                logChannel,
+                false);
 
             expectedAckPosition = logPosition;
 

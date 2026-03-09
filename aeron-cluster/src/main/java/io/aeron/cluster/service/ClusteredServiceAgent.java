@@ -162,7 +162,7 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
     private final DutyCycleTracker dutyCycleTracker;
     private final SnapshotDurationTracker snapshotDurationTracker;
     private final String subscriptionAlias;
-    private final int standbySnapshotFlags;
+    private int standbySnapshotFlags = CLUSTER_ACTION_FLAGS_DEFAULT;
 
     private ReadableCounter commitPosition;
     private ActiveLogEvent activeLogEvent;
@@ -191,8 +191,6 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
         consensusModuleProxy = new ConsensusModuleProxy(aeron.addPublication(channel, ctx.consensusModuleStreamId()));
         serviceAdapter = new ServiceAdapter(aeron.addSubscription(channel, ctx.serviceStreamId()), this);
         sessionMessageHeaderEncoder.wrapAndApplyHeader(headerBuffer, 0, new MessageHeaderEncoder());
-        this.standbySnapshotFlags = ctx.standbySnapshotEnabled() ? CLUSTER_ACTION_FLAGS_STANDBY_SNAPSHOT :
-            CLUSTER_ACTION_FLAGS_DEFAULT;
     }
 
     public void onStart()
@@ -455,6 +453,7 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
         final int logStreamId,
         final boolean isStartup,
         final Cluster.Role role,
+        final boolean isStandby,
         final String logChannel)
     {
         logAdapter.maxLogPosition(logPosition);
@@ -466,6 +465,7 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
             logStreamId,
             isStartup,
             role,
+            isStandby,
             logChannel);
     }
 
@@ -827,6 +827,9 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
         {
             disconnectEgress(ctx.countedErrorHandler());
         }
+
+        this.standbySnapshotFlags = activeLog.isStandby ? CLUSTER_ACTION_FLAGS_STANDBY_SNAPSHOT :
+            CLUSTER_ACTION_FLAGS_DEFAULT;
 
         final String channel = new ChannelUriStringBuilder(activeLog.channel)
             .alias(subscriptionAlias)

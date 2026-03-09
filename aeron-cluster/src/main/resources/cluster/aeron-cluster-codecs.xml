@@ -2,7 +2,7 @@
 <sbe:messageSchema xmlns:sbe="http://fixprotocol.io/2016/sbe"
                    package="io.aeron.cluster.codecs"
                    id="111"
-                   version="16"
+                   version="17"
                    semanticVersion="5.4"
                    description="Message Codecs for communicating with, and within, an Aeron Cluster."
                    byteOrder="littleEndian">
@@ -363,6 +363,7 @@
         <field name="logStreamId"              id="5" type="int32"/>
         <field name="isStartup"                id="6" type="BooleanType"/>
         <field name="role"                     id="7" type="int32"/>
+        <field name="isStandby"                id="9" type="BooleanType" sinceVersion="17" presence="optional"/>
         <data  name="logChannel"               id="8" type="varAsciiEncoding"/>
     </sbe:message>
 
