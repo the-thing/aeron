@@ -660,10 +660,8 @@ class SessionManager
                             break;
                         }
 
-                        final Long logPosition = (Long)session.requestInput();
-                        final List<RecordingLog.Snapshot> snapshots = null == logPosition ?
-                            recoveryPlan.snapshots() :
-                            recordingLog.findSnapshotAtOrBeforeOrLowest(logPosition, serviceCount);
+                        final Long logPositionOrNull = (Long)session.requestInput();
+                        final long logPosition = null == logPositionOrNull ? Long.MAX_VALUE : logPositionOrNull;
                         final RecordingLog.Entry entry = recordingLog.findLastTerm();
                         if (null != entry && consensusPublisher.backupResponse(
                             session,
@@ -673,7 +671,7 @@ class SessionManager
                             entry,
                             recoveryPlan,
                             ClusterMember.encodeAsString(activeMembers),
-                            snapshots))
+                            recordingLog.findSnapshotAtOrBeforeOrLowest(logPosition, serviceCount)))
                         {
                             ArrayListUtil.fastUnorderedRemove(pendingSessions, i, lastIndex--);
                             session.close(aeron, errorHandler, "done");
