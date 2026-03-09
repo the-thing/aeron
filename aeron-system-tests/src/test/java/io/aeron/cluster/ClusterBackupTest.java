@@ -712,6 +712,7 @@ class ClusterBackupTest
         cluster.backupQueryContainsSnapshot(leader, snapshots.get(3).logPosition() + 1, snapshots.get(3));
 
         cluster.backupQueryContainsSnapshot(leader, snapshots.get(3).logPosition() + 1_000_000, snapshots.get(3));
+        cluster.backupQueryContainsSnapshot(leader, Long.MAX_VALUE, snapshots.get(3));
     }
 
     private static void awaitErrorLogged(final TestBackupNode testBackupNode, final String expectedErrorMessage)
