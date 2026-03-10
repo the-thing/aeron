@@ -2386,6 +2386,8 @@ final class ConsensusModuleAgent
             }
         }
 
+        workCount += sessionManager.processPendingStandbySnapshotNotifications(commitPosition.getPlain());
+
         if (null != consensusModuleExtension)
         {
             workCount += consensusModuleExtension.slowTickWork(nowNs);

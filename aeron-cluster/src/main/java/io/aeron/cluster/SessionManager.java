@@ -41,6 +41,7 @@ import org.agrona.concurrent.errors.DistinctErrorLog;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -74,6 +75,7 @@ class SessionManager
     private final ArrayList<ClusterSession> rejectedBackupSessions = new ArrayList<>();
 
     private final ArrayDeque<ClusterSession> uncommittedClosedSessions = new ArrayDeque<>();
+    private final ArrayDeque<List<StandbySnapshotEntry>> pendingStandbySnapshotNotifications = new ArrayDeque<>();
 
     private final int memberId;
     private final ClusterClock clusterClock;
@@ -736,30 +738,8 @@ class SessionManager
                         final List<StandbySnapshotEntry> standbySnapshotEntries =
                             (List<StandbySnapshotEntry>)session.requestInput();
 
-                        for (final StandbySnapshotEntry standbySnapshotEntry : standbySnapshotEntries)
-                        {
-                            ConsensusModuleAgent.logStandbySnapshotNotification(
-                                memberId,
-                                standbySnapshotEntry.recordingId(),
-                                standbySnapshotEntry.leadershipTermId(),
-                                standbySnapshotEntry.termBaseLogPosition(),
-                                standbySnapshotEntry.logPosition(),
-                                standbySnapshotEntry.timestamp(),
-                                clusterTimeUnit,
-                                standbySnapshotEntry.serviceId(),
-                                standbySnapshotEntry.archiveEndpoint());
+                        pendingStandbySnapshotNotifications.add(standbySnapshotEntries);
 
-                            recordingLog.appendStandbySnapshot(
-                                standbySnapshotEntry.recordingId(),
-                                standbySnapshotEntry.leadershipTermId(),
-                                standbySnapshotEntry.termBaseLogPosition(),
-                                standbySnapshotEntry.logPosition(),
-                                standbySnapshotEntry.timestamp(),
-                                standbySnapshotEntry.serviceId(),
-                                standbySnapshotEntry.archiveEndpoint());
-                        }
-
-                        standbySnapshotCounter.increment();
                         ArrayListUtil.fastUnorderedRemove(pendingSessions, i, lastIndex--);
                         session.close(aeron, errorHandler, "done");
                         workCount += 1;
@@ -771,6 +751,61 @@ class SessionManager
                 ArrayListUtil.fastUnorderedRemove(pendingSessions, i, lastIndex--);
                 rejectedSessions.add(session);
             }
+        }
+
+        return workCount;
+    }
+
+    int processPendingStandbySnapshotNotifications(final long commitPosition)
+    {
+        int workCount = 0;
+
+        final Iterator<List<StandbySnapshotEntry>> iterator = pendingStandbySnapshotNotifications.iterator();
+        while (iterator.hasNext())
+        {
+            final List<StandbySnapshotEntry> standbySnapshotEntries = iterator.next();
+
+            if (standbySnapshotEntries.isEmpty())
+            {
+                iterator.remove();
+                continue;
+            }
+
+            final long snapshotLogPosition = standbySnapshotEntries.get(0).logPosition();
+
+            if (snapshotLogPosition > commitPosition)
+            {
+                continue;
+            }
+
+            for (final StandbySnapshotEntry standbySnapshotEntry : standbySnapshotEntries)
+            {
+                ConsensusModuleAgent.logStandbySnapshotNotification(
+                    memberId,
+                    standbySnapshotEntry.recordingId(),
+                    standbySnapshotEntry.leadershipTermId(),
+                    standbySnapshotEntry.termBaseLogPosition(),
+                    standbySnapshotEntry.logPosition(),
+                    standbySnapshotEntry.timestamp(),
+                    clusterTimeUnit,
+                    standbySnapshotEntry.serviceId(),
+                    standbySnapshotEntry.archiveEndpoint());
+
+                recordingLog.appendStandbySnapshot(
+                    standbySnapshotEntry.recordingId(),
+                    standbySnapshotEntry.leadershipTermId(),
+                    standbySnapshotEntry.termBaseLogPosition(),
+                    standbySnapshotEntry.logPosition(),
+                    standbySnapshotEntry.timestamp(),
+                    standbySnapshotEntry.serviceId(),
+                    standbySnapshotEntry.archiveEndpoint());
+            }
+
+            standbySnapshotCounter.increment();
+
+            iterator.remove();
+
+            workCount++;
         }
 
         return workCount;
