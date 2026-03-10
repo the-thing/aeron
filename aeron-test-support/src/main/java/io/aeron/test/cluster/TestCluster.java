@@ -1947,6 +1947,83 @@ public final class TestCluster implements AutoCloseable
         }
     }
 
+    /**
+     * Purge segments from the cluster log. Used by Cluster Standby tests.
+     *
+     * @param numSegments to purge from the log.
+     */
+    @SuppressWarnings("unused")
+    public void purgeSegmentsFromLog(final long numSegments)
+    {
+        for (final TestNode testNode : nodes)
+        {
+            purgeSegmentsFromLog(numSegments, testNode);
+        }
+    }
+
+    public void purgeSegmentsFromLog(final long numSegments, final TestNode node)
+    {
+        if (null == node || node.isClosed())
+        {
+            return;
+        }
+
+        final RecordingDescriptorCollector collector = new RecordingDescriptorCollector(10);
+        final RecordingLog recordingLog = new RecordingLog(node.consensusModule().context().clusterDir(), false);
+        final long recordingId = recordingLog.findLastTermRecordingId();
+        if (RecordingPos.NULL_RECORDING_ID == recordingId)
+        {
+            throw new RuntimeException("Unable to find log recording");
+        }
+
+        try (Aeron aeron = Aeron.connect(
+            new Aeron.Context().aeronDirectoryName(node.mediaDriver().aeronDirectoryName())))
+        {
+            final MutableBoolean segmentsDeleted = new MutableBoolean(false);
+            final RecordingSignalConsumer deleteSignalConsumer =
+                (controlSessionId, correlationId, recordingId1, subscriptionId, position, signal) ->
+                {
+                    if (RecordingSignal.DELETE == signal)
+                    {
+                        segmentsDeleted.set(true);
+                    }
+                };
+
+            final AeronArchive.Context aeronArchiveCtx = node
+                .consensusModule()
+                .context()
+                .archiveContext()
+                .clone();
+
+            aeronArchiveCtx
+                .recordingSignalConsumer(deleteSignalConsumer)
+                .aeron(aeron)
+                .ownsAeronClient(false)
+                .controlResponseStreamId(10000 + node.index())
+                .controlResponseChannel(new ChannelUriStringBuilder(aeronArchiveCtx.controlResponseChannel())
+                    .alias("purge-log-node-" + node.index())
+                    .build());
+
+            try (AeronArchive aeronArchive = AeronArchive.connect(aeronArchiveCtx))
+            {
+                aeronArchive.listRecording(recordingId, collector.reset());
+                final RecordingDescriptor recordingDescriptor = collector.descriptors().get(0);
+
+                final long newStartPosition = AeronArchive.segmentFileBasePosition(
+                    recordingDescriptor.startPosition(),
+                    recordingDescriptor.startPosition() + (numSegments * recordingDescriptor.segmentFileLength()),
+                    recordingDescriptor.termBufferLength(),
+                    recordingDescriptor.segmentFileLength());
+                final long segmentsDeleteCount = aeronArchive.purgeSegments(recordingId, newStartPosition);
+
+                while (0 < segmentsDeleteCount && !segmentsDeleted.get())
+                {
+                    aeronArchive.pollForRecordingSignals();
+                }
+            }
+        }
+    }
+
     String clusterConsensusEndpoints(final int beginIndex, final int endIndex)
     {
         final StringBuilder builder = new StringBuilder();
