@@ -381,6 +381,10 @@ public final class ConsensusModule implements AutoCloseable
     @Config(existsInC = false)
     public static final class Configuration
     {
+        private Configuration()
+        {
+        }
+
         /**
          * Major version of the network protocol from consensus module to consensus module. If these don't match then
          * consensus modules are not compatible.
@@ -1642,6 +1646,13 @@ public final class ConsensusModule implements AutoCloseable
         private boolean acceptStandbySnapshots = Configuration.acceptStandbySnapshots();
         private boolean enableControlOnConsensusChannel = Configuration.enableControlOnConsensusChannel();
         private boolean enableControlOnLogChannel = Configuration.enableControlOnLogChannel();
+
+        /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
 
         /**
          * Perform a shallow copy of the object.

@@ -24,6 +24,13 @@ import java.net.UnknownHostException;
 public class DefaultNameResolver implements NameResolver
 {
     /**
+     * Default constructor.
+     */
+    public DefaultNameResolver()
+    {
+    }
+
+    /**
      * Singleton instance which can be used to avoid allocation.
      */
     public static final DefaultNameResolver INSTANCE = new DefaultNameResolver();

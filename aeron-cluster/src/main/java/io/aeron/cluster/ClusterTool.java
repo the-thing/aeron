@@ -60,7 +60,7 @@ import io.aeron.config.DefaultType;
  * </pre>
  */
 @Config(existsInC = false)
-public class ClusterTool
+public final class ClusterTool
 {
     /**
      * Timeout in nanoseconds for the tool to wait while trying to perform an operation.
@@ -221,6 +221,9 @@ public class ClusterTool
             "prints the contents of the latest valid consensus module snapshot."));
     }
 
+    private ClusterTool()
+    {
+    }
 
     /**
      * Main method for launching the process.

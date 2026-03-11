@@ -22,8 +22,12 @@ import org.agrona.SemanticVersion;
  * <p>
  * Default is to use {@link org.agrona.SemanticVersion} major version for checking compatibility.
  */
-public class AppVersionValidator
+public final class AppVersionValidator
 {
+    private AppVersionValidator()
+    {
+    }
+
     /**
      * Singleton instance of {@link AppVersionValidator} version which can be used to avoid allocation.
      */

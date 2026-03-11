@@ -591,6 +591,13 @@ public final class MediaDriver implements AutoCloseable
         private int streamSessionLimit = Configuration.streamSessionLimit();
 
         /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
+
+        /**
          * Perform a shallow copy of the object.
          *
          * @return a shallow copy of the object.

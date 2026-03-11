@@ -49,6 +49,13 @@ public class ClusterComponentLogger implements ComponentLogger
     }
 
     /**
+     * Create a ClusterComponentLogger, used by Java Service API.
+     */
+    public ClusterComponentLogger()
+    {
+    }
+
+    /**
      * {@inheritDoc}
      */
     public int typeCode()

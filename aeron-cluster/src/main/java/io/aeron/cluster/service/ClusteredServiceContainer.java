@@ -179,6 +179,10 @@ public final class ClusteredServiceContainer implements AutoCloseable
     @Config(existsInC = false)
     public static final class Configuration
     {
+        private Configuration()
+        {
+        }
+
         /**
          * Type of snapshot for this service.
          */
@@ -780,6 +784,13 @@ public final class ClusteredServiceContainer implements AutoCloseable
         private ClusteredService clusteredService;
         private Runnable terminationHook;
         private ClusterMarkFile markFile;
+
+        /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
 
         /**
          * Perform a shallow copy of the object.

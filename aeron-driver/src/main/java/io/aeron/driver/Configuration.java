@@ -68,6 +68,10 @@ import static org.agrona.SystemUtil.getSizeAsLong;
  */
 public final class Configuration
 {
+    private Configuration()
+    {
+    }
+
     /**
      * Warn if the Aeron directory exists.
      */
@@ -574,7 +578,7 @@ public final class Configuration
     public static final String UNICAST_FLOW_CONTROL_STRATEGY_PROP_NAME = "aeron.unicast.flow.control.strategy";
 
     /**
-     *
+     * Default flow control strategy for unicast.
      */
     @Config
     public static final String UNICAST_FLOW_CONTROL_STRATEGY_DEFAULT = "io.aeron.driver.UnicastFlowControl";
@@ -592,7 +596,7 @@ public final class Configuration
     public static final String MULTICAST_FLOW_CONTROL_STRATEGY_PROP_NAME = "aeron.multicast.flow.control.strategy";
 
     /**
-     *
+     *  Default flow control strategy for multicast.
      */
     @Config
     public static final String MULTICAST_FLOW_CONTROL_STRATEGY_DEFAULT = "io.aeron.driver.MaxMulticastFlowControl";
@@ -654,7 +658,7 @@ public final class Configuration
     public static final String IPC_MTU_LENGTH_PROP_NAME = "aeron.ipc.mtu.length";
 
     /**
-     *
+     * Default mtu length for IPC publications.
      */
     @Config(configType = Config.Type.DEFAULT)
     public static final int IPC_MTU_LENGTH_DEFAULT = MTU_LENGTH_DEFAULT;

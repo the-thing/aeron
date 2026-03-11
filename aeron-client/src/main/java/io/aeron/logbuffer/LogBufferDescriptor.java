@@ -38,7 +38,7 @@ import static org.agrona.BitUtil.*;
  *  +----------------------------+
  * </pre>
  */
-public class LogBufferDescriptor
+public final class LogBufferDescriptor
 {
     private static final int PADDING_SIZE = 64;
 
@@ -437,6 +437,10 @@ public class LogBufferDescriptor
         LOG_UNTETHERED_LINGER_TIMEOUT_NS_OFFSET = LOG_IS_PUBLICATION_REVOKED_OFFSET + SIZE_OF_INT;
 
         LOG_META_DATA_LENGTH = PAGE_MIN_SIZE;
+    }
+
+    private LogBufferDescriptor()
+    {
     }
 
     /**

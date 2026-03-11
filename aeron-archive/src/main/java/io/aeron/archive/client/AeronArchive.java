@@ -2618,6 +2618,10 @@ public final class AeronArchive implements AutoCloseable
     @Config(existsInC = false)
     public static final class Configuration
     {
+        private Configuration()
+        {
+        }
+
         /**
          * Major version of the network protocol from client to archive. If these don't match then client and archive
          * are not compatible.
@@ -3047,6 +3051,13 @@ public final class AeronArchive implements AutoCloseable
         private RecordingSignalConsumer recordingSignalConsumer = Configuration.NO_OP_RECORDING_SIGNAL_CONSUMER;
         private AgentInvoker agentInvoker;
         private boolean ownsAeronClient = false;
+
+        /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
 
         /**
          * Perform a shallow copy of the object.

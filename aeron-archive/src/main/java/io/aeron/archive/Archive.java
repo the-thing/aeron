@@ -262,6 +262,10 @@ public final class Archive implements AutoCloseable
     @Config(existsInC = false)
     public static final class Configuration
     {
+        private Configuration()
+        {
+        }
+
         /**
          * Filename for the single instance of a {@link Catalog} contents for an archive.
          */
@@ -1147,6 +1151,13 @@ public final class Archive implements AutoCloseable
         private Counter totalReadTimeCounter;
         private Counter maxReadTimeCounter;
         private String secureRandomAlgorithm = CommonContext.getSecureRandomAlgorithm();
+
+        /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
 
         /**
          * Perform a shallow copy of the object.

@@ -80,7 +80,7 @@ import static org.agrona.concurrent.SystemEpochClock.INSTANCE;
  * Tool for inspecting and performing administrative tasks on an {@link Archive} and its contents which is described
  * in a {@link Catalog}.
  */
-public class ArchiveTool
+public final class ArchiveTool
 {
     /**
      * Allows user to confirm or reject an action.
@@ -97,6 +97,10 @@ public class ArchiveTool
          * @return {@code true} confirms the action and {@code false} to reject the action.
          */
         boolean confirm(T context);
+    }
+
+    private ArchiveTool()
+    {
     }
 
     /**

@@ -1181,6 +1181,10 @@ public final class AeronCluster implements AutoCloseable
     @Config(existsInC = false)
     public static final class Configuration
     {
+        private Configuration()
+        {
+        }
+
         /**
          * Major version of the network protocol from client to consensus module. If these don't match then client
          * and consensus module are not compatible.
@@ -1419,6 +1423,13 @@ public final class AeronCluster implements AutoCloseable
         private ControlledEgressListener controlledEgressListener;
         private AgentInvoker agentInvoker;
         private String clientName = Configuration.clientName();
+
+        /**
+         * Construct a Context using default values and loading from system properties.
+         */
+        public Context()
+        {
+        }
 
         /**
          * Perform a shallow copy of the object.

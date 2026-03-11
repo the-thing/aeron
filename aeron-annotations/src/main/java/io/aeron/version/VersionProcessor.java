@@ -66,6 +66,13 @@ public class VersionProcessor extends AbstractProcessor
         "    }";
 
     /**
+     * Default constructor.
+     */
+    public VersionProcessor()
+    {
+    }
+
+    /**
      * {@inheritDoc}
      */
     public SourceVersion getSupportedSourceVersion()

@@ -106,6 +106,8 @@ public final class ClusterToolCommand
     }
 
     /**
+     * Description of command.
+     *
      * @return description of command.
      */
     public String describe()
@@ -114,6 +116,8 @@ public final class ClusterToolCommand
     }
 
     /**
+     * The actual action to perform when given the command.
+     *
      * @return the actual action to perform when given the command.
      */
     public Action action()

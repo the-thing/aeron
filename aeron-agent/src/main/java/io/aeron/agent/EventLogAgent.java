@@ -63,6 +63,10 @@ public final class EventLogAgent
     private static ResettableClassFileTransformer logTransformer;
     private static Thread thread;
 
+    private EventLogAgent()
+    {
+    }
+
     /**
      * Premain method to run before the main method of the application.
      *

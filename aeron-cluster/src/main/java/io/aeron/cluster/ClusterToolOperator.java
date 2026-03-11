@@ -1298,6 +1298,8 @@ public class ClusterToolOperator
     }
 
     /**
+     * Channel to use.
+     *
      * @return channel to use.
      */
     protected String toolChannel()
@@ -1306,6 +1308,8 @@ public class ClusterToolOperator
     }
 
     /**
+     * Stream id to use.
+     *
      * @return stream id to use.
      */
     protected int toolStreamId()
@@ -1314,6 +1318,8 @@ public class ClusterToolOperator
     }
 
     /**
+     * Timeout in milliseconds to use.
+     *
      * @return timeout in milliseconds to use.
      */
     protected long timeoutMs()

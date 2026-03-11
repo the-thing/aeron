@@ -595,6 +595,13 @@ public class CommonContext implements Cloneable
     }
 
     /**
+     * Construct a CommonContext using default values and loading from system properties.
+     */
+    public CommonContext()
+    {
+    }
+
+    /**
      * Perform a shallow copy of the object.
      *
      * @return a shallow copy of the object.
