@@ -849,6 +849,19 @@ public final class ConsensusModule implements AutoCloseable
             TimeUnit.MILLISECONDS.toNanos(1000);
 
         /**
+         * Property name for the standby snapshot notification processing delay.
+         */
+        @Config
+        public static final String STANDBY_SNAPSHOT_NOTIFICATION_PROCESSING_DELAY_PROP_NAME =
+            "aeron.cluster.standby.snapshot.notification.processing.delay";
+
+        /**
+         * Default standby snapshot notification processing delay.
+         */
+        @Config
+        public static final long STANDBY_SNAPSHOT_NOTIFICATION_PROCESSING_DELAY_DEFAULT_NS = 0;
+
+        /**
          * Default timeout a leader will wait on getting termination ACKs from followers.
          */
         @Config(defaultType = DefaultType.LONG, defaultLong = 10L * 1000 * 1000 * 1000)
@@ -1248,6 +1261,19 @@ public final class ConsensusModule implements AutoCloseable
         }
 
         /**
+         * Get the delay before recording a standby snapshot notification.
+         * The delay starts after the commit position passes the snapshot's log position.
+         *
+         * @return the delay, in nanoseconds.
+         */
+        public static long standbySnapshotNotificationProcessingDelayNs()
+        {
+            return getDurationInNanos(
+                STANDBY_SNAPSHOT_NOTIFICATION_PROCESSING_DELAY_PROP_NAME,
+                STANDBY_SNAPSHOT_NOTIFICATION_PROCESSING_DELAY_DEFAULT_NS);
+        }
+
+        /**
          * Size in bytes of the error buffer in the mark file.
          *
          * @return length of error buffer in bytes.
@@ -1604,6 +1630,8 @@ public final class ConsensusModule implements AutoCloseable
         private long terminationTimeoutNs = Configuration.terminationTimeoutNs();
         private long cycleThresholdNs = Configuration.cycleThresholdNs();
         private long totalSnapshotDurationThresholdNs = Configuration.totalSnapshotDurationThresholdNs();
+        private long standbySnapshotNotificationProcessingDelayNs =
+            Configuration.standbySnapshotNotificationProcessingDelayNs();
 
         private String agentRoleName = Configuration.agentRoleName();
         private ThreadFactory threadFactory;
@@ -3086,6 +3114,32 @@ public final class ConsensusModule implements AutoCloseable
         public int serviceCount()
         {
             return serviceCount;
+        }
+
+        /**
+         * Set the delay before recording a standby snapshot notification.
+         * The delay starts after the commit position passes the snapshot's log position.
+         *
+         * @param standbySnapshotNotificationProcessingDelayNs the delay, in nanoseconds.
+         * @return this for a fluent API
+         */
+        public Context standbySnapshotNotificationProcessingDelayNs(
+            final long standbySnapshotNotificationProcessingDelayNs)
+        {
+            this.standbySnapshotNotificationProcessingDelayNs = standbySnapshotNotificationProcessingDelayNs;
+            return this;
+        }
+
+        /**
+         * Get the delay before recording a standby snapshot notification.
+         * The delay starts after the commit position passes the snapshot's log position.
+         *
+         * @return the delay, in nanoseconds.
+         */
+        @Config
+        public long standbySnapshotNotificationProcessingDelayNs()
+        {
+            return standbySnapshotNotificationProcessingDelayNs;
         }
 
         /**

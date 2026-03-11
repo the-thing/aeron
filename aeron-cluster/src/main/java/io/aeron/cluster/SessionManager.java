@@ -76,6 +76,8 @@ class SessionManager
 
     private final ArrayDeque<ClusterSession> uncommittedClosedSessions = new ArrayDeque<>();
     private final ArrayDeque<List<StandbySnapshotEntry>> pendingStandbySnapshotNotifications = new ArrayDeque<>();
+    private final ArrayDeque<DelayedStandbySnapshotNotification> delayedStandbySnapshotNotifications =
+        new ArrayDeque<>();
 
     private final int memberId;
     private final ClusterClock clusterClock;
@@ -100,6 +102,7 @@ class SessionManager
     private final int clusterId;
     private final int maxConcurrentSessions;
     private final int serviceCount;
+    private final long standbySnapshotNotificationProcessingDelayNs;
     private final MutableDirectBuffer tempBuffer = new ExpandableArrayBuffer();
 
     private long nextSessionId = 1;
@@ -126,7 +129,8 @@ class SessionManager
         final int commitPositionCounterId,
         final int clusterId,
         final int maxConcurrentSessions,
-        final int serviceCount)
+        final int serviceCount,
+        final long standbySnapshotNotificationProcessingDelayNs)
     {
         this.activeMembers = activeMembers;
         this.memberId = memberId;
@@ -151,6 +155,7 @@ class SessionManager
         this.clusterId = clusterId;
         this.maxConcurrentSessions = maxConcurrentSessions;
         this.serviceCount = serviceCount;
+        this.standbySnapshotNotificationProcessingDelayNs = standbySnapshotNotificationProcessingDelayNs;
     }
 
     SessionManager(
@@ -179,7 +184,8 @@ class SessionManager
             ctx.commitPositionCounter().id(),
             ctx.clusterId(),
             ctx.maxConcurrentSessions(),
-            ctx.serviceCount());
+            ctx.serviceCount(),
+            ctx.standbySnapshotNotificationProcessingDelayNs());
     }
 
     ClusterSession findBySessionId(final long clusterSessionId)
@@ -756,59 +762,82 @@ class SessionManager
         return workCount;
     }
 
-    int processPendingStandbySnapshotNotifications(final long commitPosition)
+    int processPendingStandbySnapshotNotifications(final long commitPosition, final long nowNs)
     {
         int workCount = 0;
 
-        final Iterator<List<StandbySnapshotEntry>> iterator = pendingStandbySnapshotNotifications.iterator();
-        while (iterator.hasNext())
+        if (!pendingStandbySnapshotNotifications.isEmpty())
         {
-            final List<StandbySnapshotEntry> standbySnapshotEntries = iterator.next();
-
-            if (standbySnapshotEntries.isEmpty())
+            final Iterator<List<StandbySnapshotEntry>> iterator = pendingStandbySnapshotNotifications.iterator();
+            while (iterator.hasNext())
             {
+                final List<StandbySnapshotEntry> standbySnapshotEntries = iterator.next();
+
+                if (standbySnapshotEntries.isEmpty())
+                {
+                    iterator.remove();
+                    continue;
+                }
+
+                final long snapshotLogPosition = standbySnapshotEntries.get(0).logPosition();
+
+                if (snapshotLogPosition > commitPosition)
+                {
+                    continue;
+                }
+
+                if (standbySnapshotNotificationProcessingDelayNs > 0)
+                {
+                    delayedStandbySnapshotNotifications.add(new DelayedStandbySnapshotNotification(
+                        nowNs + standbySnapshotNotificationProcessingDelayNs, standbySnapshotEntries));
+                }
+                else
+                {
+                    appendStandbySnapshot(standbySnapshotEntries);
+                }
+
                 iterator.remove();
-                continue;
+                workCount++;
             }
+        }
 
-            final long snapshotLogPosition = standbySnapshotEntries.get(0).logPosition();
-
-            if (snapshotLogPosition > commitPosition)
-            {
-                continue;
-            }
-
-            for (final StandbySnapshotEntry standbySnapshotEntry : standbySnapshotEntries)
-            {
-                ConsensusModuleAgent.logStandbySnapshotNotification(
-                    memberId,
-                    standbySnapshotEntry.recordingId(),
-                    standbySnapshotEntry.leadershipTermId(),
-                    standbySnapshotEntry.termBaseLogPosition(),
-                    standbySnapshotEntry.logPosition(),
-                    standbySnapshotEntry.timestamp(),
-                    clusterTimeUnit,
-                    standbySnapshotEntry.serviceId(),
-                    standbySnapshotEntry.archiveEndpoint());
-
-                recordingLog.appendStandbySnapshot(
-                    standbySnapshotEntry.recordingId(),
-                    standbySnapshotEntry.leadershipTermId(),
-                    standbySnapshotEntry.termBaseLogPosition(),
-                    standbySnapshotEntry.logPosition(),
-                    standbySnapshotEntry.timestamp(),
-                    standbySnapshotEntry.serviceId(),
-                    standbySnapshotEntry.archiveEndpoint());
-            }
-
-            standbySnapshotCounter.increment();
-
-            iterator.remove();
+        while (!delayedStandbySnapshotNotifications.isEmpty() &&
+            0 <= nowNs - delayedStandbySnapshotNotifications.peek().deadlineNs())
+        {
+            appendStandbySnapshot(delayedStandbySnapshotNotifications.remove().snapshotEntries());
 
             workCount++;
         }
 
         return workCount;
+    }
+
+    private void appendStandbySnapshot(final List<StandbySnapshotEntry> entries)
+    {
+        for (final StandbySnapshotEntry standbySnapshotEntry : entries)
+        {
+            ConsensusModuleAgent.logStandbySnapshotNotification(
+                memberId,
+                standbySnapshotEntry.recordingId(),
+                standbySnapshotEntry.leadershipTermId(),
+                standbySnapshotEntry.termBaseLogPosition(),
+                standbySnapshotEntry.logPosition(),
+                standbySnapshotEntry.timestamp(),
+                clusterTimeUnit,
+                standbySnapshotEntry.serviceId(),
+                standbySnapshotEntry.archiveEndpoint());
+
+            recordingLog.appendStandbySnapshot(
+                standbySnapshotEntry.recordingId(),
+                standbySnapshotEntry.leadershipTermId(),
+                standbySnapshotEntry.termBaseLogPosition(),
+                standbySnapshotEntry.logPosition(),
+                standbySnapshotEntry.timestamp(),
+                standbySnapshotEntry.serviceId(),
+                standbySnapshotEntry.archiveEndpoint());
+        }
+
+        standbySnapshotCounter.increment();
     }
 
     int checkSessions(
@@ -1136,5 +1165,9 @@ class SessionManager
         final Image image = (Image)header.context();
         final String imageInfo = "sourceIdentity=" + image.sourceIdentity() + " sessionId=" + image.sessionId();
         return Strings.isEmpty(clientInfo) ? imageInfo : clientInfo + " " + imageInfo;
+    }
+
+    private record DelayedStandbySnapshotNotification(long deadlineNs, List<StandbySnapshotEntry> snapshotEntries)
+    {
     }
 }
