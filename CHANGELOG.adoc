@@ -4,6 +4,14 @@
 
 === Changelog
 
+* **[Java]** Avoid bind conflicts when removing and adding a subscription to the same channel.
+(https://github.com/aeron-io/aeron/pull/1955[#1955])
+* **[Driver/Java]** Close sockets on the conductor thread just like the C driver.
+* **[Driver/C]** Fix memory leak whereby async commands submitted to the async executor were not freed upon driver
+termination. (https://github.com/aeron-io/aeron/pull/1960[#1960])
+* **[C{plus}{plus} Wrapper]** Cleanup pending async resources when `Aeron` client is closed, i.e. prevent a memory leak.
+* **[C]** Refactor async resource registration in `aeron_client_conductor` to ensure proper cleanup if resource cannot
+be added to the client conductor.
 * **[Client]** Fixed a bug in the controlled fragment assemblers where their handler after aborting on a fragmented
 message would receive on subsequent calls for that message a header with invalid position and fragmented frame length.
 * **[Driver/C]** Fix data corruption resulting from `aeron_append_block` ignoring `term_offset`.  (https://github.com/aeron-io/aeron/issues/1944[#1944])
@@ -18,8 +26,26 @@ but is now explicitly enforced via the ClusteredServiceContainer.Configuration.M
 * Increase default cycle thresholds to 100ms as the previous value of 1ms was too short and their counts kept ticking up under normal conditions.
 * **[Archive]** Fix `CATALOG_RESIZE` debug logging.
 * **[C]** Renamed `aeron_archive_proxy_set_control_esssion_id` to `aeron_archive_proxy_set_control_session_id`.
-* **[Java]** Upgrade to `ByteBuddy` 1.18.4.
+* **[Java]** Upgrade to `Gradle` 9.4.0.
+* **[Java]** Upgrade to `ByteBuddy` 1.18.7.
+* **[Java]** Upgrade to `Mockito` 5.22.0.
+* **[Java]** Upgrade to `JUnit` 6.0.3.
 * **[Java]** Upgrade to `Checkstyle` 12.3.1.
+* **[Java]** Upgrade to `Shadow` 9.3.2.
+
+== 1.50.3 (Unreleased)
+* **[Java]** Avoid bind conflicts when removing and adding a subscription to the same channel.
+(https://github.com/aeron-io/aeron/pull/1955[#1955])
+* **[Driver/Java]** Close sockets on the conductor thread just like the C driver.
+* **[Driver/C]** Fix memory leak whereby async commands submitted to the async executor were not freed upon driver
+termination. (https://github.com/aeron-io/aeron/pull/1960[#1960])
+* **[C{plus}{plus} Wrapper]** Cleanup pending async resources when `Aeron` client is closed, i.e. prevent a memory leak.
+* **[C]** Refactor async resource registration in `aeron_client_conductor` to ensure proper cleanup if resource cannot
+be added to the client conductor.
+* **[Java]** Upgrade to `Gradle` 9.4.0.
+* **[Java]** Upgrade to `ByteBuddy` 1.18.7.
+* **[Java]** Upgrade to `Mockito` 5.22.0.
+* **[Java]** Upgrade to `Shadow` 9.3.2.
 
 == 1.50.2 (2026-02-27)
 
@@ -1028,7 +1054,6 @@ Fixed in https://github.com/aeron-io/aeron/releases/tag/1.47.3[1.47.3].
 * **[Java]** Do not refine response channel for a ClusterSession during a replay or loading of a snapshot.
 * **[C]** Check subscribed sessions before removing a stream interest before removing by stream_id.
 * **[build]** remove .CMakeLists.txt.swp
-* Archive client <<1636,C and C{plus}{plus} wrapper>>
 * **[Java]** Assert that synchronous ControlSession calls are only allowed from a conductor thread.
 * **[Java]** Fix race with new Image becoming available while reject errors are asserted.
 * **[Java]** Add debug wrapper for `messageTimeout`.
