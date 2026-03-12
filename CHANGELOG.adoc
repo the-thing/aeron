@@ -44,7 +44,7 @@ termination. (https://github.com/aeron-io/aeron/pull/1960[#1960])
 be added to the client conductor.
 * **[Java]** Upgrade to `Gradle` 9.4.0.
 * **[Java]** Upgrade to `ByteBuddy` 1.18.7.
-* **[Java]** Upgrade to `Mockito` 5.22.0.
+* **[Java]** Upgrade to `Mockito` 5.23.0.
 * **[Java]** Upgrade to `Shadow` 9.3.2.
 
 == 1.50.2 (2026-02-27)
