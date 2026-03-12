@@ -485,15 +485,14 @@ final class ConsensusPublisher
         final int leaderMemberId,
         final int memberId,
         final RecordingLog.Entry lastEntry,
-        final RecordingLog.RecoveryPlan recoveryPlan,
         final String clusterMembers,
         final List<RecordingLog.Snapshot> snapshots)
     {
         backupResponseEncoder.wrapAndApplyHeader(buffer, 0, messageHeaderEncoder)
             .correlationId(session.correlationId())
-            .logRecordingId(recoveryPlan.log().recordingId())
-            .logLeadershipTermId(recoveryPlan.log().leadershipTermId())
-            .logTermBaseLogPosition(recoveryPlan.log().termBaseLogPosition())
+            .logRecordingId(lastEntry.recordingId)
+            .logLeadershipTermId(lastEntry.leadershipTermId)
+            .logTermBaseLogPosition(lastEntry.termBaseLogPosition)
             .lastLeadershipTermId(lastEntry.leadershipTermId)
             .lastTermBaseLogPosition(lastEntry.termBaseLogPosition)
             .commitPositionCounterId(commitPositionCounterId)

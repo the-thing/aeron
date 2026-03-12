@@ -121,11 +121,7 @@ class SessionManagerTest
             new byte[0],
             mockHeader);
 
-        sessionManager.processPendingBackupSessions(
-            clock.time(),
-            0,
-            0,
-            mock(RecordingLog.RecoveryPlan.class));
+        sessionManager.processPendingBackupSessions(clock.time(), 0, 0);
 
         sessionManager.processPendingStandbySnapshotNotifications(49, clock.time());
 
@@ -189,11 +185,7 @@ class SessionManagerTest
             new byte[0],
             mockHeader);
 
-        sessionManager.processPendingBackupSessions(
-            clock.time(),
-            0,
-            0,
-            mock(RecordingLog.RecoveryPlan.class));
+        sessionManager.processPendingBackupSessions(clock.time(), 0, 0);
 
         sessionManager.processPendingStandbySnapshotNotifications(100, clock.time());
 

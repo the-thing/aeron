@@ -512,8 +512,7 @@ class SessionManager
     int processAllPendingSessions(
         final long nowNs,
         final int leaderMemberId,
-        final long leadershipTermId,
-        final RecordingLog.RecoveryPlan recoveryPlan)
+        final long leadershipTermId)
     {
         int workCount = 0;
         workCount += processPendingSessions(
@@ -521,16 +520,14 @@ class SessionManager
             rejectedUserSessions,
             nowNs,
             leaderMemberId,
-            leadershipTermId,
-            recoveryPlan);
+            leadershipTermId);
 
         workCount += processPendingSessions(
             pendingBackupSessions,
             rejectedBackupSessions,
             nowNs,
             leaderMemberId,
-            leadershipTermId,
-            recoveryPlan);
+            leadershipTermId);
 
         return workCount;
     }
@@ -567,16 +564,14 @@ class SessionManager
     int processPendingBackupSessions(
         final long nowNs,
         final int leaderMemberId,
-        final long leadershipTermId,
-        final RecordingLog.RecoveryPlan recoveryPlan)
+        final long leadershipTermId)
     {
         return processPendingSessions(
             pendingBackupSessions,
             rejectedBackupSessions,
             nowNs,
             leaderMemberId,
-            leadershipTermId,
-            recoveryPlan);
+            leadershipTermId);
     }
 
     @SuppressWarnings("checkstyle:methodlength")
@@ -585,8 +580,7 @@ class SessionManager
         final ArrayList<ClusterSession> rejectedSessions,
         final long nowNs,
         final int leaderMemberId,
-        final long leadershipTermId,
-        final RecordingLog.RecoveryPlan recoveryPlan)
+        final long leadershipTermId)
     {
         int workCount = 0;
 
@@ -681,7 +675,6 @@ class SessionManager
                             leaderMemberId,
                             memberId,
                             entry,
-                            recoveryPlan,
                             ClusterMember.encodeAsString(activeMembers),
                             recordingLog.findSnapshotAtOrBeforeOrLowest(logPosition, serviceCount)))
                         {

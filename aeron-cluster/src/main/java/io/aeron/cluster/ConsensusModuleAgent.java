@@ -2339,8 +2339,7 @@ final class ConsensusModuleAgent
 
                 if (ConsensusModule.State.ACTIVE == state)
                 {
-                    workCount += sessionManager.processAllPendingSessions(
-                        nowNs, leaderMember.id(), leadershipTermId, recoveryPlan);
+                    workCount += sessionManager.processAllPendingSessions(nowNs, leaderMember.id(), leadershipTermId);
 
                     workCount += sessionManager.checkSessions(
                         nowNs, leadershipTermId, leaderMember.id(), ingressEndpoints);
@@ -2366,7 +2365,7 @@ final class ConsensusModuleAgent
                 if (Cluster.Role.FOLLOWER == role && ConsensusModule.State.ACTIVE == state)
                 {
                     workCount += sessionManager.processPendingBackupSessions(
-                        nowNs, leaderMember.id(), leadershipTermId, recoveryPlan);
+                        nowNs, leaderMember.id(), leadershipTermId);
                 }
 
                 if (ConsensusModule.State.ACTIVE == state || ConsensusModule.State.SUSPENDED == state)
