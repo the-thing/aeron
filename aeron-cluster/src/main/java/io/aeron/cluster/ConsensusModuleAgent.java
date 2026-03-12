@@ -1354,6 +1354,7 @@ final class ConsensusModuleAgent
             final CountersReader counters = ctx.aeron().countersReader();
             if (null != recPos)
             {
+                idleStrategy.reset();
                 while (CountersReader.RECORD_ALLOCATED == counters.getCounterState(recPos.counterId()) &&
                     recPos.registrationId() == counters.getCounterRegistrationId(recPos.counterId()))
                 {
@@ -1362,6 +1363,7 @@ final class ConsensusModuleAgent
             }
             else
             {
+                idleStrategy.reset();
                 final long archiveId = archive.archiveId();
                 while (CountersReader.NULL_COUNTER_ID !=
                     RecordingPos.findCounterIdByRecording(counters, logRecordingId, archiveId))
@@ -1648,6 +1650,8 @@ final class ConsensusModuleAgent
 
         leadershipTermId(leadershipTermId);
         startLogRecording(channel, ctx.logStreamId(), SourceLocation.LOCAL);
+
+        idleStrategy.reset();
         while (!tryCreateAppendPosition(logSessionId))
         {
             idle();
@@ -1671,6 +1675,8 @@ final class ConsensusModuleAgent
         if (null != consensusModuleExtension)
         {
             final Subscription subscription = aeron.addSubscription(localLogChannel, ctx.logStreamId());
+
+            idleStrategy.reset();
             while (0 == subscription.imageCount())
             {
                 idle();
@@ -1772,6 +1778,7 @@ final class ConsensusModuleAgent
 
             expectedAckPosition = logPosition;
 
+            idleStrategy.reset();
             while (!ServiceAck.hasReached(logPosition, serviceAckId, serviceAckQueues))
             {
                 idle(consensusModuleAdapter.poll());
@@ -2699,6 +2706,7 @@ final class ConsensusModuleAgent
             final Image image = awaitImage(sessionId, subscription);
             final ConsensusModuleSnapshotAdapter adapter = new ConsensusModuleSnapshotAdapter(image, this);
 
+            idleStrategy.reset();
             while (true)
             {
                 final int fragments = adapter.poll();
@@ -2890,6 +2898,7 @@ final class ConsensusModuleAgent
 
     void awaitLocalSocketsClosed(final long registrationId)
     {
+        idleStrategy.reset();
         final CountersReader countersReader = aeron.countersReader();
         while (LocalSocketAddressStatus.findNumberOfAddressesByRegistrationId(countersReader, registrationId) > 0)
         {
@@ -3416,6 +3425,7 @@ final class ConsensusModuleAgent
                 consensusModuleExtension.onStart(this, null);
             }
 
+            idleStrategy.reset();
             while (!ServiceAck.hasReached(expectedAckPosition, serviceAckId, serviceAckQueues))
             {
                 idle(consensusModuleAdapter.poll());
@@ -3490,6 +3500,7 @@ final class ConsensusModuleAgent
 
         serviceProxy.requestServiceAck(expectedAckPosition);
 
+        idleStrategy.reset();
         while (!ServiceAck.hasReached(expectedAckPosition, serviceAckId, serviceAckQueues))
         {
             idle(consensusModuleAdapter.poll());
@@ -3514,11 +3525,12 @@ final class ConsensusModuleAgent
             ctx.fileSyncLevel(),
             ctx.snapshotCounter()))
         {
+            idleStrategy.reset();
             while (!standbySnapshotReplicator.isComplete())
             {
                 try
                 {
-                    ctx.idleStrategy().idle(standbySnapshotReplicator.poll(ctx.clusterClock().timeNanos()));
+                    idleStrategy.idle(standbySnapshotReplicator.poll(ctx.clusterClock().timeNanos()));
                 }
                 catch (final ClusterException ex)
                 {
