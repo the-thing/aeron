@@ -4,7 +4,7 @@
 
 === Changelog
 
-* **[Consensus Module]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been changed from flat classes to records, so the data accessors are now methods and not fields.
+* **Breaking:** **[Cluster]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been changed from flat classes to records, so the data accessors are now methods and not fields.
 * **[Java Samples]** Added a sample for ReplayMerge.
 * **[Java]** Avoid bind conflicts when removing and adding a subscription to the same channel.
 (https://github.com/aeron-io/aeron/pull/1955[#1955])
