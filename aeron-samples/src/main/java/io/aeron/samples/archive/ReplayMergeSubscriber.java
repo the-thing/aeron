@@ -32,7 +32,6 @@ import org.agrona.concurrent.ShutdownSignalBarrier;
 import org.agrona.concurrent.YieldingIdleStrategy;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * This is an Aeron subscriber utilising {@link io.aeron.archive.client.ReplayMerge}.
@@ -63,12 +62,20 @@ public class ReplayMergeSubscriber
     public static void main(final String[] args)
     {
         System.out.println("Subscribing to live " + LIVE_DESTINATION + ", and replay " + REPLAY_DESTINATION +
-                " on stream id " + STREAM_ID);
+            " on stream id " + STREAM_ID);
 
         final AtomicBoolean running = new AtomicBoolean(true);
         final AtomicBoolean isLive = new AtomicBoolean(false);
         final IdleStrategy idleStrategy = new YieldingIdleStrategy();
-        final FragmentHandler fragmentHandler = new FragmentAssembler(fragmentHandler(isLive));
+        final FragmentHandler fragmentHandler = new FragmentAssembler(
+            (final DirectBuffer buffer, final int offset, final int length, final Header header) ->
+            {
+                final String msg = buffer.getStringWithoutLengthAscii(offset, length);
+                final String streamState = isLive.get() ? "live" : "replay";
+
+                System.out.printf("Message to %s stream %d from session %d (%d@%d) <<%s>>%n",
+                    streamState, STREAM_ID, header.sessionId(), length, offset, msg);
+            });
 
         try (ShutdownSignalBarrier barrier = new ShutdownSignalBarrier(() -> running.set(false));
             MediaDriver driver = EMBEDDED_MEDIA_DRIVER ?
@@ -136,27 +143,17 @@ public class ReplayMergeSubscriber
         }
     }
 
-    private static FragmentHandler fragmentHandler(final AtomicBoolean isLive)
-    {
-        return (final DirectBuffer buffer, final int offset, final int length, final Header header) ->
-        {
-            final String msg = buffer.getStringWithoutLengthAscii(offset, length);
-            final String streamState = isLive.get() ? "live" : "replay";
-
-            System.out.printf("Message to %s stream %d from session %d (%d@%d) <<%s>>%n",
-                streamState, STREAM_ID, header.sessionId(), length, offset, msg);
-        };
-    }
-
     private static RecordingDescriptor getLastDescriptor(final AeronArchive aeronArchive)
     {
-        final AtomicReference<RecordingDescriptor> descriptorRef = new AtomicReference<>(null);
-        final RecordingDescriptorCollector collector = new RecordingDescriptorCollector(Integer.MAX_VALUE);
+        final RecordingDescriptorCollector collector = new RecordingDescriptorCollector(1);
 
-        aeronArchive.listRecordingsForUri(0, collector.poolSize(), "alias=replay-merge-sample", STREAM_ID,
-            collector.reset());
-        collector.descriptors().forEach(descriptorRef::set);
+        if (0 == aeronArchive.listRecordingsForUri(
+            0, Integer.MAX_VALUE, "alias=replay-merge-sample", STREAM_ID, collector.reset()))
+        {
+            return null;
+        }
 
-        return descriptorRef.get();
+        final int lastIndex = collector.descriptors().size() - 1;
+        return collector.descriptors().get(lastIndex);
     }
 }
