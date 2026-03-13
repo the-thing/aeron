@@ -35,7 +35,7 @@ but is now explicitly enforced via the ClusteredServiceContainer.Configuration.M
 * **[Java]** Upgrade to `Checkstyle` 12.3.1.
 * **[Java]** Upgrade to `Shadow` 9.3.2.
 
-== 1.50.3 (Unreleased)
+== 1.50.3 (2026-03-13)
 * **[Java]** Avoid bind conflicts when removing and adding a subscription to the same channel.
 (https://github.com/aeron-io/aeron/pull/1955[#1955])
 * **[Driver/Java]** Close sockets on the conductor thread just like the C driver.
