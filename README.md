@@ -24,7 +24,7 @@ the [Agrona](https://github.com/aeron-io/agrona) project.
 For details of usage, protocol specification, FAQ, etc., please check out the
 [Wiki](https://github.com/aeron-io/aeron/wiki).
 
-For the latest version information and changes, see the [Change Log](https://github.com/aeron-io/aeron/edit/master/CHANGELOG.adoc)
+For the latest version information and changes, see the [Change Log](https://github.com/aeron-io/aeron/blob/master/CHANGELOG.adoc)
 with Java **downloads** at [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Caeron).
 
 Aeron is owned and operated by Adaptive Financial Consulting. Originally created by Martin Thompson and Todd Montgomery, the Aeron team joined Adaptive in 2022.
