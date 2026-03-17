@@ -77,6 +77,11 @@ class SnapshotReplication implements AutoCloseable
         multipleRecordingReplication.onSignal(correlationId, recordingId, position, signal);
     }
 
+    long currentReplicationId()
+    {
+        return multipleRecordingReplication.currentReplicationId();
+    }
+
     boolean isComplete()
     {
         return multipleRecordingReplication.isComplete();
