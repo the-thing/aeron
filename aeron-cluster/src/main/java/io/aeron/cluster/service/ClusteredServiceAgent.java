@@ -768,17 +768,25 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
         final long leadershipTermId = RecoveryState.getLeadershipTermId(counters, recoveryCounterId);
         sessionMessageHeaderEncoder.leadershipTermId(leadershipTermId);
 
+        Exception exception = null;
+        long snapshotRecordingId = NULL_VALUE;
+
         activeLifecycleCallback = LIFECYCLE_CALLBACK_ON_START;
         try
         {
             if (NULL_VALUE != leadershipTermId)
             {
-                loadSnapshot(RecoveryState.getSnapshotRecordingId(counters, recoveryCounterId, serviceId));
+                snapshotRecordingId = RecoveryState.getSnapshotRecordingId(counters, recoveryCounterId, serviceId);
+                loadSnapshot(snapshotRecordingId);
             }
             else
             {
                 service.onStart(this, null);
             }
+        }
+        catch (final Exception ex)
+        {
+            exception = ex;
         }
         finally
         {
@@ -786,9 +794,20 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
         }
 
         final long id = ackId++;
-        while (!consensusModuleProxy.ack(logPosition, clusterTime, id, aeron.clientId(), serviceId))
+        final long relevantId = (null == exception) ? aeron.clientId() : NULL_VALUE;
+        while (!consensusModuleProxy.ack(logPosition, clusterTime, id, relevantId, serviceId))
         {
             idle();
+        }
+
+        if (null != exception)
+        {
+            final String message = "failed to load for service=" + ctx.serviceId() +
+                " leadershipTermId=" + leadershipTermId +
+                " logPosition=" + logPosition +
+                " clusterTime=" + clusterTime +
+                " snapshotRecordingId=" + snapshotRecordingId;
+            throw new AgentTerminationException(message, exception);
         }
     }
 
