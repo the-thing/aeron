@@ -3533,7 +3533,7 @@ class ClusterTest
             .start();
         systemTestWatcher.cluster(cluster);
         systemTestWatcher.ignoreErrorsMatching(
-            (s) -> s.contains("this snapshot failed to load") || s.contains("failed to start clustered service(s)"));
+            (s) -> s.contains("failed to start service=0") || s.contains("failed to start clustered service(s)"));
 
         final TestNode leader = cluster.awaitLeader();
         TestNode follower = cluster.followers().get(0);
@@ -3558,7 +3558,7 @@ class ClusterTest
             Tests.yield();
         }
 
-        cluster.waitForError(follower, (s) -> s.contains("failed to load for service=0"));
+        cluster.waitForError(follower, (s) -> s.contains("failed to start service=0"));
 
         cluster.stopNode(follower);
         final File followerClusterDir = follower.consensusModule().context().clusterDir();
@@ -3575,11 +3575,11 @@ class ClusterTest
     {
         cluster = aCluster()
             .withServiceSupplier((i) -> new TestNode.TestService[]
-                { new ExceptionOnLoadService().index(i), new TestNode.TestService().index(i) })
+                { new TestNode.TestService().index(i), new ExceptionOnLoadService().index(i) })
             .start();
         systemTestWatcher.cluster(cluster);
         systemTestWatcher.ignoreErrorsMatching(
-            (s) -> s.contains("this snapshot failed to load") || s.contains("failed to start clustered service(s)"));
+            (s) -> s.contains("failed to start service=1") || s.contains("failed to start clustered service(s)"));
 
         final TestNode leader = cluster.awaitLeader();
         TestNode follower = cluster.followers().get(0);
@@ -3592,7 +3592,7 @@ class ClusterTest
         cluster.startStaticNode(follower.index(), false);
         follower = cluster.node(follower.index());
 
-        final AgentRunner failingClusteredServiceRunner = Tests.getField(follower.container(0), "serviceAgentRunner");
+        final AgentRunner failingClusteredServiceRunner = Tests.getField(follower.container(1), "serviceAgentRunner");
         while (!failingClusteredServiceRunner.isClosed())
         {
             Tests.yield();
@@ -3604,11 +3604,13 @@ class ClusterTest
             Tests.yield();
         }
 
-        final AgentRunner healthyClusteredServiceRunner = Tests.getField(follower.container(1), "serviceAgentRunner");
+        final AgentRunner healthyClusteredServiceRunner = Tests.getField(follower.container(0), "serviceAgentRunner");
         while (!healthyClusteredServiceRunner.isClosed())
         {
             Tests.yield();
         }
+
+        cluster.waitForError(follower, (s) -> s.contains("failed to start service=1"));
     }
 
     private static final class ExceptionOnLoadService extends TestNode.TestService

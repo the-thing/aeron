@@ -802,7 +802,7 @@ final class ClusteredServiceAgent extends ClusteredServiceAgentRhsPadding implem
 
         if (null != exception)
         {
-            final String message = "failed to load for service=" + ctx.serviceId() +
+            final String message = "failed to start service=" + ctx.serviceId() +
                 " leadershipTermId=" + leadershipTermId +
                 " logPosition=" + logPosition +
                 " clusterTime=" + clusterTime +
