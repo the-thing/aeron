@@ -77,7 +77,7 @@ apply NAK delay if no recovery will be attempted. (https://github.com/aeron-io/a
 == 1.50.0 (2026-01-16)
 === New & Noteworthy
 
-* **[Breaking]** Remove deprecated standalone C{plus}{plus} API. The C{plus}{plus} Wrapper API should be used instead.
+* **[Breaking]**: **[C{plus}{plus}]** Remove deprecated standalone C{plus}{plus} API. The C{plus}{plus} Wrapper API should be used instead.
 
 * The `interface` channel parameter now accepts network interface names in the `\{interface-name}` format, e.g. `interface=\{eth0}`.
 +
