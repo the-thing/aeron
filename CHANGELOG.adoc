@@ -2,6 +2,9 @@
 
 == 1.51.0 (Unreleased)
 
+=== New & Noteworthy
+TBD
+
 === Changelog
 
 * **Breaking:** **[Cluster]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been changed from flat classes to records, so the data accessors are now methods and not fields.
