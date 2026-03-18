@@ -3,12 +3,15 @@
 == 1.51.0 (Unreleased)
 
 === New & Noteworthy
-TBD
+
+* **Breaking:** **[Cluster]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been
+changed from flat classes to records, so the data accessors are now methods and not fields.
+* **Breaking:** **[Cluster]** Removed the `ClusteredServiceContainer.Context.standbySnapshotsEnabled` method. This
+configuration is no longer required. It is controlled `ConsensusModule.Context.standbySnapshotsEnabled` configuration
+option and is propagated across as this needs to be consistent across both agents.
 
 === Changelog
 
-* **Breaking:** **[Cluster]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been changed from flat classes to records, so the data accessors are now methods and not fields.
-* **Breaking:** **[Cluster]** Removed the `ClusteredServiceContainer.Context.standbySnapshotsEnabled` method. This configuration is not longer required. It is controlled `ConsensusModule.Context.standbySnapshotsEnabled` configuration option and is propagated across as this needs to be consistent across both agents.
 * **[Cluster]** Backup query responses are now resolved using the most recent entry in the RecordingLog instead of being derived from the RecoveryPlan.
 * **[Cluster]** When a ClusteredServiceAgent fails to start, e.g. from an exception during snapshot load, the ConsensusModuleAgent will also terminate with an error in the log. Previously this would hang indefinitely.
 * **[Java Samples]** Added a sample for ReplayMerge.
