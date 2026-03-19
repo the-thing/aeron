@@ -82,6 +82,8 @@ class SnapshotReplicationTest
             srcStreamId,
             srcChannel,
             replicationParams);
+        assertEquals(replicationId0, snapshotReplication.currentReplicationId());
+
         ignoreArchiveContextLookup();
 
         snapshotReplication.poll(nowNs);
@@ -102,6 +104,8 @@ class SnapshotReplicationTest
             srcStreamId,
             srcChannel,
             replicationParams);
+        assertEquals(replicationId1, snapshotReplication.currentReplicationId());
+
         ignoreArchiveContextLookup();
 
         snapshotReplication.poll(nowNs);
