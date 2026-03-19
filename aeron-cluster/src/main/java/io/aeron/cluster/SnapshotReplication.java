@@ -101,6 +101,26 @@ class SnapshotReplication implements AutoCloseable
         return snapshots;
     }
 
+    RecordingLog.Snapshot currentSnapshot()
+    {
+        final long currentSrcRecordingId = multipleRecordingReplication.currentSrcRecordingId();
+        if (Aeron.NULL_VALUE == currentSrcRecordingId)
+        {
+            return null;
+        }
+
+        for (int i = 0, n = snapshotsPending.size(); i < n; i++)
+        {
+            final RecordingLog.Snapshot snapshot = snapshotsPending.get(i);
+            if (snapshot.recordingId() == currentSrcRecordingId)
+            {
+                return snapshot;
+            }
+        }
+
+        return null;
+    }
+
     static RecordingLog.Snapshot retrievedSnapshot(final RecordingLog.Snapshot pending, final long recordingId)
     {
         return new RecordingLog.Snapshot(

@@ -83,6 +83,7 @@ class SnapshotReplicationTest
             srcChannel,
             replicationParams);
         assertEquals(replicationId0, snapshotReplication.currentReplicationId());
+        assertEquals(snapshots.get(0).recordingId(), snapshotReplication.currentSnapshot().recordingId());
 
         ignoreArchiveContextLookup();
 
@@ -105,6 +106,7 @@ class SnapshotReplicationTest
             srcChannel,
             replicationParams);
         assertEquals(replicationId1, snapshotReplication.currentReplicationId());
+        assertEquals(snapshots.get(1).recordingId(), snapshotReplication.currentSnapshot().recordingId());
 
         ignoreArchiveContextLookup();
 
