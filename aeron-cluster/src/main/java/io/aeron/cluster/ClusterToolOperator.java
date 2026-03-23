@@ -933,6 +933,20 @@ public class ClusterToolOperator
         }
     }
 
+
+    protected int validateRecordingLog(final File clusterDir, final PrintStream out)
+    {
+        return toggleState(
+            out,
+            clusterDir,
+            false,
+            ConsensusModule.State.ACTIVE,
+            NodeControl.ToggleState.VALIDATE_RECORDING_LOG,
+            ToggleApplication.NODE_CONTROL,
+            true,
+            TimeUnit.SECONDS.toMillis(30)) ? SUCCESS : FAILURE;
+    }
+
     /**
      * Load {@link ClusterNodeControlProperties} from the mark file.
      *
@@ -1073,13 +1087,13 @@ public class ClusterToolOperator
                 {
                     out.println(prefix + "Timed out after " + toggleTimeoutMs + "ms waiting for " +
                         targetState + " to complete.");
+                    return false;
                 }
             }
 
             out.println(prefix + targetState + " applied successfully");
 
             return true;
-
         }
         finally
         {

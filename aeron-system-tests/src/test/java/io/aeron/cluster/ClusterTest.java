@@ -90,6 +90,7 @@ import org.agrona.concurrent.errors.ErrorConsumer;
 import org.agrona.concurrent.errors.ErrorLogReader;
 import org.agrona.concurrent.status.CountersReader;
 import org.hamcrest.CoreMatchers;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -3612,6 +3613,41 @@ class ClusterTest
 
         cluster.waitForError(follower, (s) -> s.contains("failed to start service=1"));
     }
+
+    @Test
+    @InterruptAfter(10)
+    @Disabled("not yet implemented")
+    void shouldInvalidateSnapshotsThatHaveBeenRemoved()
+    {
+        cluster = aCluster().start();
+        systemTestWatcher.cluster(cluster);
+
+        final TestNode leader = cluster.awaitLeader();
+        cluster.connectClient();
+        cluster.sendAndAwaitMessages(10);
+        cluster.takeSnapshot(leader);
+        cluster.awaitSnapshotCount(1);
+        cluster.sendAndAwaitMessages(10, 20);
+        cluster.takeSnapshot(leader);
+        cluster.awaitSnapshotCount(2);
+        cluster.sendAndAwaitMessages(10, 30);
+        cluster.takeSnapshot(leader);
+        cluster.awaitSnapshotCount(3);
+
+        final List<TestCluster.SnapshotRecord> snapshots = cluster.snapshots(leader);
+
+        cluster.purgeSnapshot(leader, snapshots.get(0).recordingId());
+        cluster.purgeSnapshot(leader, snapshots.get(1).recordingId());
+
+        cluster.backupQueryContainsSnapshot(leader, snapshots.get(0).logPosition(), snapshots.get(0));
+        cluster.backupQueryContainsSnapshot(leader, snapshots.get(1).logPosition(), snapshots.get(1));
+        cluster.backupQueryContainsSnapshot(leader, snapshots.get(2).logPosition(), snapshots.get(2));
+
+        cluster.validateRecordingLog(leader);
+
+        cluster.backupQueryContainsSnapshot(leader, snapshots.get(0).logPosition(), snapshots.get(2));
+    }
+
 
     private static final class ExceptionOnLoadService extends TestNode.TestService
     {

@@ -602,6 +602,18 @@ public final class ClusterTool
     }
 
     /**
+     * Instruct the cluster node to check the snapshots in the recording log and verify that recording exist.
+     *
+     * @param clusterDir    where the consensus module is running.
+     * @param out           to print the result of the operation.
+     * @return <code>true</code> if the module was succesfully requested, <code>false</code> otherwise.
+     */
+    public static boolean validateRecordingLog(final File clusterDir, final PrintStream out)
+    {
+        return BACKWARD_COMPATIBLE_OPERATIONS.validateRecordingLog(clusterDir, out) == SUCCESS;
+    }
+
+    /**
      * Finds the latest valid snapshot from the log file.
      *
      * @param clusterDir where the cluster node is running.
@@ -637,5 +649,4 @@ public final class ClusterTool
     {
         return new Object2ObjectHashMap<>(COMMANDS);
     }
-
 }

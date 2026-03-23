@@ -71,6 +71,7 @@ import io.aeron.security.AuthorisationServiceSupplier;
 import io.aeron.security.CredentialsSupplier;
 import io.aeron.security.DefaultAuthenticatorSupplier;
 import io.aeron.security.NullCredentialsSupplier;
+import io.aeron.test.CapturingPrintStream;
 import io.aeron.test.DataCollector;
 import io.aeron.test.Tests;
 import io.aeron.test.driver.DriverOutputConsumer;
@@ -2026,6 +2027,63 @@ public final class TestCluster implements AutoCloseable
                 }
             }
         }
+    }
+
+    public void purgeSnapshot(final TestNode node, final long recordingId)
+    {
+        if (null == node || node.isClosed())
+        {
+            return;
+        }
+
+        try (Aeron aeron = Aeron.connect(
+            new Aeron.Context().aeronDirectoryName(node.mediaDriver().aeronDirectoryName())))
+        {
+            final MutableBoolean segmentsDeleted = new MutableBoolean(false);
+            final RecordingSignalConsumer deleteSignalConsumer =
+                (controlSessionId, correlationId, recordingId1, subscriptionId, position, signal) ->
+                {
+                    if (RecordingSignal.DELETE == signal)
+                    {
+                        segmentsDeleted.set(true);
+                    }
+                };
+
+            final AeronArchive.Context aeronArchiveCtx = node
+                .consensusModule()
+                .context()
+                .archiveContext()
+                .clone();
+
+            aeronArchiveCtx
+                .recordingSignalConsumer(deleteSignalConsumer)
+                .aeron(aeron)
+                .ownsAeronClient(false)
+                .controlResponseStreamId(10000 + node.index())
+                .controlResponseChannel(new ChannelUriStringBuilder(aeronArchiveCtx.controlResponseChannel())
+                    .alias("purge-snapshot-node-" + node.index())
+                    .build());
+
+            try (AeronArchive aeronArchive = requireNonNull(AeronArchive.connect(aeronArchiveCtx)))
+            {
+                final long deletedSegmentCount = aeronArchive.purgeRecording(recordingId);
+                assertTrue(0 < deletedSegmentCount);
+
+                while (!segmentsDeleted.get())
+                {
+                    aeronArchive.pollForRecordingSignals();
+                }
+            }
+        }
+    }
+
+    public void validateRecordingLog(final TestNode leader)
+    {
+        final CapturingPrintStream out = new CapturingPrintStream();
+        final File clusterDir = leader.consensusModule().context().clusterDir();
+        assertTrue(
+            ClusterTool.validateRecordingLog(clusterDir, out.resetAndGetPrintStream()),
+            out.flushAndGetContent());
     }
 
     String clusterConsensusEndpoints(final int beginIndex, final int endIndex)
