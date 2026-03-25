@@ -933,7 +933,13 @@ public class ClusterToolOperator
         }
     }
 
-
+    /**
+     * TBD.
+     *
+     * @param clusterDir where the cluster node is running.
+     * @param out print stream.
+     * @return zero if success or {@code -1} if failure.
+     */
     protected int validateRecordingLog(final File clusterDir, final PrintStream out)
     {
         return toggleState(
