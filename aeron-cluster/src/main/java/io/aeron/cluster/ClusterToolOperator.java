@@ -16,26 +16,21 @@
 
 package io.aeron.cluster;
 
-import static io.aeron.Aeron.NULL_VALUE;
-import static java.nio.ByteOrder.LITTLE_ENDIAN;
-import static java.nio.charset.StandardCharsets.US_ASCII;
-import static java.nio.file.StandardCopyOption.*;
-import static java.nio.file.StandardOpenOption.*;
-import static org.agrona.Strings.isEmpty;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.UncheckedIOException;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
-import java.util.function.*;
-
+import io.aeron.Aeron;
+import io.aeron.ChannelUri;
+import io.aeron.CncFileDescriptor;
+import io.aeron.CommonContext;
+import io.aeron.ConcurrentPublication;
+import io.aeron.Image;
+import io.aeron.Subscription;
+import io.aeron.archive.client.AeronArchive;
+import io.aeron.cluster.client.ClusterException;
+import io.aeron.cluster.codecs.mark.ClusterComponentType;
+import io.aeron.cluster.codecs.mark.MarkFileHeaderDecoder;
+import io.aeron.cluster.service.Cluster;
+import io.aeron.cluster.service.ClusterMarkFile;
+import io.aeron.cluster.service.ClusterNodeControlProperties;
+import io.aeron.cluster.service.ConsensusModuleProxy;
 import org.agrona.BufferUtil;
 import org.agrona.DirectBuffer;
 import org.agrona.IoUtil;
@@ -48,15 +43,33 @@ import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersReader;
 
-import io.aeron.*;
-import io.aeron.archive.client.AeronArchive;
-import io.aeron.cluster.client.ClusterException;
-import io.aeron.cluster.codecs.mark.ClusterComponentType;
-import io.aeron.cluster.codecs.mark.MarkFileHeaderDecoder;
-import io.aeron.cluster.service.Cluster;
-import io.aeron.cluster.service.ClusterMarkFile;
-import io.aeron.cluster.service.ClusterNodeControlProperties;
-import io.aeron.cluster.service.ConsensusModuleProxy;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UncheckedIOException;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import static io.aeron.Aeron.NULL_VALUE;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
+import static java.nio.charset.StandardCharsets.US_ASCII;
+import static java.nio.file.StandardCopyOption.COPY_ATTRIBUTES;
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static java.nio.file.StandardOpenOption.CREATE_NEW;
+import static java.nio.file.StandardOpenOption.WRITE;
+import static org.agrona.Strings.isEmpty;
 
 /**
  * Actions for an operator tool to control cluster.
@@ -314,9 +327,9 @@ public class ClusterToolOperator
                 {
                     out.println(
                         "currentTimeNs=" + clusterMembership.currentTimeNs +
-                        ", leaderMemberId=" + clusterMembership.leaderMemberId +
-                        ", memberId=" + clusterMembership.memberId +
-                        ", activeMembers=" + clusterMembership.activeMembers);
+                            ", leaderMemberId=" + clusterMembership.leaderMemberId +
+                            ", memberId=" + clusterMembership.memberId +
+                            ", activeMembers=" + clusterMembership.activeMembers);
                 }
                 else
                 {
@@ -934,11 +947,11 @@ public class ClusterToolOperator
     }
 
     /**
-     * TBD.
+     * Instruct the Cluster node to check the snapshots in the recording log and verify that recording exist.
      *
      * @param clusterDir where the cluster node is running.
-     * @param out print stream.
-     * @return zero if success or {@code -1} if failure.
+     * @param out        to print the result of the operation.
+     * @return {@code 0} if successful or {@code -1} otherwise.
      */
     protected int validateRecordingLog(final File clusterDir, final PrintStream out)
     {
@@ -1178,8 +1191,8 @@ public class ClusterToolOperator
     {
         File[] clusterMarkFileNames = clusterDir.listFiles((dir, name) ->
             name.startsWith(ClusterMarkFile.SERVICE_FILENAME_PREFIX) &&
-            (name.endsWith(ClusterMarkFile.FILE_EXTENSION) ||
-            name.endsWith(ClusterMarkFile.LINK_FILE_EXTENSION)));
+                (name.endsWith(ClusterMarkFile.FILE_EXTENSION) ||
+                    name.endsWith(ClusterMarkFile.LINK_FILE_EXTENSION)));
 
         if (null == clusterMarkFileNames)
         {
