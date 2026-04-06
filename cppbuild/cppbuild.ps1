@@ -151,7 +151,7 @@ for ($i = 0; $i -lt $Args.count; $i++)
 
 $BuildDir = "$PSScriptRoot\$BuildConfig"
 $SourceDir = "$PSScriptRoot\.."
-$CMakeVersion = "4.2.1"
+$CMakeVersion = "4.3.0"
 $CMakeDirName = "cmake-$CMakeVersion-windows-x86_64"
 $CMakeArchive = "$CMakeDirName.zip"
 $CMakePath = "$PSScriptRoot\$CMakeDirName"
