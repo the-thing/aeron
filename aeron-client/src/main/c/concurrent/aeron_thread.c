@@ -281,7 +281,7 @@ int aeron_thread_create(aeron_thread_t *thread_ptr, void *attr, void *(*callback
 
     if (!(*thread_ptr)->handle)
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "CreateThread failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "CreateThread failed");
         aeron_free(*thread_ptr);
         return -1;
     }
@@ -299,7 +299,7 @@ int aeron_thread_set_name(const char *name)
     size_t wchar_count;
     if (0 != mbstowcs_s(&wchar_count, NULL, 0, thread_name, 0))
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "mbstowcs_s failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "mbstowcs_s failed");
         return -1;
     }
 
@@ -312,14 +312,14 @@ int aeron_thread_set_name(const char *name)
 
     if (0 != mbstowcs_s(NULL, buf, wchar_count + 1, thread_name, copy_len))
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "mbstowcs_s failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "mbstowcs_s failed");
         goto error;
     }
 
     HRESULT hr = SetThreadDescription(GetCurrentThread(), buf);
     if (FAILED(hr))
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "SetThreadDescription failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "SetThreadDescription failed");
         goto error;
     }
 
@@ -345,20 +345,23 @@ int aeron_thread_get_name(char *name_buf, size_t name_buf_size)
         return -1;
     }
 
-    wchar_t buf[AERON_THREAD_NAME_MAX_LENGTH];
+    wchar_t *buf;
     HRESULT hr = GetThreadDescription(GetCurrentThread(), &buf);
     if (FAILED(hr))
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "GetThreadDescription failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "GetThreadDescription failed");
         return -1;
     }
 
     size_t size;
-    if (0 != wcstombs_s(&size, name_buf, name_buf_size, &buf, _TRUNCATE))
+    if (0 != wcstombs_s(&size, name_buf, name_buf_size, buf, _TRUNCATE))
     {
-        AERON_SET_ERR_WIN(WSAGetLastError(), "%s", "wcstombs_s failed");
+        AERON_SET_ERR_WIN(GetLastError(), "%s", "wcstombs_s failed");
+        LocalFree(buf);
+        return -1;
     }
 
+    LocalFree(buf);
     return 0;
 }
 
