@@ -79,8 +79,9 @@ TEST(AeronThreadTest, getNameShouldFailIfBufferIsNull)
 
 TEST(AeronThreadTest, getNameShouldFailIfBufferIsTooSmall)
 {
-    EXPECT_EQ(-1, aeron_thread_get_name(new char[5], 1));
-    EXPECT_EQ(-1, aeron_thread_get_name(new char[50], AERON_THREAD_NAME_MAX_LENGTH));
+    char buffer[128];
+    EXPECT_EQ(-1, aeron_thread_get_name(buffer, 1));
+    EXPECT_EQ(-1, aeron_thread_get_name(buffer, AERON_THREAD_NAME_MAX_LENGTH));
 }
 
 class AeronThreadNameTest : public testing::TestWithParam<std::tuple<std::string, std::string>>

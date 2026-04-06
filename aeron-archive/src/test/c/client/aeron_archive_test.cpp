@@ -4550,6 +4550,8 @@ TEST_P(AeronArchiveClientNameTest, shouldSetClientName)
 
     EXPECT_EQ(0, aeron_archive_context_set_client_name(m_ctx, client_name.c_str()));
     EXPECT_STREQ(client_name.c_str(), aeron_archive_context_get_client_name(m_ctx));
+
+    ASSERT_EQ_ERR(0, aeron_archive_context_close(m_ctx));
 }
 
 TEST_F(AeronArchiveClientNameTest, shouldFailIfClientNameIsTooLong)
@@ -4559,4 +4561,6 @@ TEST_F(AeronArchiveClientNameTest, shouldFailIfClientNameIsTooLong)
 
     EXPECT_EQ(-1, aeron_archive_context_set_client_name(m_ctx, client_name.c_str()));
     EXPECT_EQ(EINVAL, aeron_errcode());
+
+    ASSERT_EQ_ERR(0, aeron_archive_context_close(m_ctx));
 }
