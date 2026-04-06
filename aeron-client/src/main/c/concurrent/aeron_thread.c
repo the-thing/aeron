@@ -326,7 +326,7 @@ int aeron_thread_set_name(const char *name)
     aeron_free(buf);
     return 0;
 
-:error
+error:
     aeron_free(buf);
     return -1;
 }
