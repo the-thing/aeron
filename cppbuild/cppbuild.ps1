@@ -152,7 +152,12 @@ for ($i = 0; $i -lt $Args.count; $i++)
 $BuildDir = "$PSScriptRoot\$BuildConfig"
 $SourceDir = "$PSScriptRoot\.."
 $CMakeVersion = "4.3.0"
-$CMakeDirName = "cmake-$CMakeVersion-windows-$env:PROCESSOR_ARCHITECTURE"
+$CMakeArch = "x86_64"
+if ( $env:PROCESSOR_ARCHITECTURE -eq "ARM64" )
+{
+    $CMakeArch = "arm64"
+}
+$CMakeDirName = "cmake-$CMakeVersion-windows-$CMakeArch"
 $CMakeArchive = "$CMakeDirName.zip"
 $CMakePath = "$PSScriptRoot\$CMakeDirName"
 $OldPath = $env:Path
