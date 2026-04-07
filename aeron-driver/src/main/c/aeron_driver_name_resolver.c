@@ -777,7 +777,8 @@ static int aeron_driver_name_resolver_do_send(
     {
         char buffer[AERON_NETUTIL_FORMATTED_MAX_LENGTH] = { 0 };
         aeron_format_source_identity(buffer, AERON_NETUTIL_FORMATTED_MAX_LENGTH, neighbor_address);
-        AERON_APPEND_ERR("Failed to send resolution frames to neighbor: %s (protocol_family=%i)",
+        AERON_APPEND_ERR(
+            "Failed to send resolution frames to neighbor: %s (protocol_family=%i)",
             buffer, neighbor_address->ss_family);
     }
 
