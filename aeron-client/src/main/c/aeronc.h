@@ -482,9 +482,16 @@ int aeron_async_add_publication(
 int aeron_async_add_publication_poll(aeron_publication_t **publication, aeron_async_add_publication_t *async);
 
 /**
- * Cancel an in-progress aeron_async_add_publication operation.
- * Will eventually free the given aeron_async_add_publication_t.
- * If a publication gets created by the time cancellation happens, it will get removed.
+ * Cancel an in-progress <code>aeron_async_add_publication</code> operation.
+ *
+ * <p>
+ * Will eventually free the given <code>aeron_async_add_publication_t</code> instance. If a publication gets created by
+ * the time cancellation happens, it will get removed.
+ *
+ * <p>
+ * <em>Note:</em> The above guarantees only apply when a call to this method succeeds, i.e. return value is zero. If a
+ * return value is non-zero the operation won't be canceled and the <code>aeron_async_add_publication_t</code> instance
+ * won't be freed.
  *
  * @param client which the publication is being added to.
  * @param async operation to be canceled. Must not be accessed after this call succeeds.
@@ -530,9 +537,16 @@ int aeron_async_add_exclusive_publication_poll(
     aeron_exclusive_publication_t **publication, aeron_async_add_exclusive_publication_t *async);
 
 /**
- * Cancel an in-progress aeron_async_add_exclusive_publication operation.
- * Will eventually free the given aeron_async_add_exclusive_publication_t.
- * If a publication gets created by the time cancellation happens, it will get removed.
+ * Cancel an in-progress <code>aeron_async_add_exclusive_publication</code> operation.
+ *
+ * <p>
+ * Will eventually free the given <code>aeron_async_add_exclusive_publication_t</code> instance. If a publication gets
+ * created by the time cancellation happens, it will get removed.
+ *
+ * <p>
+ * <em>Note:</em> The above guarantees only apply when a call to this method succeeds, i.e. return value is zero. If a
+ * return value is non-zero the operation won't be canceled and the <code>aeron_async_add_exclusive_publication_t</code>
+ * instance won't be freed.
  *
  * @param client which the exclusive publication is being added to.
  * @param async operation to be canceled. Must not be accessed after this call succeeds.
@@ -589,8 +603,15 @@ int aeron_async_add_subscription_poll(aeron_subscription_t **subscription, aeron
 
 /**
  * Cancel an in-progress aeron_async_add_subscription operation.
- * Will eventually free the given aeron_async_add_subscription_t.
- * If a subscription gets created by the time cancellation happens, it will get removed.
+ *
+ * <p>
+ * Will eventually free the given <code>aeron_async_add_subscription_t</code> instance. If a subscription gets created
+ * by the time cancellation happens, it will get removed.
+ *
+ * <p>
+ * <em>Note:</em> The above guarantees only apply when a call to this method succeeds, i.e. return value is zero. If a
+ * return value is non-zero the operation won't be canceled and the <code>aeron_async_add_subscription_t</code> instance
+ * won't be freed.
  *
  * @param client which the subscription is being added to.
  * @param async operation to be canceled. Must not be accessed after this call succeeds.
@@ -654,9 +675,17 @@ int aeron_async_add_counter(
 int aeron_async_add_counter_poll(aeron_counter_t **counter, aeron_async_add_counter_t *async);
 
 /**
- * Cancel an in-progress aeron_async_add_counter operation. Not applicable to aeron_async_add_static_counter.
- * Will eventually free the given aeron_async_add_counter_t.
- * If a counter gets created by the time cancellation happens, it will get removed.
+ * Cancel an in-progress <code>aeron_async_add_counter</code> operation. Not applicable to
+ * <code>aeron_async_add_static_counter</code>, i.e. attempt to cancel static counter will fail with an error.
+ *
+ * <p>
+ * Will eventually free the given <code>aeron_async_add_counter_t</code> instance. If a counter gets created by the time
+ * cancellation happens, it will get removed.
+ *
+* <p>
+ * <em>Note:</em> The above guarantees only apply when a call to this method succeeds, i.e. return value is zero. If a
+ * return value is non-zero the operation won't be canceled and the <code>aeron_async_add_counter_t</code> instance
+ * won't be freed.
  *
  * @param client which the counter is being added to.
  * @param async operation to be canceled. Must not be accessed after this call succeeds.
