@@ -70,7 +70,8 @@ jobs:
           $current_size = (Get-PartitionSupportedSize -DriveLetter D)
           $new_size = ($current_size.SizeMax - 100 * 1024 * 1024)
           Resize-Partition -DriveLetter D -Size ($new_size)
-          New-Partition -DiskNumber 1 -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
+          $disk = (Get-Disk -Partition (Get-Partition -DriveLetter D)).Number
+          New-Partition -DiskNumber ($disk) -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
           New-Item -ItemType Directory -Path T:\tmp_aeron_dir
       - name: Enable core dumps (Linux)
         if: runner.os == 'Linux'
@@ -475,7 +476,8 @@ jobs:
           $current_size = (Get-PartitionSupportedSize -DriveLetter D)
           $new_size = ($current_size.SizeMax - 100 * 1024 * 1024)
           Resize-Partition -DriveLetter D -Size ($new_size)
-          New-Partition -DiskNumber 1 -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
+          $disk = (Get-Disk -Partition (Get-Partition -DriveLetter D)).Number
+          New-Partition -DiskNumber ($disk) -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
           New-Item -ItemType Directory -Path T:\tmp_aeron_dir
       - name: Checkout code
         uses: actions/checkout@v6
