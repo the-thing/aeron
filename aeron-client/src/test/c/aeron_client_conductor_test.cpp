@@ -758,7 +758,8 @@ TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)
     ASSERT_EQ(aeron_client_conductor_async_add_publication(&async, &m_conductor, URI_RESERVED, STREAM_ID), 0);
     doWork();
 
-    m_on_new_publication = [&](aeron_async_add_publication_t *async,
+    m_on_new_publication = [&](
+        aeron_async_add_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -768,9 +769,7 @@ TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)
         EXPECT_EQ(stream_id, STREAM_ID);
         EXPECT_EQ(session_id, SESSION_ID);
         EXPECT_EQ(correlation_id, async->registration_id);
-
-        ASSERT_GT(aeron_async_add_publication_poll(&publication, async), 0) << aeron_errmsg();
-        ASSERT_TRUE(nullptr != publication);
+        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
 
         was_on_new_publication_called = true;
     };
@@ -780,6 +779,9 @@ TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)
     doWork();
 
     EXPECT_TRUE(was_on_new_publication_called);
+
+    EXPECT_GT(aeron_async_add_publication_poll(&publication, async), 0) << aeron_errmsg();
+    EXPECT_NE(nullptr, publication);
 
     // graceful close and reclaim for sanitize
     ASSERT_EQ(aeron_publication_close(publication, nullptr, nullptr), 0);
@@ -795,7 +797,8 @@ TEST_F(ClientConductorTest, shouldAddExclusivePublicationAndHandleOnNewPublicati
     ASSERT_EQ(aeron_client_conductor_async_add_exclusive_publication(&async, &m_conductor, URI_RESERVED, STREAM_ID), 0);
     doWork();
 
-    m_on_new_exclusive_publication = [&](aeron_async_add_exclusive_publication_t *async,
+    m_on_new_exclusive_publication = [&](
+        aeron_async_add_exclusive_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -805,9 +808,7 @@ TEST_F(ClientConductorTest, shouldAddExclusivePublicationAndHandleOnNewPublicati
         EXPECT_EQ(stream_id, STREAM_ID);
         EXPECT_EQ(session_id, SESSION_ID);
         EXPECT_EQ(correlation_id, async->registration_id);
-
-        ASSERT_GT(aeron_async_add_exclusive_publication_poll(&publication, async), 0) << aeron_errmsg();
-        ASSERT_TRUE(nullptr != publication);
+        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
 
         was_on_new_exclusive_publication_called = true;
     };
@@ -817,6 +818,9 @@ TEST_F(ClientConductorTest, shouldAddExclusivePublicationAndHandleOnNewPublicati
     doWork();
 
     EXPECT_TRUE(was_on_new_exclusive_publication_called);
+
+    EXPECT_GT(aeron_async_add_exclusive_publication_poll(&publication, async), 0) << aeron_errmsg();
+    EXPECT_NE(nullptr, publication);
 
     // graceful close and reclaim for sanitize
     ASSERT_EQ(aeron_exclusive_publication_close(publication, nullptr, nullptr), 0);
@@ -842,9 +846,7 @@ TEST_F(ClientConductorTest, shouldAddSubscriptionAndHandleOnNewSubscription)
         EXPECT_EQ(strcmp(channel, SUB_URI), 0);
         EXPECT_EQ(stream_id, STREAM_ID);
         EXPECT_EQ(correlation_id, async->registration_id);
-
-        ASSERT_GT(aeron_async_add_subscription_poll(&subscription, async), 0) << aeron_errmsg();
-        ASSERT_TRUE(nullptr != subscription);
+        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
 
         was_on_new_subscription_called = true;
     };
@@ -853,6 +855,9 @@ TEST_F(ClientConductorTest, shouldAddSubscriptionAndHandleOnNewSubscription)
     doWork();
 
     EXPECT_TRUE(was_on_new_subscription_called);
+
+    EXPECT_GT(aeron_async_add_subscription_poll(&subscription, async), 0) << aeron_errmsg();
+    EXPECT_NE(nullptr, subscription);
 
     // graceful close and reclaim for sanitize
     ASSERT_EQ(aeron_subscription_close(subscription, nullptr, nullptr), 0);
