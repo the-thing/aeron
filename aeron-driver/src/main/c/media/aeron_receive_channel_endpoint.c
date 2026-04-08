@@ -67,6 +67,42 @@ int aeron_receive_channel_endpoint_create(
     if (aeron_alloc((void **)&_endpoint, sizeof(aeron_receive_channel_endpoint_t)) < 0)
     {
         AERON_APPEND_ERR("%s", "could not allocate receive_channel_endpoint");
+        return -1;
+    }
+
+    _endpoint->conductor_fields.managed_resource.clientd = _endpoint;
+    _endpoint->conductor_fields.managed_resource.registration_id = -1;
+    _endpoint->conductor_fields.status = AERON_RECEIVE_CHANNEL_ENDPOINT_STATUS_ACTIVE;
+    _endpoint->conductor_fields.image_ref_count = 0;
+    _endpoint->conductor_fields.udp_channel = NULL;
+
+    _endpoint->destinations.array = NULL;
+    _endpoint->destinations.length = 0;
+    _endpoint->destinations.capacity = 0;
+
+    _endpoint->channel_status.counter_id = -1;
+    _endpoint->transport_bindings = context->udp_channel_transport_bindings;
+
+    _endpoint->has_receiver_released = false;
+
+    _endpoint->channel_status.counter_id = status_indicator->counter_id;
+    _endpoint->channel_status.value_addr = status_indicator->value_addr;
+
+    _endpoint->receiver_id = context->next_receiver_id++;
+    _endpoint->receiver_proxy = context->receiver_proxy;
+
+    _endpoint->short_sends_counter = aeron_system_counter_addr(system_counters, AERON_SYSTEM_COUNTER_SHORT_SENDS);
+    _endpoint->possible_ttl_asymmetry_counter = aeron_system_counter_addr(
+        system_counters, AERON_SYSTEM_COUNTER_POSSIBLE_TTL_ASYMMETRY);
+    _endpoint->errors_frames_sent_counter = aeron_system_counter_addr(
+        system_counters, AERON_SYSTEM_COUNTER_ERROR_FRAMES_SENT);
+
+    _endpoint->cached_clock = context->receiver_cached_clock;
+
+    _endpoint->send_nak_message = context->log.send_nak_message;
+
+    if (aeron_receive_channel_endpoint_set_group_tag(_endpoint, channel, context) < 0)
+    {
         goto error;
     }
 
@@ -98,36 +134,6 @@ int aeron_receive_channel_endpoint_create(
         goto error;
     }
 
-    _endpoint->conductor_fields.managed_resource.clientd = _endpoint;
-    _endpoint->conductor_fields.managed_resource.registration_id = -1;
-    _endpoint->conductor_fields.status = AERON_RECEIVE_CHANNEL_ENDPOINT_STATUS_ACTIVE;
-    _endpoint->conductor_fields.image_ref_count = 0;
-    _endpoint->channel_status.counter_id = -1;
-    _endpoint->transport_bindings = context->udp_channel_transport_bindings;
-
-    _endpoint->has_receiver_released = false;
-
-    _endpoint->channel_status.counter_id = status_indicator->counter_id;
-    _endpoint->channel_status.value_addr = status_indicator->value_addr;
-
-    _endpoint->receiver_id = context->next_receiver_id++;
-    _endpoint->receiver_proxy = context->receiver_proxy;
-
-    if (aeron_receive_channel_endpoint_set_group_tag(_endpoint, channel, context) < 0)
-    {
-        goto error;
-    }
-
-    _endpoint->short_sends_counter = aeron_system_counter_addr(system_counters, AERON_SYSTEM_COUNTER_SHORT_SENDS);
-    _endpoint->possible_ttl_asymmetry_counter = aeron_system_counter_addr(
-        system_counters, AERON_SYSTEM_COUNTER_POSSIBLE_TTL_ASYMMETRY);
-    _endpoint->errors_frames_sent_counter = aeron_system_counter_addr(
-        system_counters, AERON_SYSTEM_COUNTER_ERROR_FRAMES_SENT);
-
-    _endpoint->cached_clock = context->receiver_cached_clock;
-
-    _endpoint->send_nak_message = context->log.send_nak_message;
-
     if (NULL != straight_through_destination)
     {
         if (aeron_receive_channel_endpoint_add_destination(_endpoint, straight_through_destination) < 0)
@@ -141,11 +147,8 @@ int aeron_receive_channel_endpoint_create(
     *endpoint = _endpoint;
     return 0;
 
-    error:
-    if (NULL != _endpoint)
-    {
-        aeron_receive_channel_endpoint_delete(NULL, _endpoint);
-    }
+error:
+    aeron_receive_channel_endpoint_delete(NULL, _endpoint);
     return -1;
 }
 
