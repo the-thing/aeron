@@ -30,19 +30,31 @@
 #include "aeron_counter.h"
 #include "aeron_counters.h"
 
-#define AERON_ON_HANDLER_ADD(p, c, m, t) \
-{ \
-int ensure_capacity_result = 0; \
-AERON_ARRAY_ENSURE_CAPACITY(ensure_capacity_result, (c)->m, t) \
-if (ensure_capacity_result < 0) \
-{ \
-char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH]; \
-snprintf(err_buffer, sizeof(err_buffer) - 1, "add " #t ": %s", aeron_errmsg()); \
-conductor->error_handler(conductor->error_handler_clientd, aeron_errcode(), err_buffer); \
-(p) = NULL; \
-} \
-(p) = &(c)->m.array[(c)->m.length++]; \
+static void aeron_client_conductor_handle_system_error(aeron_client_conductor_t *conductor)
+{
+    int errcode = aeron_errcode();
+    int aeron_error_code = errcode < 0 ? -errcode : AERON_ERROR_CODE_GENERIC_ERROR;
+    conductor->error_handler(conductor->error_handler_clientd, aeron_error_code, aeron_errmsg());
+    aeron_err_clear();
 }
+
+#define AERON_ON_HANDLER_ADD(p, c, m, t)                            \
+do                                                                  \
+{                                                                   \
+    int ensure_capacity_result = 0;                                 \
+    AERON_ARRAY_ENSURE_CAPACITY(ensure_capacity_result, (c)->m, t); \
+    if (ensure_capacity_result < 0)                                 \
+    {                                                               \
+        (p) = NULL;                                                 \
+        AERON_APPEND_ERR("%s", "");                                 \
+        aeron_client_conductor_handle_system_error((c));            \
+    }                                                               \
+    else                                                            \
+    {                                                               \
+        (p) = &(c)->m.array[(c)->m.length++];                       \
+    }                                                               \
+}                                                                   \
+while (false)
 
 _Static_assert(
     sizeof(aeron_publication_error_t) == sizeof(aeron_publication_error_values_t),
@@ -191,10 +203,8 @@ static int32_t aeron_client_conductor_add_registering_resource(
         result, conductor->registering_resources, aeron_client_registering_resource_entry_t)
     if (result < 0)
     {
-        char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
-        snprintf(err_buffer, sizeof(err_buffer) - 1, "failed to grow registering_resources array: %s", aeron_errmsg());
-        conductor->error_handler(conductor->error_handler_clientd, aeron_errcode(), err_buffer);
+        AERON_APPEND_ERR("%s", "failed to add entry to registering_resources array");
+        aeron_client_conductor_handle_system_error(conductor);
         return -1;
     }
 
@@ -674,10 +684,8 @@ static int aeron_client_conductor_linger_image(aeron_client_conductor_t *conduct
     AERON_ARRAY_ENSURE_CAPACITY(ensure_capacity_result, conductor->lingering_resources, aeron_client_managed_resource_t)
     if (ensure_capacity_result < 0)
     {
-        char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
-        snprintf(err_buffer, sizeof(err_buffer) - 1, "lingering image: %s", aeron_errmsg());
-        conductor->error_handler(conductor->error_handler_clientd, aeron_errcode(), err_buffer);
+        AERON_APPEND_ERR("%s", "failed to add image to lingering_resources array");
+        aeron_client_conductor_handle_system_error(conductor);
         return -1;
     }
 
@@ -1098,9 +1106,7 @@ static void aeron_client_conductor_on_driver_response(int32_t type_id, uint8_t *
 
     if (result < 0)
     {
-        int os_errno = aeron_errcode();
-        int code = os_errno < 0 ? -os_errno : AERON_ERROR_CODE_GENERIC_ERROR;
-        conductor->error_handler(conductor->error_handler_clientd, code, aeron_errmsg());
+        aeron_client_conductor_handle_system_error(conductor);
     }
 
     return;
@@ -1216,19 +1222,19 @@ static int aeron_client_conductor_check_liveness(aeron_client_conductor_t *condu
 
         if (AERON_NULL_VALUE == last_keepalive_ms)
         {
-            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
             conductor->is_terminating = true;
             aeron_client_conductor_force_close_resources(conductor);
+
+            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
             snprintf(buffer, sizeof(buffer) - 1, "MediaDriver has been shutdown");
             conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_DRIVER_TIMEOUT, buffer);
         }
         else if (now_ms > (last_keepalive_ms + (int64_t)conductor->driver_timeout_ms))
         {
-            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
             conductor->is_terminating = true;
             aeron_client_conductor_force_close_resources(conductor);
+
+            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
             snprintf(buffer, sizeof(buffer) - 1,
                 "MediaDriver keepalive: age=%" PRId64 "ms > timeout=%" PRId64 "ms",
                 (int64_t)(now_ms - last_keepalive_ms),
@@ -1281,13 +1287,12 @@ static int aeron_client_conductor_check_liveness(aeron_client_conductor_t *condu
             if (!aeron_counter_heartbeat_timestamp_is_active(
                 &conductor->counters_reader, id, AERON_COUNTER_CLIENT_HEARTBEAT_TIMESTAMP_TYPE_ID, conductor->client_id))
             {
-                char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
                 conductor->is_terminating = true;
                 aeron_client_conductor_force_close_resources(conductor);
+
+                char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
                 snprintf(buffer, sizeof(buffer) - 1, "unexpected close of heartbeat timestamp counter: %" PRId32, id);
-                conductor->error_handler(conductor->error_handler_clientd, ETIMEDOUT, buffer);
-                AERON_SET_ERR(ETIMEDOUT, "%s", buffer);
+                conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_DRIVER_TIMEOUT, buffer);
                 return -1;
             }
 
@@ -1380,10 +1385,10 @@ static int aeron_client_conductor_on_check_timeouts(aeron_client_conductor_t *co
     {
         if (now_ns > (conductor->time_of_last_service_ns + (int64_t)conductor->inter_service_timeout_ns))
         {
-            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
             conductor->is_terminating = true;
             aeron_client_conductor_force_close_resources(conductor);
+
+            char buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
             snprintf(buffer, sizeof(buffer) - 1,
                 "service interval exceeded in ns: timeout=%" PRId64 ", interval=%" PRId64,
                 (int64_t)conductor->inter_service_timeout_ns,
@@ -1832,7 +1837,7 @@ static int aeron_client_conductor_get_async_registration_id(
             char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
             snprintf(
                 err_buffer, sizeof(err_buffer) - 1, "unknown resource type: %d", async->resource.base_resource->type);
-            conductor->error_handler(conductor->error_handler_clientd, EINVAL, err_buffer);
+            conductor->error_handler(conductor->error_handler_clientd, AERON_ERROR_CODE_GENERIC_ERROR, err_buffer);
             result = -1;
             break;
         }
@@ -2395,8 +2400,17 @@ int aeron_client_conductor_do_work(aeron_client_conductor_t *conductor)
     work_count += (int)aeron_mpsc_concurrent_array_queue_drain(
         conductor->command_queue, aeron_client_conductor_on_command, conductor, 1);
 
-    work_count += aeron_broadcast_receiver_receive(
+    result = aeron_broadcast_receiver_receive(
         &conductor->to_client_buffer, aeron_client_conductor_on_driver_response, conductor);
+    if (result < 0)
+    {
+        AERON_APPEND_ERR("%s", "aeron_broadcast_receiver_receive failed");
+        aeron_client_conductor_handle_system_error(conductor);
+    }
+    else
+    {
+        work_count += result;
+    }
 
     if ((result = aeron_client_conductor_on_check_timeouts(conductor)) < 0)
     {
@@ -3231,10 +3245,10 @@ int aeron_client_conductor_on_client_timeout(aeron_client_conductor_t *conductor
 {
     if (response->client_id == conductor->client_id)
     {
-        char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
-
         conductor->is_terminating = true;
         aeron_client_conductor_force_close_resources(conductor);
+
+        char err_buffer[AERON_ERROR_MAX_TOTAL_LENGTH];
         snprintf(err_buffer, sizeof(err_buffer) - 1, "%s", "client timeout from driver");
         conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_CLIENT_TIMEOUT, err_buffer);
     }
