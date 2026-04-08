@@ -67,9 +67,9 @@ jobs:
       - name: Setup small temp file system (Windows)
         if: runner.os == 'Windows'
         run: |
-          $current_size = (Get-PartitionSupportedSize -DiskNumber 1 -PartitionNumber 1)
+          $current_size = (Get-PartitionSupportedSize -DriveLetter D)
           $new_size = ($current_size.SizeMax - 100 * 1024 * 1024)
-          Resize-Partition -DiskNumber 1 -PartitionNumber 1 -Size ($new_size)
+          Resize-Partition -DriveLetter D -Size ($new_size)
           New-Partition -DiskNumber 1 -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
           New-Item -ItemType Directory -Path T:\tmp_aeron_dir
       - name: Enable core dumps (Linux)
@@ -472,9 +472,9 @@ jobs:
           reg add "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\CompatTelRunner.exe" /v Debugger /t REG_SZ /d "block.exe" /f
       - name: Setup small temp file system
         run: |
-          $current_size = (Get-PartitionSupportedSize -DiskNumber 1 -PartitionNumber 1)
+          $current_size = (Get-PartitionSupportedSize -DriveLetter D)
           $new_size = ($current_size.SizeMax - 100 * 1024 * 1024)
-          Resize-Partition -DiskNumber 1 -PartitionNumber 1 -Size ($new_size)
+          Resize-Partition -DriveLetter D -Size ($new_size)
           New-Partition -DiskNumber 1 -Size 60MB -DriveLetter T | Format-Volume -FileSystem NTFS -Confirm:$false
           New-Item -ItemType Directory -Path T:\tmp_aeron_dir
       - name: Checkout code
