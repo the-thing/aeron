@@ -134,8 +134,8 @@ inline int aeron_array_to_ptr_hash_map_rehash(aeron_array_to_ptr_hash_map_t *map
 
     if (aeron_alloc((void **)&tmp_values, (new_capacity * sizeof(void *))) < 0)
     {
-        aeron_free(tmp_keys);
         AERON_APPEND_ERR("%s", "Unable to allocate new values");
+        aeron_free(tmp_keys);
         return -1;
     }
 
