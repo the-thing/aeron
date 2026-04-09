@@ -817,6 +817,10 @@ uint64_t aeron_driver_context_get_self_resolution_interval_ns(aeron_driver_conte
 int aeron_driver_context_set_resolver_neighbor_resolution_interval_ns(aeron_driver_context_t *context, uint64_t value);
 uint64_t aeron_driver_context_get_resolver_neighbor_resolution_interval_ns(aeron_driver_context_t *context);
 
+#define AERON_DRIVER_RESOLVER_BOOTSTRAP_NEIGHBOR_RESOLUTION_INTERVAL_NS_ENV_VAR "aeron.driver.resolver.bootstrap.neighbor.resolution.interval.ns"
+int aeron_driver_context_set_resolver_bootstrap_neighbor_resolution_interval_ns(aeron_driver_context_t *context, uint64_t value);
+uint64_t aeron_driver_context_get_resolver_bootstrap_resolution_interval_ns(aeron_driver_context_t *context);
+
 /**
  * Specify the interval which checks for re-resolutions of names occurs.
  */
