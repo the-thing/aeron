@@ -1599,7 +1599,7 @@ final class ClientConductor implements Agent
         }
     }
 
-    void releaseCounter(final Counter counter)
+    void removeCounter(final Counter counter)
     {
         clientLock.lock();
         try
