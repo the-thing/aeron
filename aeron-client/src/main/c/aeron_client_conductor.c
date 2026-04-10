@@ -182,7 +182,7 @@ static int32_t aeron_client_conductor_try_claim_driver_command(
                 (uint64_t)command_length,
                 __FILE__,
                 __LINE__);
-            conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_BUFFER_FULL, err_buffer);
+            conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_DRIVER_BUFFER_FULL, err_buffer);
             return -1;
         }
 
