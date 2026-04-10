@@ -2412,11 +2412,11 @@ int aeron_client_conductor_do_work(aeron_client_conductor_t *conductor)
         work_count += result;
     }
 
-    if ((result = aeron_client_conductor_on_check_timeouts(conductor)) < 0)
+    result = aeron_client_conductor_on_check_timeouts(conductor);
+    if (result >= 0)
     {
-        return work_count;
+        work_count += result;
     }
-    work_count += result;
 
     return work_count;
 }
