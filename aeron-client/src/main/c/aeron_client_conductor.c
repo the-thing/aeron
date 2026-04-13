@@ -1691,20 +1691,65 @@ static void aeron_client_conductor_delete_resource(void *clientd, int64_t key, v
     switch (base->type)
     {
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_PUBLICATION:
-            aeron_publication_delete((aeron_publication_t *)value);
+        {
+            aeron_publication_t *publication = (aeron_publication_t *)base;
+            aeron_notification_t on_close_complete = publication->on_close_complete;
+            void *on_close_complete_clientd = publication->on_close_complete_clientd;
+
+            aeron_publication_delete(publication);
+
+            if (NULL != on_close_complete)
+            {
+                on_close_complete(on_close_complete_clientd);
+            }
             break;
+        }
 
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_EXCLUSIVE_PUBLICATION:
-            aeron_exclusive_publication_delete((aeron_exclusive_publication_t *)value);
+        {
+            aeron_exclusive_publication_t *publication = (aeron_exclusive_publication_t *)base;
+
+            aeron_notification_t on_close_complete = publication->on_close_complete;
+            void *on_close_complete_clientd = publication->on_close_complete_clientd;
+
+            aeron_exclusive_publication_delete(publication);
+
+            if (NULL != on_close_complete)
+            {
+                on_close_complete(on_close_complete_clientd);
+            }
             break;
+        }
 
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_SUBSCRIPTION:
-            aeron_subscription_delete((aeron_subscription_t *)value);
+        {
+            aeron_subscription_t *subscription = (aeron_subscription_t *)base;
+            aeron_notification_t on_close_complete = subscription->on_close_complete;
+            void *on_close_complete_clientd = subscription->on_close_complete_clientd;
+
+            aeron_subscription_delete(subscription);
+
+            if (NULL != on_close_complete)
+            {
+                on_close_complete(on_close_complete_clientd);
+            }
             break;
+        }
 
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER:
-            aeron_counter_delete((aeron_counter_t *)value);
+        {
+            aeron_counter_t *counter = (aeron_counter_t *)base;
+            aeron_notification_t on_close_complete = counter->on_close_complete;
+            void *on_close_complete_clientd = counter->on_close_complete_clientd;
+
+            aeron_counter_delete(counter);
+
+            if (NULL != on_close_complete)
+            {
+                on_close_complete(on_close_complete_clientd);
+            }
             break;
+        }
 
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_IMAGE:
             aeron_image_delete((aeron_image_t *)value);

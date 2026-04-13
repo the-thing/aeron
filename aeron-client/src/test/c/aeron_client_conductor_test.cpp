@@ -212,7 +212,10 @@ public:
 
     ~ClientConductorTest() override
     {
-        aeron_client_conductor_on_close(&m_conductor);
+        if (!m_conductor_isClosed)
+        {
+            aeron_client_conductor_on_close(&m_conductor);
+        }
         aeron_counters_manager_close(&m_counters_manager);
         m_context->cnc_map.addr = nullptr;
         aeron_context_close(m_context);
@@ -393,6 +396,7 @@ public:
 
 protected:
     aeron_context_t *m_context = nullptr;
+    bool m_conductor_isClosed = false;
     aeron_client_conductor_t m_conductor = {};
     aeron_counters_manager_t m_counters_manager = {};
     aeron_clock_cache_t m_cached_clock = {};
@@ -1889,4 +1893,160 @@ TEST_F(ClientConductorTest, shouldAsyncCloseCounterIfClientBufferIsFull)
     {
         aeron_async_cmd_free(async_session_id);
     }
+}
+
+TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndCounterIsForcefullyDeleted)
+{
+    aeron_async_add_counter_t *async = nullptr;
+    aeron_counter_t *counter = nullptr;
+    m_conductor.invoker_mode = false;
+
+    int32_t type_id = 1000;
+    std::string label = "my counter";
+    EXPECT_EQ(aeron_client_conductor_async_add_counter(
+        &async, &m_conductor, type_id, nullptr, 0, label.c_str(), label.length()), 0);
+    doWork();
+
+    transmitOnCounterReady(async);
+    doWork();
+
+    const int64_t registration_id = aeron_async_add_counter_get_registration_id(async);
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter);
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    // register `on_close` callback but do not process actual close
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_counter(&m_conductor, counter, on_close_complete, &on_close_called));
+    EXPECT_FALSE(on_close_called);
+    EXPECT_EQ(counter, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    aeron_client_conductor_on_close(&m_conductor);
+    m_conductor_isClosed = true;
+
+    EXPECT_TRUE(on_close_called);
+}
+
+TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndSubscriptionIsForcefullyDeleted)
+{
+    aeron_async_add_subscription_t *async = nullptr;
+    aeron_subscription_t *subscription = nullptr;
+    m_conductor.invoker_mode = false;
+
+    const char *uri = "aeron:ipc?term-length=64k";
+    int32_t stream_id = 1000;
+    EXPECT_EQ(aeron_client_conductor_async_add_subscription(
+        &async, &m_conductor, uri, stream_id, nullptr, nullptr, nullptr, nullptr), 0);
+    doWork();
+
+    transmitOnSubscriptionReady(async);
+    doWork();
+
+    const int64_t registration_id = aeron_async_add_subscription_get_registration_id(async);
+    EXPECT_EQ(aeron_async_add_subscription_poll(&subscription, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, subscription);
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    // register `on_close` callback but do not process actual close
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_subscription(&m_conductor, subscription, on_close_complete, &on_close_called));
+    EXPECT_FALSE(on_close_called);
+    EXPECT_EQ(subscription, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    aeron_client_conductor_on_close(&m_conductor);
+    m_conductor_isClosed = true;
+
+    EXPECT_TRUE(on_close_called);
+}
+
+TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndPublicationIsForcefullyDeleted)
+{
+    aeron_async_add_publication_t *async = nullptr;
+    aeron_publication_t *publication = nullptr;
+    m_conductor.invoker_mode = false;
+
+    const char *uri = "aeron:ipc?term-length=64k";
+    int32_t stream_id = 1000;
+    EXPECT_EQ(aeron_client_conductor_async_add_publication(&async, &m_conductor, uri, stream_id), 0);
+    doWork();
+
+    transmitOnPublicationReady(async, m_logFileName, false);
+    createLogFile(m_logFileName);
+    doWork();
+
+    const int64_t registration_id = aeron_async_add_publication_get_registration_id(async);
+    EXPECT_EQ(aeron_async_add_publication_poll(&publication, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, publication);
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    // register `on_close` callback but do not process actual close
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_publication(&m_conductor, publication, on_close_complete, &on_close_called));
+    EXPECT_FALSE(on_close_called);
+    EXPECT_EQ(publication, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    aeron_client_conductor_on_close(&m_conductor);
+    m_conductor_isClosed = true;
+
+    EXPECT_TRUE(on_close_called);
+}
+
+TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndExclusivePublicationIsForcefullyDeleted)
+{
+    aeron_async_add_publication_t *async = nullptr;
+    aeron_exclusive_publication_t *publication = nullptr;
+    m_conductor.invoker_mode = false;
+
+    const char *uri = "aeron:ipc?term-length=64k";
+    int32_t stream_id = 1000;
+    EXPECT_EQ(aeron_client_conductor_async_add_exclusive_publication(&async, &m_conductor, uri, stream_id), 0);
+    doWork();
+
+    transmitOnPublicationReady(async, m_logFileName, true);
+    createLogFile(m_logFileName);
+    doWork();
+
+    const int64_t registration_id = aeron_async_add_exclusive_publication_get_registration_id(async);
+    EXPECT_EQ(aeron_async_add_exclusive_publication_poll(&publication, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, publication);
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    // register `on_close` callback but do not process actual close
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_exclusive_publication(&m_conductor, publication, on_close_complete, &on_close_called));
+    EXPECT_FALSE(on_close_called);
+    EXPECT_EQ(publication, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    aeron_client_conductor_on_close(&m_conductor);
+    m_conductor_isClosed = true;
+
+    EXPECT_TRUE(on_close_called);
 }
