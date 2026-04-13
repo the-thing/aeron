@@ -632,7 +632,7 @@ TEST_F(NameResolverTest, shouldUseMultiBootstrapNeighbors)
         {
             work_done = 0;
 
-            work_done += m_d.resolver.do_work_func(&m_a.resolver, timestamp_ms);
+            work_done += m_d.resolver.do_work_func(&m_d.resolver, timestamp_ms);
             ASSERT_EQ(0, aeron_errcode()) << aeron_errmsg();
 
             work_done += m_c.resolver.do_work_func(&m_c.resolver, timestamp_ms);
