@@ -73,7 +73,6 @@ typedef struct aeron_driver_name_resolver_stct
     char *saved_bootstrap_neighbor;
     size_t bootstrap_neighbors_length;
     char **bootstrap_neighbors;
-    struct sockaddr_storage bootstrap_neighbor_addr;
 
     struct bootstrap_neighbors_addrs_stct
     {
@@ -141,25 +140,6 @@ void aeron_driver_name_resolver_receive(
 
 static int aeron_driver_name_resolver_from_sockaddr(
     struct sockaddr_storage *addr, aeron_name_resolver_cache_addr_t *cache_addr);
-
-static int aeron_driver_name_resolver_resolve_bootstrap_neighbor(aeron_driver_name_resolver_t *driver_resolver)
-{
-    for (size_t i = 0; i < driver_resolver->bootstrap_neighbors_length; i++)
-    {
-        if (0 == aeron_name_resolver_resolve_host_and_port(
-            &driver_resolver->bootstrap_resolver,
-            driver_resolver->bootstrap_neighbors[i],
-            "bootstrap_neighbor",
-            false,
-            &driver_resolver->bootstrap_neighbor_addr))
-        {
-            aeron_err_clear();
-            return 0;
-        }
-    }
-
-    return -1;
-}
 
 static void aeron_driver_name_resolver_resolve_bootstrap_neighbors(aeron_driver_name_resolver_t *driver_resolver)
 {
@@ -292,7 +272,7 @@ int aeron_driver_name_resolver_init(
 
         if (aeron_alloc(
             (void **)&_driver_resolver->bootstrap_neighbor_addrs.array,
-            (sizeof(struct sockaddr_storage) * num_neighbors) < 0))
+            (sizeof(struct sockaddr_storage) * num_neighbors)) < 0)
         {
             AERON_APPEND_ERR("%s", "failed to allocate bootstrap neighbors addresses array");
             goto error_cleanup;
