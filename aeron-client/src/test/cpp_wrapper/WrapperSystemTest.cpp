@@ -146,7 +146,7 @@ TEST_F(WrapperSystemTest, shouldRemovePendingAsyncPublicationUponError)
     catch( const AeronException& e )
     {
         auto errorMsg = std::string(e.what());
-        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: 99999", 0));
+        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: '99999'", 0)) << errorMsg;
     }
 
     try
@@ -279,7 +279,7 @@ TEST_F(WrapperSystemTest, shouldRemovePendingAsyncSubscriptionUponError)
     catch( const AeronException& e )
     {
         auto errorMsg = std::string(e.what());
-        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: 99999", 0));
+        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: '99999'", 0)) << errorMsg;
     }
 
     try
@@ -352,7 +352,7 @@ TEST_F(WrapperSystemTest, asyncSubscriptionMustBeManuallyFreedAfterUsage)
     catch( const AeronException& e )
     {
         auto errorMsg = std::string(e.what());
-        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: 99999", 0));
+        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: '99999'", 0)) << errorMsg;
     }
 
     delete async;
@@ -377,7 +377,7 @@ TEST_F(WrapperSystemTest, asyncSubscriptionMustBeManuallyFreedAfterUsageConducto
     catch( const AeronException& e )
     {
         auto errorMsg = std::string(e.what());
-        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: 99999", 0));
+        EXPECT_NE(std::string::npos, errorMsg.find("port out of range: '99999'", 0)) << errorMsg;
     }
 
     delete async;
