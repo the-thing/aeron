@@ -201,7 +201,7 @@ int aeron_driver_name_resolver_init(
     if (aeron_alloc((void **)&_driver_resolver, sizeof(aeron_driver_name_resolver_t)) < 0)
     {
         AERON_APPEND_ERR("Failed to allocate driver resolver for: %s", name);
-        goto error_cleanup;
+        return -1;
     }
     _driver_resolver->saved_bootstrap_neighbor = NULL;
     _driver_resolver->bootstrap_neighbors = NULL;
