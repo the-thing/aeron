@@ -115,15 +115,9 @@ public:
         {
             delete m_addSubscription;
         }
-        else if (0 != aeron_subscription_close(m_subscription, AsyncAddSubscription::remove, m_addSubscription))
+        else
         {
-            // failed to submit close request: the underlying `aeron_subscription_t` will be eventually closed when
-            // `aeron_t` is closed but the `AsyncAddSubscription` needs to be manually freed as no `on_close_complete`
-            // callback will be invoked in this case.
-            if (aeron_errcode() == AERON_CLIENT_ERROR_BUFFER_FULL)
-            {
-                delete m_addSubscription;
-            }
+            aeron_subscription_close(m_subscription, AsyncAddSubscription::remove, m_addSubscription);
         }
 
         for (const std::pair<const std::int64_t, AsyncDestination *>& e : m_pendingDestinations)
