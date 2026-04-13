@@ -41,6 +41,7 @@ public:
         m_a.context = nullptr;
         m_b.context = nullptr;
         m_c.context = nullptr;
+        m_d.context = nullptr;
     }
 
 protected:
@@ -68,6 +69,7 @@ protected:
         close(&m_a);
         close(&m_b);
         close(&m_c);
+        close(&m_d);
     }
 
     void initResolver(
