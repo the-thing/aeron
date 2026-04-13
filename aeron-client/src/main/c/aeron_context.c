@@ -645,7 +645,7 @@ int aeron_context_request_driver_termination(const char *directory, const uint8_
             const int32_t offset = aeron_mpsc_rb_try_claim(&rb, AERON_COMMAND_TERMINATE_DRIVER, command_length);
             if (offset < 0)
             {
-                AERON_SET_ERR(AERON_CLIENT_ERROR_BUFFER_FULL, "%s", "Unable to write to driver ring buffer");
+                AERON_SET_ERR(-AERON_CLIENT_ERROR_BUFFER_FULL, "%s", "Unable to write to driver ring buffer");
                 goto cleanup;
             }
 

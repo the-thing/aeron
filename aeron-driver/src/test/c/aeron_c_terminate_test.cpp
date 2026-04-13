@@ -234,7 +234,7 @@ TEST_F(TerminateTest, shouldFailIfDriverCommandRingBufferIsFull)
     rb.descriptor->tail_position = static_cast<int64_t>(to_driver_buffer_length - AERON_RB_TRAILER_LENGTH - 1);
 
     EXPECT_EQ(-1, aeron_context_request_driver_termination(m_driver.directory(), (uint8_t *)TERMINATION_KEY, strlen(TERMINATION_KEY)));
-    EXPECT_EQ(AERON_CLIENT_ERROR_BUFFER_FULL, aeron_errcode());
+    EXPECT_EQ(-AERON_CLIENT_ERROR_BUFFER_FULL, aeron_errcode());
 
     aeron_unmap(&mapped_file);
 }

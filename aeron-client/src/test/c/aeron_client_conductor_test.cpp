@@ -493,7 +493,7 @@ TEST_F(ClientConductorTest, shouldErrorOnAddPublicationFromDriverTimeout)
     doWorkForNs((m_context->driver_timeout_ms + 1000) * 1000000);
 
     ASSERT_EQ(aeron_async_add_publication_poll(&publication, async), -1);
-    ASSERT_EQ(AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
+    ASSERT_EQ(-AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
 }
 
 TEST_F(ClientConductorTest, shouldAddExclusivePublicationSuccessfully)
@@ -574,7 +574,7 @@ TEST_F(ClientConductorTest, shouldErrorOnAddExclusivePublicationFromDriverTimeou
     doWorkForNs((m_context->driver_timeout_ms + 1000) * 1000000);
 
     ASSERT_EQ(aeron_async_add_exclusive_publication_poll(&publication, async), -1);
-    ASSERT_EQ(AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
+    ASSERT_EQ(-AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
 }
 
 TEST_F(ClientConductorTest, shouldAddSubscriptionSuccessfully)
@@ -657,7 +657,7 @@ TEST_F(ClientConductorTest, shouldErrorOnAddSubscriptionFromDriverTimeout)
     doWorkForNs((m_context->driver_timeout_ms + 1000) * 1000000LL);
 
     ASSERT_EQ(aeron_async_add_subscription_poll(&subscription, async), -1);
-    ASSERT_EQ(AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
+    ASSERT_EQ(-AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
 }
 
 TEST_F(ClientConductorTest, shouldAddCounterSuccessfully)
@@ -746,7 +746,7 @@ TEST_F(ClientConductorTest, shouldErrorOnAddCounterFromDriverTimeout)
     doWorkForNs((m_context->driver_timeout_ms + 1000) * 1000000LL);
 
     ASSERT_EQ(aeron_async_add_counter_poll(&counter, async), -1);
-    ASSERT_EQ(AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
+    ASSERT_EQ(-AERON_CLIENT_ERROR_DRIVER_TIMEOUT, aeron_errcode());
 }
 
 TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)

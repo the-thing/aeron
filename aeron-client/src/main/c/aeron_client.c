@@ -136,7 +136,7 @@ static int aeron_async_resource_poll(
         case AERON_CLIENT_REGISTRATION_STATUS_TIMED_OUT:
         {
             AERON_SET_ERR(
-                AERON_CLIENT_ERROR_DRIVER_TIMEOUT,
+                -AERON_CLIENT_ERROR_DRIVER_TIMEOUT,
                 "async_add_%s no response from media driver",
                 aeron_client_managed_resource_type_to_string(resource_type));
             aeron_async_cmd_free(async);
@@ -674,7 +674,7 @@ int aeron_async_next_session_id_poll(int32_t *next_session_id, aeron_async_get_n
         case AERON_CLIENT_REGISTRATION_STATUS_TIMED_OUT:
         {
             AERON_SET_ERR(
-                AERON_CLIENT_ERROR_DRIVER_TIMEOUT, "%s", "aeron_async_next_session_id no response from media driver");
+                -AERON_CLIENT_ERROR_DRIVER_TIMEOUT, "%s", "aeron_async_next_session_id no response from media driver");
             aeron_async_cmd_free(async);
             return -1;
         }

@@ -24,9 +24,10 @@
 #include <memory.h>
 #include <errno.h>
 
+#include "aeronc.h"
+#include "command/aeron_control_protocol.h"
 #include "concurrent/aeron_thread.h"
 #include "util/aeron_error.h"
-#include "command/aeron_control_protocol.h"
 
 #define AERON_ERR_TRAILER "...\n"
 #define AERON_ERR_DESCRIPTION_UNAVAILABLE "<Unable to get error description>";
@@ -231,6 +232,21 @@ const char *aeron_error_code_str(int errcode)
 
         case AERON_ERROR_CODE_PUBLICATION_REVOKED:
             return "publication revoked";
+
+        case AERON_CLIENT_ERROR_DRIVER_TIMEOUT:
+            return "driver timeout";
+
+        case AERON_CLIENT_ERROR_CLIENT_TIMEOUT:
+            return "client timeout";
+
+        case AERON_CLIENT_ERROR_CONDUCTOR_SERVICE_TIMEOUT:
+            return "client service timeout";
+
+        case AERON_CLIENT_ERROR_BUFFER_FULL:
+            return "client command buffer full";
+
+        case AERON_CLIENT_ERROR_DRIVER_BUFFER_FULL:
+            return "driver command buffer full";
 
         default:
             return "unknown error code";

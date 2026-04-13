@@ -111,7 +111,7 @@ static int aeron_client_conductor_command_offer(aeron_mpsc_concurrent_array_queu
     {
         if (++fail_count > AERON_CLIENT_COMMAND_QUEUE_FAIL_THRESHOLD)
         {
-            AERON_SET_ERR(AERON_CLIENT_ERROR_BUFFER_FULL, "%s", "could not offer to conductor command queue");
+            AERON_SET_ERR(-AERON_CLIENT_ERROR_BUFFER_FULL, "%s", "could not offer to conductor command queue");
             return -1;
         }
 
@@ -189,7 +189,7 @@ static int32_t aeron_client_conductor_try_claim_driver_command(
                 msg_type_id,
                 (uint64_t)command_length);
             conductor->error_handler(conductor->error_handler_clientd, AERON_CLIENT_ERROR_DRIVER_BUFFER_FULL, err_buffer);
-            return AERON_CLIENT_ERROR_DRIVER_BUFFER_FULL;
+            return -1;
         }
 
         sched_yield();
