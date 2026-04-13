@@ -311,6 +311,7 @@ typedef struct aeron_driver_conductor_stct
     int64_t last_command_consumer_position;
 
     bool async_client_command_in_flight;
+    bool is_started;
 
     uint8_t padding[AERON_CACHE_LINE_LENGTH];
 }

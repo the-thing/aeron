@@ -47,6 +47,8 @@ typedef int (*aeron_name_resolver_lookup_func_t)(
     bool is_re_lookup,
     const char **resolved_name);
 
+typedef int (*aeron_name_resolver_on_start_func_t)(aeron_name_resolver_t *resolver);
+
 typedef int (*aeron_name_resolver_do_work_func_t)(aeron_name_resolver_t *resolver, int64_t now_ms);
 
 typedef int (*aeron_name_resolver_close_func_t)(aeron_name_resolver_t *resolver);
@@ -56,6 +58,7 @@ typedef struct aeron_name_resolver_stct
     const char *name;
     aeron_name_resolver_lookup_func_t lookup_func;
     aeron_name_resolver_resolve_func_t resolve_func;
+    aeron_name_resolver_on_start_func_t start_func;
     aeron_name_resolver_do_work_func_t do_work_func;
     aeron_name_resolver_close_func_t close_func;
     void *state;
@@ -82,6 +85,8 @@ int aeron_default_name_resolver_lookup(
     const char *uri_param_name,
     bool is_re_lookup,
     const char **resolved_name);
+
+int aeron_default_name_resolver_start(aeron_name_resolver_t *resolver);
 
 int aeron_default_name_resolver_do_work(aeron_name_resolver_t *resolver, int64_t now_ms);
 

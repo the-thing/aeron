@@ -782,6 +782,12 @@ static int aeron_time_tracking_name_resolver_lookup(
     return result;
 }
 
+static int aeron_time_tracking_name_resolver_start(aeron_name_resolver_t *resolver)
+{
+    aeron_time_tracking_name_resolver_t *time_tracking_resolver = (aeron_time_tracking_name_resolver_t *)resolver->state;
+    return time_tracking_resolver->delegate_resolver.start_func(&time_tracking_resolver->delegate_resolver);
+}
+
 static int aeron_time_tracking_name_resolver_do_work(aeron_name_resolver_t *resolver, int64_t now_ms)
 {
     aeron_time_tracking_name_resolver_t *time_tracking_resolver = (aeron_time_tracking_name_resolver_t *)resolver->state;
@@ -1010,6 +1016,7 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
     conductor->name_resolver.name = "time_tracking_name_resolver";
     conductor->name_resolver.resolve_func = aeron_time_tracking_name_resolver_resolve;
     conductor->name_resolver.lookup_func = aeron_time_tracking_name_resolver_lookup;
+    conductor->name_resolver.start_func = aeron_time_tracking_name_resolver_start;
     conductor->name_resolver.do_work_func = aeron_time_tracking_name_resolver_do_work;
     conductor->name_resolver.close_func = aeron_time_tracking_name_resolver_close;
     conductor->name_resolver.state = time_tracking_name_resolver;
@@ -3841,6 +3848,13 @@ static void aeron_driver_conductor_on_rb_command_queue(
 int aeron_driver_conductor_do_work(void *clientd)
 {
     aeron_driver_conductor_t *conductor = (aeron_driver_conductor_t *)clientd;
+
+    if (!conductor->is_started)
+    {
+        conductor->name_resolver.start_func(&conductor->name_resolver);
+        conductor->is_started = true;
+    }
+
     const int64_t now_ns = conductor->context->nano_clock();
     aeron_driver_conductor_track_time(conductor, now_ns);
     const int64_t now_ms = aeron_clock_cached_epoch_time(conductor->context->cached_clock);

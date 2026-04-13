@@ -154,6 +154,7 @@ static void aeron_driver_name_resolver_resolve_bootstrap_neighbors(aeron_driver_
             false,
             &driver_resolver->bootstrap_neighbor_addrs.array[i]))
         {
+            driver_resolver->bootstrap_neighbor_addrs.array[i].ss_family = AF_UNSPEC;
             aeron_distinct_error_log_record(driver_resolver->error_log, aeron_errcode(), aeron_errmsg());
             aeron_err_clear();
         }
@@ -286,8 +287,6 @@ int aeron_driver_name_resolver_init(
             _driver_resolver->bootstrap_neighbor_addrs.array[i].ss_family = AF_UNSPEC;
         }
     }
-
-    aeron_driver_name_resolver_resolve_bootstrap_neighbors(_driver_resolver);
 
     _driver_resolver->transport_bindings = context->conductor_udp_channel_transport_bindings;
     if (aeron_udp_channel_data_paths_init(
@@ -1096,6 +1095,13 @@ int aeron_driver_name_resolver_resolve(
     return result;
 }
 
+int aeron_driver_name_resolver_on_start(aeron_name_resolver_t *resolver)
+{
+    aeron_driver_name_resolver_t *driver_resolver = (aeron_driver_name_resolver_t *)resolver->state;
+    aeron_driver_name_resolver_resolve_bootstrap_neighbors(driver_resolver);
+    return 0;
+}
+
 int aeron_driver_name_resolver_do_work(aeron_name_resolver_t *resolver, int64_t now_ms)
 {
     aeron_driver_name_resolver_t *driver_resolver = resolver->state;
@@ -1153,6 +1159,7 @@ int aeron_driver_name_resolver_supplier(
 
     resolver->lookup_func = aeron_default_name_resolver_lookup;
     resolver->resolve_func = aeron_driver_name_resolver_resolve;
+    resolver->start_func = aeron_driver_name_resolver_on_start;
     resolver->do_work_func = aeron_driver_name_resolver_do_work;
     resolver->close_func = aeron_driver_name_resolver_close;
     resolver->state = name_resolver;
