@@ -191,9 +191,8 @@ try
 
     Push-Location -Path $BuildDir
 
-    $vsPath = &(Join-Path ${env:ProgramFiles(x86)} "\Microsoft Visual Studio\Installer\vswhere.exe") -property installationpath
-    Write-Host $vsPath
-    Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
+    $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationpath
+    Import-Module (Get-ChildItem $vsPath -Recurse -File -Filter Microsoft.VisualStudio.DevShell.dll).FullName
     Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation
 
     $env:Path = "$CMakePath\bin;$env:Path"
