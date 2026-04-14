@@ -552,7 +552,7 @@ public final class MediaDriver implements AutoCloseable
         private FeedbackDelayGenerator retransmitUnicastLingerGenerator;
         private TerminationValidator terminationValidator;
         private Runnable terminationHook;
-        private NameResolver nameResolver;
+        private NameResolverAgent nameResolver;
 
         private DistinctErrorLog errorLog;
         private ErrorHandler errorHandler;
@@ -3287,7 +3287,7 @@ public final class MediaDriver implements AutoCloseable
          *
          * @return {@link NameResolver} to use for resolving endpoints and control names.
          */
-        public NameResolver nameResolver()
+        public NameResolverAgent nameResolver()
         {
             return nameResolver;
         }
@@ -3298,7 +3298,7 @@ public final class MediaDriver implements AutoCloseable
          * @param nameResolver to use for resolving endpoints and control names.
          * @return this for fluent API.
          */
-        public Context nameResolver(final NameResolver nameResolver)
+        public Context nameResolver(final NameResolverAgent nameResolver)
         {
             this.nameResolver = nameResolver;
             return this;
@@ -4472,6 +4472,10 @@ public final class MediaDriver implements AutoCloseable
                     WildcardPortManager.parsePortRange(receiverWildcardPortRange), false);
             }
 
+            if (null != resolverInterface)
+            {
+                nameResolver = new DriverNameResolver(this);
+            }
             nameResolver.init(countersManager, countersManager::newCounter);
         }
 

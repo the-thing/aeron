@@ -259,6 +259,11 @@ public final class DriverConductor implements Agent
             clientProxy,
             this);
 
+        nameResolver = new TimeTrackingNameResolver(
+            ctx.nameResolver(),
+            nanoClock,
+            ctx.nameResolverTimeTracker());
+
         lastCommandConsumerPosition = toDriverCommands.consumerPosition();
     }
 
@@ -275,10 +280,7 @@ public final class DriverConductor implements Agent
         clockUpdateDeadlineNs = nowNs + CLOCK_UPDATE_INTERNAL_NS;
         timeOfLastToDriverPositionChangeNs = nowNs;
 
-        nameResolver = new TimeTrackingNameResolver(
-            null == ctx.resolverInterface() ? ctx.nameResolver() : new DriverNameResolver(ctx),
-            nanoClock,
-            ctx.nameResolverTimeTracker());
+        nameResolver.onStart();
 
         final SystemCounters systemCounters = ctx.systemCounters();
         systemCounters.get(RESOLUTION_CHANGES).appendToLabel(": driverName=" + ctx.resolverName());
@@ -305,7 +307,7 @@ public final class DriverConductor implements Agent
                 ctx.errorHandler().onError(e);
             }
         }
-        CloseHelper.close(ctx.errorHandler(), nameResolver);
+        nameResolver.onClose();
         CloseHelper.closeAll(receiveChannelEndpointByChannelMap.values());
         CloseHelper.closeAll(sendChannelEndpointByChannelMap.values());
         publicationImages.forEach(PublicationImage::free);
@@ -341,7 +343,7 @@ public final class DriverConductor implements Agent
         }
         workCount += drainCommandQueue();
         workCount += trackStreamPositions(workCount, nowNs);
-        workCount += nameResolver.doWork(cachedEpochClock.time());
+        workCount += nameResolver.doWork();
         workCount += freeEndOfLifeResources(ctx.resourceFreeLimit());
 
         return workCount;

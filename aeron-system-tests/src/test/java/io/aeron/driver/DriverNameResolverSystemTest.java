@@ -35,6 +35,7 @@ import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.SleepingMillisIdleStrategy;
 import org.agrona.concurrent.status.CountersReader;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledOnOs;
@@ -59,8 +60,6 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -414,7 +413,7 @@ class DriverNameResolverSystemTest
             (s) -> s.contains("java.net.UnknownHostException: unresolved - endpoint=localhostA:8050"));
 
         final MutableBoolean resolveHostA = new MutableBoolean(true);
-        final NameResolver bootstrapResolver = new NameResolver()
+        final NameResolverAgent bootstrapResolver = new NameResolverAgent()
         {
             public InetAddress resolve(final String name, final String uriParamName, final boolean isReResolution)
             {
@@ -528,23 +527,20 @@ class DriverNameResolverSystemTest
 
         final String aeronDir = baseDir + "-error";
         final MutableReference<Throwable> error = new MutableReference<>();
-        try (TestMediaDriver driver = TestMediaDriver.launch(setDefaults(new MediaDriver.Context())
-            .threadingMode(ThreadingMode.INVOKER)
-            .errorHandler(error::set)
-            .aeronDirectoryName(aeronDir)
-            .resolverName("test")
-            .resolverInterface("1.0.0.0:4809"), testWatcher))
+
+        final AeronException exception = Assertions.assertThrows(AeronException.class, () ->
         {
-            final Throwable exception = error.get();
-            assertNull(exception.getCause());
-            final Throwable[] suppressed = exception.getSuppressed();
-            assertNotNull(suppressed);
-            assertEquals(1, suppressed.length);
-            final Throwable channelError = suppressed[0];
-            assertInstanceOf(AeronException.class, channelError);
-            assertThat(channelError.getMessage(), endsWith("aeron:udp?endpoint=1.0.0.0:4809"));
-            assertInstanceOf(BindException.class, channelError.getCause());
-        }
+            TestMediaDriver.launch(setDefaults(new MediaDriver.Context())
+                .threadingMode(ThreadingMode.INVOKER)
+                .errorHandler(error::set)
+                .aeronDirectoryName(aeronDir)
+                .resolverName("test")
+                .resolverInterface("1.0.0.0:4809"), testWatcher);
+        });
+
+        assertInstanceOf(AeronException.class, exception);
+        assertThat(exception.getMessage(), endsWith("aeron:udp?endpoint=1.0.0.0:4809"));
+        assertInstanceOf(BindException.class, exception.getCause());
     }
 
     private void closeDriver(final String name)
