@@ -163,7 +163,7 @@ static int aeron_delete_path(const char *path, FILEOP_FLAGS flags)
         return 0;
     }
 
-    AERON_SET_ERR_WIN(GetLastError(), "Delete failed: %s", path);
+    AERON_SET_ERR_WIN(result, "Delete failed: %s", path);
     return -1;
 }
 

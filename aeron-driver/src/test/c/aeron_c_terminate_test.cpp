@@ -65,10 +65,10 @@ TEST_F(TerminateTest, shouldRejectTerminationRequestIfTokenExceedsMaxPathValue)
 
 TEST_F(TerminateTest, shouldRejectTerminationRequestIfCncFileDoesNotExist)
 {
-    m_driver.stop();
-
     char filename[AERON_MAX_PATH] = { 0 };
     EXPECT_GT(aeron_cnc_resolve_filename(m_driver.directory(), filename, sizeof(filename)), 0);
+
+    m_driver.joinAndClose();
 
     aeron_delete_file(filename);
 
