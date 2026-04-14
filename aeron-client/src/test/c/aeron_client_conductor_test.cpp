@@ -88,7 +88,6 @@ public:
 
     static void on_new_publication(
         void *clientd,
-        aeron_async_add_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -98,13 +97,12 @@ public:
 
         if (conductorTest->m_on_new_publication)
         {
-            conductorTest->m_on_new_publication(async, channel, stream_id, session_id, correlation_id);
+            conductorTest->m_on_new_publication(channel, stream_id, session_id, correlation_id);
         }
     }
 
     static void on_new_exclusive_publication(
         void *clientd,
-        aeron_async_add_exclusive_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -114,13 +112,12 @@ public:
 
         if (conductorTest->m_on_new_exclusive_publication)
         {
-            conductorTest->m_on_new_exclusive_publication(async, channel, stream_id, session_id, correlation_id);
+            conductorTest->m_on_new_exclusive_publication(channel, stream_id, session_id, correlation_id);
         }
     }
 
     static void on_new_subscription(
         void *clientd,
-        aeron_async_add_subscription_t *async,
         const char *channel,
         int32_t stream_id,
         int64_t correlation_id)
@@ -129,7 +126,7 @@ public:
 
         if (conductorTest->m_on_new_subscription)
         {
-            conductorTest->m_on_new_subscription(async, channel, stream_id, correlation_id);
+            conductorTest->m_on_new_subscription(channel, stream_id, correlation_id);
         }
     }
 
@@ -407,10 +404,9 @@ protected:
 
     std::function<void(int32_t, const void *, size_t)> m_to_driver_handler;
 
-    std::function<void(aeron_async_add_publication_t *, const char *, int32_t, int32_t, int64_t)> m_on_new_publication;
-    std::function<void(aeron_async_add_exclusive_publication_t *, const char *, int32_t, int32_t, int64_t)>
-        m_on_new_exclusive_publication;
-    std::function<void(aeron_async_add_subscription_t *, const char *, int32_t, int64_t)> m_on_new_subscription;
+    std::function<void(const char *, int32_t, int32_t, int64_t)> m_on_new_publication;
+    std::function<void(const char *, int32_t, int32_t, int64_t)> m_on_new_exclusive_publication;
+    std::function<void(const char *, int32_t, int64_t)> m_on_new_subscription;
 };
 
 TEST_F(ClientConductorTest, shouldInitAndClose)
@@ -760,10 +756,10 @@ TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)
     bool was_on_new_publication_called = false;
 
     ASSERT_EQ(aeron_client_conductor_async_add_publication(&async, &m_conductor, URI_RESERVED, STREAM_ID), 0);
+    const int64_t registration_id = aeron_async_add_publication_get_registration_id(async);;
     doWork();
 
     m_on_new_publication = [&](
-        aeron_async_add_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -772,8 +768,7 @@ TEST_F(ClientConductorTest, shouldAddPublicationAndHandleOnNewPublication)
         EXPECT_EQ(strcmp(channel, URI_RESERVED), 0);
         EXPECT_EQ(stream_id, STREAM_ID);
         EXPECT_EQ(session_id, SESSION_ID);
-        EXPECT_EQ(correlation_id, async->registration_id);
-        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
+        EXPECT_EQ(correlation_id, registration_id);
 
         was_on_new_publication_called = true;
     };
@@ -799,10 +794,10 @@ TEST_F(ClientConductorTest, shouldAddExclusivePublicationAndHandleOnNewPublicati
     bool was_on_new_exclusive_publication_called = false;
 
     ASSERT_EQ(aeron_client_conductor_async_add_exclusive_publication(&async, &m_conductor, URI_RESERVED, STREAM_ID), 0);
+    const int64_t registrationId = aeron_async_add_exclusive_publication_get_registration_id(async);
     doWork();
 
     m_on_new_exclusive_publication = [&](
-        aeron_async_add_exclusive_publication_t *async,
         const char *channel,
         int32_t stream_id,
         int32_t session_id,
@@ -811,8 +806,7 @@ TEST_F(ClientConductorTest, shouldAddExclusivePublicationAndHandleOnNewPublicati
         EXPECT_EQ(strcmp(channel, URI_RESERVED), 0);
         EXPECT_EQ(stream_id, STREAM_ID);
         EXPECT_EQ(session_id, SESSION_ID);
-        EXPECT_EQ(correlation_id, async->registration_id);
-        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
+        EXPECT_EQ(correlation_id, registrationId);
 
         was_on_new_exclusive_publication_called = true;
     };
@@ -839,18 +833,17 @@ TEST_F(ClientConductorTest, shouldAddSubscriptionAndHandleOnNewSubscription)
 
     ASSERT_EQ(aeron_client_conductor_async_add_subscription(
         &async, &m_conductor, SUB_URI, STREAM_ID, nullptr, nullptr, nullptr, nullptr), 0);
+    const int64_t registrationId = aeron_async_add_subscription_get_registration_id(async);
     doWork();
 
     m_on_new_subscription = [&](
-        aeron_async_add_subscription_t *async,
         const char *channel,
         int32_t stream_id,
         int64_t correlation_id)
     {
         EXPECT_EQ(strcmp(channel, SUB_URI), 0);
         EXPECT_EQ(stream_id, STREAM_ID);
-        EXPECT_EQ(correlation_id, async->registration_id);
-        EXPECT_EQ(AERON_CLIENT_REGISTRATION_STATUS_AWAITING, async->registration_status);
+        EXPECT_EQ(correlation_id, registrationId);
 
         was_on_new_subscription_called = true;
     };

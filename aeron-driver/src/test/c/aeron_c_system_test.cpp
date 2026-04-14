@@ -174,6 +174,52 @@ TEST_P(CSystemTest, shouldAddAndClosePublication)
     ASSERT_EQ(0, aeron_subscription_close(subscription, nullptr, nullptr));
 }
 
+TEST_P(CSystemTest, shouldNotifyOnPublicationCreated)
+{
+    std::atomic<int64_t> notifiedRegistrationId(-1);
+    aeron_async_add_publication_t *async = nullptr;
+    aeron_publication_constants_t publication_constants;
+
+    ASSERT_EQ(0, aeron_context_init(&m_context));
+
+    auto on_publication_callback = [](
+        void *clientd,
+        const char *channel,
+        int32_t stream_id,
+        int32_t session_id,
+        int64_t correlation_id)
+    {
+        EXPECT_STREQ(std::get<0>(GetParam()), channel);
+        EXPECT_EQ(STREAM_ID, stream_id);
+        auto registrationId = static_cast<std::atomic<int64_t>*>(clientd);
+        registrationId->store(correlation_id);
+    };
+
+    ASSERT_EQ(0, aeron_context_set_on_new_publication(m_context, on_publication_callback, &notifiedRegistrationId));
+
+    ASSERT_EQ(0, aeron_init(&m_aeron, m_context));
+    ASSERT_EQ(0, aeron_start(m_aeron));
+
+    ASSERT_EQ(aeron_async_add_publication(&async, m_aeron, std::get<0>(GetParam()), STREAM_ID), 0);
+    std::int64_t registration_id = aeron_async_add_publication_get_registration_id(async);
+
+    // await callback notification
+    while (notifiedRegistrationId < 0)
+    {
+        std::this_thread::yield();
+    }
+    EXPECT_EQ(registration_id, notifiedRegistrationId);
+
+    aeron_publication_t *publication;
+    EXPECT_EQ(1, aeron_async_add_publication_poll(&publication, async));
+    EXPECT_TRUE(publication) << aeron_errmsg();
+
+    EXPECT_EQ(0, aeron_publication_constants(publication, &publication_constants)) << aeron_errmsg();
+    EXPECT_EQ(registration_id, publication_constants.registration_id);
+
+    EXPECT_EQ(0, aeron_publication_close(publication, nullptr, nullptr));
+}
+
 TEST_P(CSystemTest, shouldAddAndCloseExclusivePublication)
 {
     std::atomic<bool> publicationClosedFlag(false);
@@ -227,6 +273,52 @@ TEST_P(CSystemTest, shouldAddAndCloseExclusivePublication)
     ASSERT_EQ(0, aeron_subscription_close(subscription, nullptr, nullptr));
 }
 
+TEST_P(CSystemTest, shouldNotifyOnExclusivePublicationCreated)
+{
+    std::atomic<int64_t> notifiedRegistrationId(-1);
+    aeron_async_add_exclusive_publication_t *async = nullptr;
+    aeron_publication_constants_t publication_constants;
+
+    ASSERT_EQ(0, aeron_context_init(&m_context));
+
+    auto on_exclusive_publication_callback = [](
+        void *clientd,
+        const char *channel,
+        int32_t stream_id,
+        int32_t session_id,
+        int64_t correlation_id)
+    {
+        EXPECT_STREQ(std::get<0>(GetParam()), channel);
+        EXPECT_EQ(STREAM_ID, stream_id);
+        auto registrationId = static_cast<std::atomic<int64_t>*>(clientd);
+        registrationId->store(correlation_id);
+    };
+
+    ASSERT_EQ(0, aeron_context_set_on_new_exclusive_publication(m_context, on_exclusive_publication_callback, &notifiedRegistrationId));
+
+    ASSERT_EQ(0, aeron_init(&m_aeron, m_context));
+    ASSERT_EQ(0, aeron_start(m_aeron));
+
+    ASSERT_EQ(aeron_async_add_exclusive_publication(&async, m_aeron, std::get<0>(GetParam()), STREAM_ID), 0);
+    std::int64_t registration_id = aeron_async_add_exclusive_publication_get_registration_id(async);
+
+    // await callback notification
+    while (notifiedRegistrationId < 0)
+    {
+        std::this_thread::yield();
+    }
+    EXPECT_EQ(registration_id, notifiedRegistrationId);
+
+    aeron_exclusive_publication_t *publication;
+    EXPECT_EQ(1, aeron_async_add_exclusive_publication_poll(&publication, async));
+    EXPECT_TRUE(publication) << aeron_errmsg();
+
+    EXPECT_EQ(0, aeron_exclusive_publication_constants(publication, &publication_constants)) << aeron_errmsg();
+    EXPECT_EQ(registration_id, publication_constants.registration_id);
+
+    EXPECT_EQ(0, aeron_exclusive_publication_close(publication, nullptr, nullptr));
+}
+
 TEST_P(CSystemTest, shouldAddAndCloseSubscription)
 {
     std::atomic<bool> subscriptionClosedFlag(false);
@@ -274,6 +366,51 @@ TEST_P(CSystemTest, shouldAddAndCloseSubscription)
     while (AERON_COUNTER_RECORD_RECLAIMED != counterState);
 
     ASSERT_EQ(0, aeron_exclusive_publication_close(publication, nullptr, nullptr));
+}
+
+TEST_P(CSystemTest, shouldNotifyOnSubscriptionCreated)
+{
+    std::atomic<int64_t> notifiedRegistrationId(-1);
+    aeron_async_add_subscription_t *async = nullptr;
+    aeron_subscription_constants_t subscription_constants;
+
+    ASSERT_EQ(0, aeron_context_init(&m_context));
+
+    auto on_subscription_callback = [](
+        void *clientd,
+        const char *channel,
+        int32_t stream_id,
+        int64_t correlation_id)
+    {
+        EXPECT_STREQ(std::get<0>(GetParam()), channel);
+        EXPECT_EQ(STREAM_ID, stream_id);
+        auto registrationId = static_cast<std::atomic<int64_t>*>(clientd);
+        registrationId->store(correlation_id);
+    };
+
+    ASSERT_EQ(0, aeron_context_set_on_new_subscription(m_context, on_subscription_callback, &notifiedRegistrationId));
+
+    ASSERT_EQ(0, aeron_init(&m_aeron, m_context));
+    ASSERT_EQ(0, aeron_start(m_aeron));
+
+    ASSERT_EQ(aeron_async_add_subscription(&async, m_aeron, std::get<0>(GetParam()), STREAM_ID, nullptr, nullptr, nullptr, nullptr), 0);
+    std::int64_t registration_id = aeron_async_add_subscription_get_registration_id(async);
+
+    // await callback notification
+    while (notifiedRegistrationId < 0)
+    {
+        std::this_thread::yield();
+    }
+    EXPECT_EQ(registration_id, notifiedRegistrationId);
+
+    aeron_subscription_t *subscription;
+    EXPECT_EQ(1, aeron_async_add_subscription_poll(&subscription, async));
+    EXPECT_TRUE(subscription) << aeron_errmsg();
+
+    EXPECT_EQ(0, aeron_subscription_constants(subscription, &subscription_constants)) << aeron_errmsg();
+    EXPECT_EQ(registration_id, subscription_constants.registration_id);
+
+    EXPECT_EQ(0, aeron_subscription_close(subscription, nullptr, nullptr));
 }
 
 TEST_P(CSystemTest, shouldCancelAddingSubscriptionAndRemoveByRegistrationId)
@@ -1298,120 +1435,4 @@ TEST_F(CSystemTest, shouldBeNotifiedWhenClientIsClosed)
         std::this_thread::yield();
     }
     ASSERT_EQ(0, aeron_counter_get_acquire(aeron_counters_reader_addr(countersReader, AERON_SYSTEM_COUNTER_CLIENT_TIMEOUTS)));
-}
-
-TEST_F(CSystemTest, shouldNotifyUserCallbackWhenResourceIsCreatedWhileKeepingAsyncPollingStructAlive)
-{
-    aeron_context_t *context;
-    aeron_t *aeron;
-
-    ASSERT_EQ(aeron_context_init(&context), 0);
-
-    std::atomic<bool> new_publication_called{false};
-    aeron_context_set_on_new_publication(
-        context,
-        [](
-            void *clientd,
-            aeron_async_add_publication_t *async,
-            const char *channel,
-            int32_t stream_id,
-            int32_t session_id,
-            int64_t correlation_id)
-            {
-                EXPECT_EQ(correlation_id, async->registration_id);
-                auto flag = static_cast<std::atomic<bool>*>(clientd);
-                flag->store(true);
-            },
-        &new_publication_called);
-
-    std::atomic<bool> new_exclusive_publication_called{false};
-    aeron_context_set_on_new_exclusive_publication(
-        context,
-        [](
-            void *clientd,
-            aeron_async_add_publication_t *async,
-            const char *channel,
-            int32_t stream_id,
-            int32_t session_id,
-            int64_t correlation_id)
-            {
-                EXPECT_EQ(correlation_id, async->registration_id);
-                auto flag = static_cast<std::atomic<bool>*>(clientd);
-                flag->store(true);
-            },
-        &new_exclusive_publication_called);
-
-    std::atomic<bool> new_subscription_called{false};
-    aeron_context_set_on_new_subscription(
-        context,
-        [](
-            void *clientd,
-            aeron_async_add_subscription_t *async,
-            const char *channel,
-            int32_t stream_id,
-            int64_t correlation_id)
-            {
-                EXPECT_EQ(correlation_id, async->registration_id);
-                auto flag = static_cast<std::atomic<bool>*>(clientd);
-                flag->store(true);
-            },
-        &new_subscription_called);
-
-    ASSERT_EQ(aeron_init(&aeron, context), 0);
-
-    ASSERT_EQ(aeron_start(aeron), 0);
-
-    aeron_async_add_publication_t *async_add_publication = nullptr;
-    EXPECT_EQ(
-        0,
-        aeron_async_add_publication(&async_add_publication, aeron, "aeron:udp?term-length=64k|endpoint=localhost:5555", 555));
-
-    aeron_publication_t *publication = nullptr;
-    while (0 == aeron_async_add_publication_poll(&publication, async_add_publication))
-    {
-        std::this_thread::yield();
-    }
-    EXPECT_NE(nullptr, publication) << aeron_errmsg();
-
-    while (!new_publication_called)
-    {
-        std::this_thread::yield();
-    }
-
-    aeron_async_add_exclusive_publication_t *async_add_exclusive_publication = nullptr;
-    EXPECT_EQ(
-        0,
-        aeron_async_add_exclusive_publication(&async_add_exclusive_publication, aeron, "aeron:ipc?term-length=64k", 444));
-
-    aeron_exclusive_publication_t *exclusive_publication = nullptr;
-    while (0 == aeron_async_add_exclusive_publication_poll(&exclusive_publication, async_add_exclusive_publication))
-    {
-        std::this_thread::yield();
-    }
-    EXPECT_NE(nullptr, exclusive_publication) << aeron_errmsg();
-
-    while (!new_exclusive_publication_called)
-    {
-        std::this_thread::yield();
-    }
-
-    aeron_async_add_subscription_t *async_add_subscription = nullptr;
-    EXPECT_EQ(
-        0,
-        aeron_async_add_subscription(&async_add_subscription, aeron, "aeron:ipc", 444, nullptr, nullptr, nullptr, nullptr));
-
-    aeron_subscription_t *subscription = nullptr;
-    while (0 == aeron_async_add_subscription_poll(&subscription, async_add_subscription))
-    {
-        std::this_thread::yield();
-    }
-    EXPECT_NE(nullptr, subscription) << aeron_errmsg();
-
-    while (!new_subscription_called)
-    {
-        std::this_thread::yield();
-    }
-
-    aeron_close(aeron);
-    aeron_context_close(context);
 }

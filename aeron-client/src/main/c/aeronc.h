@@ -203,7 +203,6 @@ void *aeron_context_get_publication_error_frame_handler_clientd(aeron_context_t 
  * Implementations should do the minimum work for passing off state to another thread for later processing.
  *
  * @param clientd to be returned in the call
- * @param async associated with the original add publication call
  * @param channel of the publication
  * @param stream_id within the channel of the publication
  * @param session_id of the publication
@@ -211,7 +210,6 @@ void *aeron_context_get_publication_error_frame_handler_clientd(aeron_context_t 
  */
 typedef void (*aeron_on_new_publication_t)(
     void *clientd,
-    aeron_async_add_publication_t *async,
     const char *channel,
     int32_t stream_id,
     int32_t session_id,
@@ -233,7 +231,6 @@ void *aeron_context_get_on_new_exclusive_publication_clientd(aeron_context_t *co
  * Implementations should do the minimum work for handing off state to another thread for later processing.
  *
  * @param clientd to be returned in the call
- * @param async associated with the original aeron_add_async_subscription call
  * @param channel of the subscription
  * @param stream_id within the channel of the subscription
  * @param session_id of the subscription
@@ -241,7 +238,6 @@ void *aeron_context_get_on_new_exclusive_publication_clientd(aeron_context_t *co
  */
 typedef void (*aeron_on_new_subscription_t)(
     void *clientd,
-    aeron_async_add_subscription_t *async,
     const char *channel,
     int32_t stream_id,
     int64_t correlation_id);

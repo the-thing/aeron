@@ -471,13 +471,15 @@ static int aeron_client_conductor_on_publication_ready(
                 }
             }
 
+            aeron_client_conductor_remove_registering_resource(
+                conductor, resource, i, last_index, AERON_CLIENT_REGISTRATION_STATUS_REGISTERED);
+
             if (is_exclusive)
             {
                 if (NULL != conductor->on_new_exclusive_publication)
                 {
                     conductor->on_new_exclusive_publication(
                         conductor->on_new_exclusive_publication_clientd,
-                        resource,
                         channel,
                         response->stream_id,
                         response->session_id,
@@ -488,15 +490,11 @@ static int aeron_client_conductor_on_publication_ready(
             {
                 conductor->on_new_publication(
                     conductor->on_new_publication_clientd,
-                    resource,
                     channel,
                     response->stream_id,
                     response->session_id,
                     response->correlation_id);
             }
-
-            aeron_client_conductor_remove_registering_resource(
-                conductor, resource, i, last_index, AERON_CLIENT_REGISTRATION_STATUS_REGISTERED);
             break;
         }
     }
@@ -580,18 +578,17 @@ static int aeron_client_conductor_on_subscription_ready(
             resource->uri = NULL;
             resource->resource.subscription = subscription;
 
+            aeron_client_conductor_remove_registering_resource(
+                conductor, resource, i, last_index, AERON_CLIENT_REGISTRATION_STATUS_REGISTERED);
+
             if (NULL != conductor->on_new_subscription)
             {
                 conductor->on_new_subscription(
                     conductor->on_new_subscription_clientd,
-                    resource,
                     channel,
                     stream_id,
                     response->correlation_id);
             }
-
-            aeron_client_conductor_remove_registering_resource(
-                conductor, resource, i, last_index, AERON_CLIENT_REGISTRATION_STATUS_REGISTERED);
             break;
         }
     }

@@ -4,16 +4,25 @@
 
 === New & Noteworthy
 
-* **Breaking:** **[Cluster]** The classes RecordingLog.Snapshot, RecordingLog.Log and Recording.RecoveryPlan have been
-changed from flat classes to records, so the data accessors are now methods and not fields.
+* **Breaking:** **[Cluster]** The classes `RecordingLog.Snapshot`, `RecordingLog.Log` and `Recording.RecoveryPlan` have
+been changed from flat classes to records, so the data accessors are now methods and not fields.
+
 * **Breaking:** **[Cluster]** Removed the `ClusteredServiceContainer.Context.standbySnapshotsEnabled` method. This
 configuration is no longer required. It is controlled `ConsensusModule.Context.standbySnapshotsEnabled` configuration
 option and is propagated across as this needs to be consistent across both agents.
+
+* **Breaking:** **[Client/C]** Removed `async` parameter from the `aeron_on_new_publication_t` and
+`aeron_async_add_subscription_t` callbacks.
++
+NOTE: These callbacks should only be used to signal resource availability, i.e. the polling of the async struct should be
+done on the application thread.
+
 * **[Client/C]**: Added API to cancel async add operations:
 ** `aeron_async_add_subscription_cancel`
 ** `aeron_async_add_publication_cancel`
 ** `aeron_async_add_exclusive_publication_cancel`
 ** `aeron_async_add_counter_cancel`
+
 * **[Client/C]**: Added API to remove resources using their registration IDs:
 ** `aeron_async_remove_subscription`
 ** `aeron_async_remove_publication`
