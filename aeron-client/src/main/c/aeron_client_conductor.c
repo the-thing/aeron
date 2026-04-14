@@ -1572,7 +1572,8 @@ static bool aeron_client_conductor_remove_resources_marked_with_pending_close(vo
         AERON_GET_ACQUIRE(pending_close, publication->pending_close_action);
         if (pending_close)
         {
-            return 0 == aeron_client_conductor_close_publication(conductor, publication, aeron_int64_to_ptr_hash_map_get);
+            aeron_client_conductor_close_publication(conductor, publication, aeron_int64_to_ptr_hash_map_get);
+            return true;
         }
     }
     else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_EXCLUSIVE_PUBLICATION == resource->type)
@@ -1582,7 +1583,8 @@ static bool aeron_client_conductor_remove_resources_marked_with_pending_close(vo
         AERON_GET_ACQUIRE(pending_close, publication->pending_close_action);
         if (pending_close)
         {
-            return 0 == aeron_client_conductor_close_exclusive_publication(conductor, publication, aeron_int64_to_ptr_hash_map_get);
+            aeron_client_conductor_close_exclusive_publication(conductor, publication, aeron_int64_to_ptr_hash_map_get);
+            return true;
         }
     }
     else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_SUBSCRIPTION == resource->type)
@@ -1592,7 +1594,8 @@ static bool aeron_client_conductor_remove_resources_marked_with_pending_close(vo
         AERON_GET_ACQUIRE(pending_close, subscription->pending_close_action);
         if (pending_close)
         {
-            return 0 == aeron_client_conductor_close_subscription(conductor, subscription, aeron_int64_to_ptr_hash_map_get);
+            aeron_client_conductor_close_subscription(conductor, subscription, aeron_int64_to_ptr_hash_map_get);
+            return true;
         }
     }
     else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == resource->type)
@@ -1602,7 +1605,8 @@ static bool aeron_client_conductor_remove_resources_marked_with_pending_close(vo
         AERON_GET_ACQUIRE(pending_close, counter->pending_close_action);
         if (pending_close)
         {
-            return 0 == aeron_client_conductor_close_counter(conductor, counter, aeron_int64_to_ptr_hash_map_get);
+            aeron_client_conductor_close_counter(conductor, counter, aeron_int64_to_ptr_hash_map_get);
+            return true;
         }
     }
     return false;
