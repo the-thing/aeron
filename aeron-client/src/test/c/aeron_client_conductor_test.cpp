@@ -2075,6 +2075,8 @@ TEST_F(ClientConductorTest, shouldNotCloseStaticCounterWhenConductorIsClosed)
 
     EXPECT_FALSE(aeron_counter_is_closed(counter));
     EXPECT_FALSE(on_close_called);
+
+    EXPECT_EQ(0, aeron_counter_delete(counter));
 }
 
 TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndSubscriptionIsForcefullyDeleted)
@@ -2261,4 +2263,8 @@ TEST_F(ClientConductorTest, shouldAddMultipleStaticCountersWithTheSameRegistrati
     EXPECT_FALSE(aeron_counter_is_closed(counter2));
     EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
     EXPECT_EQ(counter2, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id2));
+
+    EXPECT_EQ(0, aeron_client_conductor_async_close_counter(&m_conductor, counter2, nullptr, nullptr));
+
+    doWork();
 }

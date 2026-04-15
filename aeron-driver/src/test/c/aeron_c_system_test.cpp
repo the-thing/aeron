@@ -553,13 +553,14 @@ TEST_F(CSystemTest, shouldCancelAddingCounterAndRemoveByRegistrationId)
         std::this_thread::yield();
     }
 
-    int64_t registrationId3 = 5678;
-    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter3", strlen("counter3"), registrationId3), 0);
+    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter3", strlen("counter3"), 5678), 0);
+    int64_t registrationId3 = aeron_async_add_counter_get_registration_id(async);
     ASSERT_EQ(aeron_async_add_counter_cancel(m_aeron, async), 0);
     async = nullptr;
 
-    int64_t registrationId4 = 9876;
-    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter4", strlen("counter4"), registrationId4), 0);
+    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter4", strlen("counter4"), 9876), 0);
+    int64_t registrationId4 = aeron_async_add_counter_get_registration_id(async);
+    ASSERT_NE(registrationId3, registrationId4);
     aeron_counter_t *counter4 = awaitCounterOrError(async);
     ASSERT_TRUE(counter4) << aeron_errmsg();
 
@@ -583,8 +584,8 @@ TEST_F(CSystemTest, shouldCancelAddingCounterAndRemoveByRegistrationId)
 
     EXPECT_EQ(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId1));
     EXPECT_EQ(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId2));
-    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, registrationId3));
-    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, registrationId4));
+    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, 5678));
+    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, 9876));
 }
 
 TEST_F(CSystemTest, shouldAddAndCloseCounter)
