@@ -30,6 +30,7 @@ import io.aeron.test.Tests;
 import io.aeron.test.driver.TestMediaDriver;
 import org.agrona.CloseHelper;
 import org.agrona.collections.MutableBoolean;
+import org.agrona.collections.MutableInteger;
 import org.agrona.collections.MutableReference;
 import org.agrona.concurrent.AtomicBuffer;
 import org.agrona.concurrent.SleepingMillisIdleStrategy;
@@ -78,6 +79,8 @@ class DriverNameResolverSystemTest
     @BeforeEach
     void before()
     {
+        assumeTrue(TestMediaDriver.shouldRunJavaMediaDriver());
+
         testWatcher.ignoreErrorsMatching(s -> s.contains("Failed to send resolution frames to neighbor"));
     }
 
@@ -95,11 +98,22 @@ class DriverNameResolverSystemTest
         addDriver(TestMediaDriver.launch(setDefaults(new MediaDriver.Context())
             .aeronDirectoryName(baseDir + "-A")
             .resolverName("A")
-            .resolverInterface("0.0.0.0:0"), testWatcher));
+            .resolverInterface("0.0.0.0:8050")
+            .resolverBootstrapNeighbor("localhost:8051"), testWatcher));
+
+        addDriver(TestMediaDriver.launch(setDefaults(new MediaDriver.Context())
+            .aeronDirectoryName(baseDir + "-B")
+            .resolverName("B")
+            .resolverInterface("0.0.0.0:8051"), testWatcher));
+
         startClients();
 
         final int neighborsCounterId = awaitNeighborsCounterId("A");
-        assertNotEquals(neighborsCounterId, NULL_VALUE);
+        assertNotEquals(NULL_VALUE, neighborsCounterId);
+
+        final int bootstrapNeighborCounterId = awaitBootstrapNeighborCounter("A", "localhost:8051");
+        assertNotEquals(NULL_VALUE, bootstrapNeighborCounterId);
+        awaitCounterValue("A", bootstrapNeighborCounterId, 1L);
     }
 
     @Test
@@ -120,9 +134,13 @@ class DriverNameResolverSystemTest
 
         final int aNeighborsCounterId = awaitNeighborsCounterId("A");
         final int bNeighborsCounterId = awaitNeighborsCounterId("B");
+        final int bBootstrapNeighborACounterId = awaitBootstrapNeighborCounter("B", "localhost:8050");
 
         awaitCounterValue("A", aNeighborsCounterId, 1);
         awaitCounterValue("B", bNeighborsCounterId, 1);
+        awaitCounterValueGreaterThan("B", bBootstrapNeighborACounterId, 0);
+        awaitCounterLabel(
+            "B", bBootstrapNeighborACounterId, "Bootstrap neighbor: name=localhost:8050 resolved=127.0.0.1:8050");
     }
 
     @Test
@@ -319,8 +337,6 @@ class DriverNameResolverSystemTest
     @InterruptAfter(10)
     void shouldUseFirstAvailableBootstrapNeighbor()
     {
-        assumeTrue(TestMediaDriver.shouldRunJavaMediaDriver());
-
         testWatcher.ignoreErrorsMatching(
             (s) -> s.contains("java.lang.IllegalArgumentException: invalid format: just:wrong") ||
                 s.contains("ava.net.UnknownHostException: unresolved - endpoint=non_existing_host:8050"));
@@ -407,8 +423,6 @@ class DriverNameResolverSystemTest
     @InterruptAfter(30)
     void shouldFallbackToAnotherBootstrapNeighborIfOneBecomesUnavailable()
     {
-        assumeTrue(TestMediaDriver.shouldRunJavaMediaDriver());
-
         testWatcher.ignoreErrorsMatching(
             (s) -> s.contains("java.net.UnknownHostException: unresolved - endpoint=localhostA:8050"));
 
@@ -523,8 +537,6 @@ class DriverNameResolverSystemTest
     @SuppressWarnings("try")
     void shouldUseActuallySpecifiedHostNamePortPairForCreatingChannelUri()
     {
-        assumeTrue(TestMediaDriver.shouldRunJavaMediaDriver());
-
         final String aeronDir = baseDir + "-error";
         final MutableReference<Throwable> error = new MutableReference<>();
 
@@ -599,6 +611,36 @@ class DriverNameResolverSystemTest
         }
     }
 
+    private int awaitBootstrapNeighborCounter(final String name, final String bootstrapNeighborName)
+    {
+        final Aeron aeron = clients.get(name);
+        final CountersReader countersReader = aeron.countersReader();
+
+        final String labelString = "name=" + bootstrapNeighborName;
+        final MutableInteger counterIdRef = new MutableInteger(NULL_VALUE);
+        while (Aeron.NULL_VALUE == counterIdRef.get())
+        {
+            countersReader.forEach((counterId, typeId, keyBuffer, label) ->
+            {
+                if (AeronCounters.NAME_RESOLVER_BOOTSTRAP_NEIGHBOR_COUNTER_TYPE_ID == typeId)
+                {
+                    if (label.contains(labelString))
+                    {
+                        counterIdRef.set(counterId);
+                    }
+                }
+            });
+
+            Tests.sleep(1);
+            if (aeron.isClosed())
+            {
+                fail("unexpected Aeron client close");
+            }
+        }
+
+        return counterIdRef.get();
+    }
+
     private int awaitCacheEntriesCounterId(final String name)
     {
         final Aeron aeron = clients.get(name);
@@ -641,6 +683,23 @@ class DriverNameResolverSystemTest
             () -> "Counter value: " + countersReader.getCounterValue(counterId) + ", expected: " + expectedValue;
 
         while (countersReader.getCounterValue(counterId) != expectedValue)
+        {
+            Tests.idle(SLEEP_50_MS, messageSupplier);
+            if (aeron.isClosed())
+            {
+                fail(messageSupplier.get());
+            }
+        }
+    }
+
+    private void awaitCounterValueGreaterThan(final String name, final int counterId, final long expectedValue)
+    {
+        final Aeron aeron = clients.get(name);
+        final CountersReader countersReader = aeron.countersReader();
+        final Supplier<String> messageSupplier =
+            () -> "Counter value: " + countersReader.getCounterValue(counterId) + ", expected: " + expectedValue;
+
+        while (countersReader.getCounterValue(counterId) <= expectedValue)
         {
             Tests.idle(SLEEP_50_MS, messageSupplier);
             if (aeron.isClosed())
