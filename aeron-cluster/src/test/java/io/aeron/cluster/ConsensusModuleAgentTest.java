@@ -102,7 +102,6 @@ class ConsensusModuleAgentTest
     private final Image mockImage = mock(Image.class);
     private final Header header = new Header(0, 0, mockImage);
     private final CountersManager countersManager = Tests.newCountersManager(2 * COUNTER_LENGTH);
-    private long registrationId = 20;
 
     private final ConsensusModule.Context ctx = TestContexts.localhostConsensusModule()
         .errorHandler(Tests::onError)
@@ -132,7 +131,7 @@ class ConsensusModuleAgentTest
     private Counter newCounter(final String name, final int typeId)
     {
         final AtomicCounter atomicCounter = countersManager.newCounter(name, typeId);
-        return new Counter(countersManager, ++registrationId, atomicCounter.id());
+        return new Counter(countersManager, atomicCounter.id());
     }
 
     @BeforeEach

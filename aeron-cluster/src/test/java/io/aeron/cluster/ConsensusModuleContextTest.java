@@ -162,7 +162,7 @@ class ConsensusModuleContextTest
     private Counter newCounter(final String name, final int typeId)
     {
         final AtomicCounter atomicCounter = countersManager.newCounter(name, typeId);
-        return new Counter(countersManager, ++registrationId, atomicCounter.id());
+        return new Counter(countersManager, atomicCounter.id());
     }
 
     @AfterEach

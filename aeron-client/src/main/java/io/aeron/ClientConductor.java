@@ -457,7 +457,9 @@ final class ClientConductor implements Agent
 
     void onNewCounter(final long correlationId, final int counterId)
     {
-        resourceByRegIdMap.put(correlationId, new Counter(correlationId, this, counterValuesBuffer, counterId));
+        resourceByRegIdMap.put(
+            correlationId,
+            new Counter(correlationId, correlationId, true, this, counterValuesBuffer, counterId));
         onAvailableCounter(correlationId, counterId);
     }
 
@@ -1611,10 +1613,10 @@ final class ClientConductor implements Agent
 
             ensureNotReentrant();
 
-            final long registrationId = counter.registrationId();
-            if (counter == resourceByRegIdMap.remove(registrationId))
+            final long correlationId = counter.correlationId();
+            if (counter == resourceByRegIdMap.remove(correlationId) && counter.clientOwned())
             {
-                asyncCommandIdSet.add(driverProxy.removeCounter(registrationId));
+                asyncCommandIdSet.add(driverProxy.removeCounter(correlationId));
             }
         }
         finally
@@ -1675,9 +1677,13 @@ final class ClientConductor implements Agent
     void onStaticCounter(final long correlationId, final int counterId)
     {
         final CountersReader countersReader = aeron.countersReader();
-        resourceByRegIdMap.put(
+        resourceByRegIdMap.put(correlationId, new Counter(
             correlationId,
-            new Counter(countersReader, countersReader.getCounterRegistrationId(counterId), counterId));
+            countersReader.getCounterRegistrationId(counterId),
+            false,
+            this,
+            counterValuesBuffer,
+            counterId));
     }
 
     void rejectImage(final long correlationId, final long position, final String reason)
@@ -1969,7 +1975,7 @@ final class ClientConductor implements Agent
                 publication.internalClose();
                 releaseLogBuffers(publication.logBuffers(), publication.originalRegistrationId(), NULL_VALUE);
             }
-            else if (resource instanceof Counter counter && this == counter.clientConductor())
+            else if (resource instanceof Counter counter && counter.clientOwned())
             {
                 counter.internalClose();
                 notifyUnavailableCounterHandlers(counter.registrationId(), counter.id());

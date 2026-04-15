@@ -63,7 +63,7 @@ public final class CountersAnswer implements Answer<Counter>
                 "Aeron::addCounter(int, DirectBuffer, int, int, DirectBuffer, int, int)");
         }
 
-        return new Counter(countersManager, 0, counterId);
+        return new Counter(countersManager, counterId);
     }
 
     /**

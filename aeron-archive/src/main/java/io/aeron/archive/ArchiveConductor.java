@@ -956,7 +956,7 @@ abstract class ArchiveConductor
         {
             try
             {
-                replayLimitCounter = new Counter(aeron.countersReader(), NULL_VALUE, limitCounterId);
+                replayLimitCounter = new Counter(aeron.countersReader(), limitCounterId);
             }
             catch (final Exception ex)
             {
