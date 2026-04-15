@@ -1215,7 +1215,7 @@ TEST_F(ClientConductorTest, shouldAddStaticCounterSuccessfully)
 
     const char *label = "first static counter from C";
     const size_t label_length = strlen(label);
-    const int registration_id = 42;
+    const int registration_id = 508;
     ASSERT_EQ(aeron_client_conductor_async_add_static_counter(
         &async, &m_conductor, COUNTER_TYPE_ID, nullptr, 0, label, label_length, registration_id), 0);
     ASSERT_EQ(registration_id, async->counter.registration_id);
@@ -1927,6 +1927,156 @@ TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBein
     EXPECT_TRUE(on_close_called);
 }
 
+TEST_F(ClientConductorTest, shouldAsyncCloseStaticCounter)
+{
+    aeron_async_add_counter_t *async = nullptr;
+    aeron_counter_t *counter = nullptr;
+    m_conductor.invoker_mode = false;
+
+    int32_t type_id = 1000;
+    int64_t registration_id = 437294837249;
+    std::string label = "my counter";
+    EXPECT_EQ(
+        aeron_client_conductor_async_add_static_counter(&async, &m_conductor, type_id, nullptr, 0, label.c_str(), label.length(), registration_id),
+        0);
+    int64_t correlation_id = aeron_async_add_counter_get_registration_id(async);
+    doWork();
+
+    transmitOnStaticCounter(async, 42);
+    doWork();
+
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter);
+    EXPECT_EQ(counter, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_counter(&m_conductor, counter, on_close_complete, &on_close_called));
+    EXPECT_FALSE(aeron_counter_is_closed(counter));
+    EXPECT_FALSE(counter->pending_close_action);
+
+    doWork();
+
+    EXPECT_TRUE(on_close_called);
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+}
+
+TEST_F(ClientConductorTest, shouldAsyncCloseStaticCounterIfClientBufferIsFull)
+{
+    aeron_async_add_counter_t *async = nullptr;
+    aeron_counter_t *counter = nullptr;
+    m_conductor.invoker_mode = false;
+    m_conductor.control_protocol_version = aeron_semantic_version_compose(
+        AERON_CONTROL_PROTOCOL_MAJOR_VERSION, AERON_CONTROL_PROTOCOL_MINOR_VERSION, AERON_CONTROL_PROTOCOL_PATCH_VERSION);
+
+    int32_t type_id = 1000;
+    int64_t registration_id = 437294837249;
+    std::string label = "my counter";
+    EXPECT_EQ(
+        aeron_client_conductor_async_add_static_counter(&async, &m_conductor, type_id, nullptr, 0, label.c_str(), label.length(), registration_id),
+        0);
+    int64_t correlation_id = aeron_async_add_counter_get_registration_id(async);
+    doWork();
+
+    transmitOnStaticCounter(async, 42);
+    doWork();
+
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter);
+    EXPECT_EQ(counter, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    std::vector<aeron_async_get_next_available_session_id_t *> pending_session_ids;
+    while (true)
+    {
+        aeron_async_get_next_available_session_id_t *next_async;
+        if (aeron_client_conductor_async_get_next_available_session_id(&next_async, &m_conductor, type_id) < 0)
+        {
+            break;
+        }
+        pending_session_ids.push_back(next_async);
+    }
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_counter(&m_conductor, counter, on_close_complete, &on_close_called));
+    EXPECT_FALSE(aeron_counter_is_closed(counter));
+    EXPECT_TRUE(counter->pending_close_action);
+
+    while (!on_close_called)
+    {
+        doWorkForNs((int64_t)m_conductor.idle_sleep_duration_ns);
+    }
+
+    EXPECT_TRUE(on_close_called);
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    for (auto async_session_id : pending_session_ids)
+    {
+        aeron_async_cmd_free(async_session_id);
+    }
+}
+
+TEST_F(ClientConductorTest, shouldNotCloseStaticCounterWhenConductorIsClosed)
+{
+    aeron_async_add_counter_t *async = nullptr;
+    aeron_counter_t *counter = nullptr;
+    m_conductor.invoker_mode = false;
+
+    int32_t type_id = 1000;
+    int64_t registration_id = 437294837249;
+    std::string label = "my counter";
+    EXPECT_EQ(
+        aeron_client_conductor_async_add_static_counter(&async, &m_conductor, type_id, nullptr, 0, label.c_str(), label.length(), registration_id),
+        0);
+    int64_t correlation_id = aeron_async_add_counter_get_registration_id(async);
+    doWork();
+
+    transmitOnStaticCounter(async, 42);
+    doWork();
+
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter);
+    EXPECT_EQ(counter, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    // register `on_close` callback but do not process actual close
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_counter(&m_conductor, counter, on_close_complete, &on_close_called));
+    EXPECT_FALSE(on_close_called);
+
+    aeron_client_conductor_on_close(&m_conductor);
+    m_conductor_isClosed = true;
+
+    EXPECT_FALSE(aeron_counter_is_closed(counter));
+    EXPECT_FALSE(on_close_called);
+}
+
 TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBeingClosedAndSubscriptionIsForcefullyDeleted)
 {
     aeron_async_add_subscription_t *async = nullptr;
@@ -2042,4 +2192,73 @@ TEST_F(ClientConductorTest, shouldNotifyOnCloseCompleteWhenClientConductorIsBein
     m_conductor_isClosed = true;
 
     EXPECT_TRUE(on_close_called);
+}
+
+TEST_F(ClientConductorTest, shouldAddMultipleStaticCountersWithTheSameRegistrationId)
+{
+    aeron_async_add_counter_t *async = nullptr, *async2 = nullptr;
+    aeron_counter_t *counter = nullptr, *counter2 = nullptr;
+    m_conductor.invoker_mode = false;
+
+    int64_t registration_id = 437294837249;
+    std::string label = "my counter";
+    EXPECT_EQ(
+        aeron_client_conductor_async_add_static_counter(&async, &m_conductor, 1000, nullptr, 0, label.c_str(), label.length(), registration_id),
+        0);
+    int64_t correlation_id = aeron_async_add_counter_get_registration_id(async);
+    doWork();
+
+    std::string label2 = "my counter";
+    EXPECT_EQ(
+        aeron_client_conductor_async_add_static_counter(&async2, &m_conductor, 2000, nullptr, 0, label2.c_str(), label2.length(), registration_id),
+        0);
+    int64_t correlation_id2 = aeron_async_add_counter_get_registration_id(async2);
+    EXPECT_NE(correlation_id, correlation_id2);
+    doWork();
+
+    transmitOnStaticCounter(async, 42);
+    doWork();
+
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter, async), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter);
+    EXPECT_EQ(counter, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+
+    transmitOnStaticCounter(async2, 24);
+    doWork();
+
+    EXPECT_EQ(aeron_async_add_counter_poll(&counter2, async2), 1) << aeron_errmsg();
+    EXPECT_NE(nullptr, counter2);
+    EXPECT_EQ(counter2, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id2));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, registration_id));
+    EXPECT_NE(counter->counter_id, counter2->counter_id);
+
+    auto addr1 = aeron_counters_manager_addr(&m_counters_manager, counter->counter_id);
+    auto addr2 = aeron_counters_manager_addr(&m_counters_manager, counter2->counter_id);
+    aeron_counter_set_release(addr1, 1984);
+    aeron_counter_set_release(addr2, 2026);
+    EXPECT_EQ(aeron_counter_get_acquire(addr1), 1984);
+    EXPECT_EQ(aeron_counter_get_acquire(addr2), 2026);
+
+    std::atomic<bool> on_close_called(false);
+    auto on_close_complete = [](void* clientd)
+    {
+        auto flag = static_cast<std::atomic<bool>*>(clientd);
+        flag->store(true);
+    };
+
+    EXPECT_EQ(
+        0,
+        aeron_client_conductor_async_close_counter(&m_conductor, counter, on_close_complete, &on_close_called));
+    EXPECT_FALSE(aeron_counter_is_closed(counter));
+    EXPECT_FALSE(counter->pending_close_action);
+
+    doWork();
+
+    EXPECT_TRUE(on_close_called);
+
+    EXPECT_EQ(aeron_counter_get_acquire(addr2), 2026);
+    EXPECT_FALSE(aeron_counter_is_closed(counter2));
+    EXPECT_EQ(nullptr, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id));
+    EXPECT_EQ(counter2, aeron_int64_to_ptr_hash_map_get(&m_conductor.resource_by_id_map, correlation_id2));
 }

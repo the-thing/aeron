@@ -793,7 +793,8 @@ static int aeron_client_conductor_on_counter_ready(aeron_client_conductor_t *con
             if (aeron_counter_create(
                 &counter,
                 conductor,
-                response->correlation_id,
+                resource->registration_id,
+                resource->registration_id,
                 response->counter_id,
                 counter_addr) < 0)
             {
@@ -850,9 +851,21 @@ static int aeron_client_conductor_on_static_counter(aeron_client_conductor_t *co
             if (aeron_counter_create(
                 &counter,
                 conductor,
+                resource->registration_id,
                 resource->counter.registration_id,
                 response->counter_id,
                 counter_addr) < 0)
+            {
+                const char* err = "failed to add static counter";
+                aeron_client_conductor_on_resource_registration_error(
+                    conductor, resource, i, last_index, AERON_ERROR_CODE_GENERIC_ERROR,strlen(err), err);
+                return -1;
+            }
+
+            counter->command_base.type = AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER;
+
+            if (aeron_int64_to_ptr_hash_map_put(
+                &conductor->resource_by_id_map, resource->registration_id, counter) < 0)
             {
                 const char* err = "failed to add static counter";
                 aeron_client_conductor_on_resource_registration_error(
@@ -1197,6 +1210,7 @@ static void aeron_client_conductor_force_close_resource(void *clientd, int64_t k
             aeron_image_close((aeron_image_t *)value);
             break;
 
+        case AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_LOG_BUFFER:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_DESTINATION:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_NEXT_AVAILABLE_SESSION_ID:
@@ -1536,9 +1550,12 @@ static int aeron_client_conductor_close_counter(
     void *on_close_complete_clientd = counter->on_close_complete_clientd;
 
     int result = 0;
-    if (NULL != lookup_func(&conductor->resource_by_id_map, counter->registration_id))
+    if (NULL != lookup_func(&conductor->resource_by_id_map, counter->correlation_id))
     {
-        result = aeron_client_conductor_offer_remove_counter_command(conductor, counter->registration_id);
+        if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == counter->command_base.type)
+        {
+            result = aeron_client_conductor_offer_remove_counter_command(conductor, counter->correlation_id);
+        }
     }
 
     aeron_counter_delete(counter);
@@ -1595,7 +1612,8 @@ static bool aeron_client_conductor_remove_resources_marked_with_pending_close(vo
             return true;
         }
     }
-    else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == resource->type)
+    else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == resource->type ||
+            AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER == resource->type)
     {
         aeron_counter_t *counter = (aeron_counter_t *)resource;
         bool pending_close;
@@ -1756,6 +1774,7 @@ static void aeron_client_conductor_delete_resource(void *clientd, int64_t key, v
             aeron_image_delete((aeron_image_t *)value);
             break;
 
+        case AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_LOG_BUFFER:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_DESTINATION:
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_NEXT_AVAILABLE_SESSION_ID:
@@ -2863,6 +2882,14 @@ int aeron_client_conductor_async_close_subscription(
     return 0;
 }
 
+static bool aeron_client_conductor_resource_type_match(
+    const aeron_client_managed_resource_type_t resource_type, const aeron_client_managed_resource_type_t command_type)
+{
+    return resource_type == command_type ||
+        (AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER == resource_type &&
+        AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == command_type);
+}
+
 static int aeron_client_conductor_on_cmd_remove_resource(void *clientd, void *item)
 {
     int result = 0;
@@ -2873,7 +2900,8 @@ static int aeron_client_conductor_on_cmd_remove_resource(void *clientd, void *it
     {
         aeron_client_registering_resource_t *resource = conductor->registering_resources.array[i].resource;
 
-        if (resource->registration_id == cmd->registration_id && resource->type == cmd->command_base.type)
+        if (resource->registration_id == cmd->registration_id &&
+            aeron_client_conductor_resource_type_match(resource->type, cmd->command_base.type))
         {
             if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_SUBSCRIPTION == resource->type)
             {
@@ -2902,7 +2930,7 @@ static int aeron_client_conductor_on_cmd_remove_resource(void *clientd, void *it
 
     aeron_client_command_base_t *resource = aeron_int64_to_ptr_hash_map_get(
         &conductor->resource_by_id_map, cmd->registration_id);
-    if (NULL != resource && resource->type == cmd->command_base.type)
+    if (NULL != resource && aeron_client_conductor_resource_type_match(resource->type, cmd->command_base.type))
     {
         if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_SUBSCRIPTION == resource->type)
         {
@@ -2916,7 +2944,8 @@ static int aeron_client_conductor_on_cmd_remove_resource(void *clientd, void *it
         {
             result = aeron_client_conductor_on_cmd_close_exclusive_publication(conductor, resource);
         }
-        else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == resource->type)
+        else if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == resource->type ||
+                AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER == resource->type)
         {
             result = aeron_client_conductor_on_cmd_close_counter(conductor, resource);
         }
@@ -3140,7 +3169,7 @@ int aeron_client_conductor_async_add_static_counter(
     cmd->counter.registration_id = registration_id;
     cmd->registration_id = aeron_mpsc_rb_next_correlation_id(&conductor->to_driver_buffer);
     cmd->registration_status = AERON_CLIENT_REGISTRATION_STATUS_AWAITING;
-    cmd->type = AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER;
+    cmd->type = AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER;
 
     if (conductor->invoker_mode)
     {

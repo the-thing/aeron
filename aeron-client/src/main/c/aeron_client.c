@@ -54,11 +54,29 @@ static const char* aeron_client_managed_resource_type_to_string(
             return "subscription";
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER:
             return "counter";
+        case AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER:
+            return "static_counter";
         case AERON_CLIENT_MANAGED_RESOURCE_TYPE_DESTINATION:
             return "destination";
         default:
             return "unknown";
     }
+}
+
+static int aeron_validate_async_resource(
+    aeron_client_registering_resource_t *async,
+    const aeron_client_managed_resource_type_t expected_type)
+{
+    if (expected_type != async->type)
+    {
+        AERON_SET_ERR(
+            EINVAL,
+            "Parameters must be valid, async->type: %d (expected: %d)",
+            (int)async->type,
+            (int)expected_type);
+        return -1;
+    }
+    return 0;
 }
 
 static int aeron_async_resource_poll(
@@ -78,13 +96,9 @@ static int aeron_async_resource_poll(
 
     *resource = NULL;
 
-    if (resource_type != async->type)
+    if (aeron_validate_async_resource(async, resource_type))
     {
-        AERON_SET_ERR(
-            EINVAL,
-            "Parameters must be valid, async->type: %d (expected: %d)",
-            (int)(async->type),
-            (int)resource_type);
+        AERON_APPEND_ERR("%s", "");
         return -1;
     }
 
@@ -101,7 +115,7 @@ static int aeron_async_resource_poll(
         case AERON_CLIENT_REGISTRATION_STATUS_ERRORED:
         {
             AERON_SET_ERR(
-                -async->error_code,
+                -async->error_code, // FIXME: Will mess up OS errors reported by MD!
                 "async_add_%s registration error\n%.*s",
                 aeron_client_managed_resource_type_to_string(resource_type),
                 (int)async->error_message_length,
@@ -124,6 +138,7 @@ static int aeron_async_resource_poll(
                     *resource = async->resource.subscription;
                     break;
                 case AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER:
+                case AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER:
                     *resource = async->resource.counter;
                     break;
                 default:
@@ -446,6 +461,12 @@ int aeron_async_add_publication_cancel(aeron_t *client, aeron_async_add_publicat
         return -1;
     }
 
+    if (aeron_validate_async_resource(async, AERON_CLIENT_MANAGED_RESOURCE_TYPE_PUBLICATION) < 0)
+    {
+        AERON_APPEND_ERR("%s", "");
+        return -1;
+    }
+
     return aeron_async_remove_publication(
         aeron_async_add_publication_get_registration_id(async),
         client,
@@ -476,6 +497,12 @@ int aeron_async_add_exclusive_publication_cancel(aeron_t *client, aeron_async_ad
     if (NULL == async)
     {
         AERON_SET_ERR(EINVAL, "Parameters must not be null, async: %s", AERON_NULL_STR(async));
+        return -1;
+    }
+
+    if (aeron_validate_async_resource(async, AERON_CLIENT_MANAGED_RESOURCE_TYPE_EXCLUSIVE_PUBLICATION) < 0)
+    {
+        AERON_APPEND_ERR("%s", "");
         return -1;
     }
 
@@ -528,6 +555,12 @@ int aeron_async_add_subscription_cancel(aeron_t *client, aeron_async_add_subscri
     if (NULL == async)
     {
         AERON_SET_ERR(EINVAL, "Parameters must not be null, async: %s", AERON_NULL_STR(async));
+        return -1;
+    }
+
+    if (aeron_validate_async_resource(async, AERON_CLIENT_MANAGED_RESOURCE_TYPE_SUBSCRIPTION) < 0)
+    {
+        AERON_APPEND_ERR("%s", "");
         return -1;
     }
 
@@ -719,7 +752,19 @@ int aeron_async_add_counter(
 
 int aeron_async_add_counter_poll(aeron_counter_t **counter, aeron_async_add_counter_t *async)
 {
-    return aeron_async_resource_poll((void **)counter, AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER, async);
+    if (NULL == async)
+    {
+        AERON_SET_ERR(
+            EINVAL,
+            "Parameters must not be null, async: %s",
+            AERON_NULL_STR(async));
+        return -1;
+    }
+
+    int resource_type = AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER == async->type ?
+        AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER : AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER;
+
+    return aeron_async_resource_poll((void **)counter, resource_type, async);
 }
 
 int aeron_async_add_counter_cancel(aeron_t *client, aeron_async_add_counter_t *async)
@@ -730,14 +775,21 @@ int aeron_async_add_counter_cancel(aeron_t *client, aeron_async_add_counter_t *a
         return -1;
     }
 
-    if (0 != async->counter.registration_id)
+    if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER != async->type &&
+        AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER != async->type)
     {
-        AERON_SET_ERR(EINVAL, "%s", "Can't cancel adding a static counter");
+        AERON_SET_ERR(
+            EINVAL,
+            "Parameters must be valid, async->type: %d (expected: %d or %d)",
+            (int)(async->type),
+            (int)AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER,
+            (int)AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER);
         return -1;
     }
 
-    return aeron_async_remove_counter(
+    return aeron_async_remove_resource(
         aeron_async_add_counter_get_registration_id(async),
+        async->type,
         client,
         (aeron_notification_t)aeron_async_cmd_free,
         async);
@@ -1100,7 +1152,8 @@ void aeron_async_cmd_free(aeron_client_registering_resource_t *async)
         aeron_free(async->error_message);
         aeron_free(async->uri);
 
-        if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == async->type)
+        if (AERON_CLIENT_MANAGED_RESOURCE_TYPE_COUNTER == async->type ||
+            AERON_CLIENT_MANAGED_RESOURCE_TYPE_STATIC_COUNTER == async->type)
         {
             aeron_free((void *)async->counter.key_buffer);
             aeron_free((void *)async->counter.label_buffer);

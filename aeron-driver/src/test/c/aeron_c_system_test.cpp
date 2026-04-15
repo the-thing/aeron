@@ -530,62 +530,61 @@ TEST_P(CSystemTest, shouldCancelAddingExclusivePublicationAndRemoveByRegistratio
 TEST_F(CSystemTest, shouldCancelAddingCounterAndRemoveByRegistrationId)
 {
     constexpr auto type_id = 55555;
+    constexpr auto static_type_id = 1234;
 
     ASSERT_TRUE(connect());
+    aeron_counters_reader_t *counters_reader = aeron_counters_reader(m_aeron);
 
     aeron_async_add_counter_t *async = nullptr;
     ASSERT_EQ(aeron_async_add_counter(&async, m_aeron, type_id, nullptr, 0, "counter1", strlen("counter1")), 0);
+    int64_t registrationId1 = aeron_async_add_counter_get_registration_id(async);
     ASSERT_EQ(aeron_async_add_counter_cancel(m_aeron, async), 0);
     async = nullptr;
 
     ASSERT_EQ(aeron_async_add_counter(&async, m_aeron, type_id, nullptr, 0, "counter2", strlen("counter2")), 0);
+    int64_t registrationId2 = aeron_async_add_counter_get_registration_id(async);
     aeron_counter_t *counter2 = awaitCounterOrError(async);
     ASSERT_TRUE(counter2) << aeron_errmsg();
 
-    aeron_counter_constants_t counter_constants;
-    aeron_counter_constants(counter2, &counter_constants);
     std::atomic<bool> removed(false);
-    ASSERT_EQ(aeron_async_remove_counter(counter_constants.registration_id, m_aeron, setFlagOnClose, &removed), 0);
+    ASSERT_EQ(aeron_async_remove_counter(registrationId2, m_aeron, setFlagOnClose, &removed), 0);
     while (!removed)
     {
         std::this_thread::yield();
     }
 
-    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, 1234, nullptr, 0, "counter3", strlen("counter3"), 5678), 0);
-    ASSERT_EQ(aeron_async_add_counter_cancel(m_aeron, async), -1);
-    ASSERT_THAT(aeron_errmsg(), testing::HasSubstr("Can't cancel adding a static counter"));
-    aeron_counter_t *counter3 = awaitStaticCounterOrError(async);
-    ASSERT_TRUE(counter3) << aeron_errmsg();
+    int64_t registrationId3 = 5678;
+    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter3", strlen("counter3"), registrationId3), 0);
+    ASSERT_EQ(aeron_async_add_counter_cancel(m_aeron, async), 0);
+    async = nullptr;
 
-    aeron_counters_reader_t *counters_reader = aeron_counters_reader(m_aeron);
-    std::pair<int, int> type_count{type_id, 0};
+    int64_t registrationId4 = 9876;
+    ASSERT_EQ(aeron_async_add_static_counter(&async, m_aeron, static_type_id, nullptr, 0, "counter4", strlen("counter4"), registrationId4), 0);
+    aeron_counter_t *counter4 = awaitCounterOrError(async);
+    ASSERT_TRUE(counter4) << aeron_errmsg();
+
+    removed = false;
+    ASSERT_EQ(aeron_async_remove_counter(registrationId4, m_aeron, setFlagOnClose, &removed), 0);
+    while (!removed)
+    {
+        std::this_thread::yield();
+    }
+
     while (true)
     {
-        type_count.second = 0;
-        aeron_counters_reader_foreach_counter(
-            counters_reader,
-            [](int64_t, int32_t, int32_t type_id, const uint8_t *, size_t, const char *, size_t, void *clientd)
-            {
-                auto type_count = static_cast<std::pair<int, int>*>(clientd);
-                if (type_id == type_count->first)
-                {
-                    type_count->second++;
-                }
-            },
-            &type_count);
-        if (type_count.second == 0)
+        int counterId1 = aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId1);
+        int counterId2 = aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId2);
+        if (AERON_NULL_COUNTER_ID == counterId1 && AERON_NULL_COUNTER_ID == counterId2)
         {
             break;
         }
         std::this_thread::yield();
     }
 
-    removed = false;
-    aeron_counter_close(counter3, setFlagOnClose, &removed);
-    while (!removed)
-    {
-        std::this_thread::yield();
-    }
+    EXPECT_EQ(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId1));
+    EXPECT_EQ(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, type_id, registrationId2));
+    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, registrationId3));
+    EXPECT_NE(AERON_NULL_COUNTER_ID, aeron_counters_reader_find_by_type_id_and_registration_id(counters_reader, static_type_id, registrationId4));
 }
 
 TEST_F(CSystemTest, shouldAddAndCloseCounter)
@@ -603,7 +602,9 @@ TEST_F(CSystemTest, shouldAddAndCloseCounter)
     aeron_counter_t *counter = awaitCounterOrError(async);
     ASSERT_TRUE(counter) << aeron_errmsg();
     ASSERT_EQ(0, aeron_counter_constants(counter, &counter_constants));
+    ASSERT_EQ(registration_id, counter_constants.correlation_id);
     ASSERT_EQ(registration_id, counter_constants.registration_id);
+    ASSERT_GT(counter_constants.counter_id, 0);
 
     aeron_counter_close(counter, setFlagOnClose, &counterClosedFlag);
 
@@ -638,20 +639,26 @@ TEST_F(CSystemTest, shouldAddStaticCounter)
     int64_t registration_id = -51515155188822;
     ASSERT_EQ(aeron_async_add_static_counter(
         &async, m_aeron, type_id, (uint8_t *)key, key_length, label, label_length, registration_id), 0);
+    int64_t correlation_id = aeron_async_add_counter_get_registration_id(async);
+    ASSERT_NE(registration_id, correlation_id);
 
     aeron_counter_t *counter = awaitStaticCounterOrError(async);
     ASSERT_TRUE(counter) << aeron_errmsg();
     ASSERT_EQ(0, aeron_counter_constants(counter, &counter_constants));
+    ASSERT_EQ(correlation_id, counter_constants.correlation_id);
     ASSERT_EQ(registration_id, counter_constants.registration_id);
 
     ASSERT_EQ(aeron_async_add_static_counter(
         &async, m_aeron, type_id, nullptr, 0, "test", 4, registration_id), 0);
+    int64_t correlation_id2 = aeron_async_add_counter_get_registration_id(async);
+    ASSERT_NE(correlation_id, correlation_id2);
 
     aeron_counter_t *counter2 = awaitStaticCounterOrError(async);
     ASSERT_TRUE(counter2) << aeron_errmsg();
     ASSERT_EQ(0, aeron_counter_constants(counter2, &counter_constants2));
-    ASSERT_EQ(counter_constants.counter_id, counter_constants2.counter_id);
+    ASSERT_EQ(correlation_id2, counter_constants2.correlation_id);
     ASSERT_EQ(counter_constants.registration_id, counter_constants2.registration_id);
+    ASSERT_EQ(counter_constants.counter_id, counter_constants2.counter_id);
     ASSERT_NE(counter, counter2);
 
     counterClosedFlag = false;

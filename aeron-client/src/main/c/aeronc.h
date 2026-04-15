@@ -2471,12 +2471,22 @@ aeron_controlled_fragment_handler_action_t aeron_controlled_fragment_assembler_h
 int64_t *aeron_counter_addr(aeron_counter_t *counter);
 
 /**
- * Configuration for a counter that does not change during it's lifetime.
+ * Configuration for a counter that does not change during its lifetime.
  */
 typedef struct aeron_counter_constants_stct
 {
     /**
+     * Return the correlation id of the counter creation request that was sent to the media driver. Correlation id is
+     * unique across all requests sent to the media driver.
+     */
+    int64_t correlation_id;
+
+    /**
      * Return the registration id used to register this counter with the media driver.
+     * <p>
+     * For non-static counters this value is the same as <code>correlation_id</code. For static counters this is the
+     * value that was explicitly assigned. by the caller, i.e. passed as <code>registration_id</code> parameter into
+     * <code>aeron_async_add_static_counter</code> call.
      */
     int64_t registration_id;
 
