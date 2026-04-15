@@ -138,7 +138,7 @@ class DriverNameResolverSystemTest
 
         awaitCounterValue("A", aNeighborsCounterId, 1);
         awaitCounterValue("B", bNeighborsCounterId, 1);
-        awaitCounterValueGreaterThan("B", bBootstrapNeighborACounterId, 0);
+        awaitCounterValue("B", bBootstrapNeighborACounterId, 1);
         awaitCounterLabel(
             "B", bBootstrapNeighborACounterId, "Bootstrap neighbor: name=localhost:8050 resolved=127.0.0.1:8050");
     }
@@ -683,23 +683,6 @@ class DriverNameResolverSystemTest
             () -> "Counter value: " + countersReader.getCounterValue(counterId) + ", expected: " + expectedValue;
 
         while (countersReader.getCounterValue(counterId) != expectedValue)
-        {
-            Tests.idle(SLEEP_50_MS, messageSupplier);
-            if (aeron.isClosed())
-            {
-                fail(messageSupplier.get());
-            }
-        }
-    }
-
-    private void awaitCounterValueGreaterThan(final String name, final int counterId, final long expectedValue)
-    {
-        final Aeron aeron = clients.get(name);
-        final CountersReader countersReader = aeron.countersReader();
-        final Supplier<String> messageSupplier =
-            () -> "Counter value: " + countersReader.getCounterValue(counterId) + ", expected: " + expectedValue;
-
-        while (countersReader.getCounterValue(counterId) <= expectedValue)
         {
             Tests.idle(SLEEP_50_MS, messageSupplier);
             if (aeron.isClosed())
