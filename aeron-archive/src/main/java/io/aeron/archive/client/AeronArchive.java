@@ -2328,7 +2328,7 @@ public final class AeronArchive implements AutoCloseable
 
             if (!archiveProxy.updateChannel(recordingId, newChannel, lastCorrelationId, controlSessionId))
             {
-                throw new ArchiveException("failed to send migrate segments request");
+                throw new ArchiveException("failed to send update channel request");
             }
 
             pollForResponse(lastCorrelationId);
