@@ -19,6 +19,7 @@ import io.aeron.driver.media.PortManager;
 import io.aeron.driver.media.UdpNameResolutionTransport;
 import io.aeron.driver.media.WildcardPortManager;
 import io.aeron.driver.status.SystemCounters;
+import io.aeron.exceptions.AeronException;
 import io.aeron.protocol.HeaderFlyweight;
 import io.aeron.protocol.ResolutionEntryFlyweight;
 import io.aeron.test.Tests;
@@ -38,6 +39,9 @@ import java.util.concurrent.TimeUnit;
 import static io.aeron.protocol.HeaderFlyweight.MIN_HEADER_LENGTH;
 import static io.aeron.protocol.ResolutionEntryFlyweight.RES_TYPE_NAME_TO_IP4_MD;
 import static io.aeron.protocol.ResolutionEntryFlyweight.SELF_FLAG;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -70,7 +74,6 @@ class DriverNameResolverTest
     private final ArgumentCaptor<UnsafeBuffer> bufferCaptor = ArgumentCaptor.forClass(UnsafeBuffer.class);
     private final DutyCycleTracker dutyCycleTracker = mock(DutyCycleTracker.class);
 
-    private final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(new byte[1024]);
     private final HeaderFlyweight headerFlyweight = new HeaderFlyweight();
     private final ResolutionEntryFlyweight resolutionEntryFlyweight = new ResolutionEntryFlyweight();
 
@@ -167,6 +170,11 @@ class DriverNameResolverTest
         verify(delegateResolver, times(3)).lookup(eq(endpointTwo), anyString(), eq(false));
         verify(delegateResolver, times(3)).resolve(eq(addressTwo), anyString(), eq(false));
 
+        epochClock.update(TIMEOUT_MS * 3);
+        driverNameResolver.doWork();
+        verify(delegateResolver, times(4)).lookup(eq(endpointTwo), anyString(), eq(false));
+        verify(delegateResolver, times(4)).resolve(eq(addressTwo), anyString(), eq(false));
+
         onNeighborFrame(nameTwo, addressTwo, portTwo, TIMEOUT_MS * 2);
 
         epochClock.update(TIMEOUT_MS * 3);
@@ -228,9 +236,27 @@ class DriverNameResolverTest
         epochClock.update(neighborTimeoutMs);
         driverNameResolver.doWork();
         verify(delegateResolver, times(3)).doWork();
-        verify(delegateResolver).lookup(eq(endpointTwo), anyString(), eq(false));
-        verify(delegateResolver).resolve(eq(addressTwo), anyString(), eq(false));
+        verify(delegateResolver, times(2)).lookup(eq(endpointTwo), anyString(), eq(false));
+        verify(delegateResolver, times(2)).resolve(eq(addressTwo), anyString(), eq(false));
         verifyNoMoreInteractions(delegateResolver);
+    }
+
+    @Test
+    void shouldNotAllowMoreThanTwentyBootstrapNeighbors()
+    {
+        final StringBuilder s = new StringBuilder();
+        for (int i = 0; i < 21; i++)
+        {
+            s.append("localhost:").append(10000 + i).append(",");
+        }
+        s.setLength(s.length() - 1);
+
+        when(mediaDriverCtx.resolverBootstrapNeighbor()).thenReturn(s.toString());
+        final AeronException ex = assertThrows(
+            AeronException.class,
+            () -> driverNameResolver = new DriverNameResolver(mediaDriverCtx, udpNameResolutionTransportFactory));
+
+        assertThat(ex.getMessage(), containsString("Bootstrap Neighbor list too large"));
     }
 
     private void onNeighborFrame(final String name, final String address, final int port, final long time)
