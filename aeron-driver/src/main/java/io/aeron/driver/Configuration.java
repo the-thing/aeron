@@ -1144,13 +1144,25 @@ public final class Configuration
     public static final String RECEIVER_WILDCARD_PORT_RANGE_PROP_NAME = "aeron.receiver.wildcard.port.range";
 
     /**
-     * Property name to configure the number of async executor threads. Defaults to {@code 1}. Negative value or zero
-     * means no asynchronous threads should be created, i.e. execution will be done on the conductor thread.
+     * Property name to enable or disable async executor. Defaults to {@code true}, i.e. enabled. Setting this property
+     * to {@code false} will disable async executor, i.e. DNS and DNR resolution will be done on the
+     * {@code conductor} thread.
      *
-     * @since 1.44.0
+     * @since 1.51.0
      */
-    @Config(defaultType = DefaultType.INT, defaultInt = 1)
-    public static final String ASYNC_TASK_EXECUTOR_THREADS_PROP_NAME = "aeron.driver.async.executor.threads";
+    @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = true)
+    public static final String ASYNC_EXECUTOR_ENABLED_PROP_NAME = "aeron.driver.async.executor.enabled";
+
+    /**
+     * Property name to configure idle strategy for async executor when enabled. Defaults to {@code sleep-ns} strategy
+     * with one millisecond sleep time.
+     *
+     * @see #ASYNC_EXECUTOR_ENABLED_PROP_NAME
+     * @since 1.51.0
+     */
+    @Config(defaultType = DefaultType.BOOLEAN, defaultBoolean = true)
+    public static final String ASYNC_EXECUTOR_IDLE_STRATEGY_PROP_NAME =
+        "aeron.driver.async.executor.idle.strategy";
 
     /**
      * Property name to set a limit on the number sessions allowed per stream on a subscription.
@@ -2070,17 +2082,37 @@ public final class Configuration
         return getProperty(RECEIVER_WILDCARD_PORT_RANGE_PROP_NAME);
     }
 
+    /**
+     * Is async executor enabled or not.Defaults to {@code true}, i.e. enabled. Setting this property
+     *      * to {@code false} will disable async executor, i.e. DNS and DNR resolution will be done on the
+     *      * {@code conductor} thread.
+     *
+     * @return {@code true} if async task executor is enabled or {@code false} otherwise.
+     * @see #ASYNC_EXECUTOR_ENABLED_PROP_NAME
+     * @since 1.51.0
+     */
+    public static boolean asyncExecutorEnabled()
+    {
+        return "true".equalsIgnoreCase(getProperty(ASYNC_EXECUTOR_ENABLED_PROP_NAME, "true"));
+    }
 
     /**
-     * Number of async executor threads.
+     * {@return {@link IdleStrategy} to be employed by the async executor when enabled.}
      *
-     * @return number of threads, defaults to one.
-     * @see #ASYNC_TASK_EXECUTOR_THREADS_PROP_NAME
-     * @since 1.44.0
+     * @param controllableStatus to allow control of {@link ControllableIdleStrategy}, which can be null if not used.
+     * @see #ASYNC_EXECUTOR_IDLE_STRATEGY_PROP_NAME
+     * @see #ASYNC_EXECUTOR_ENABLED_PROP_NAME
+     * @since 1.51.0
      */
-    public static int asyncTaskExecutorThreads()
+    public static IdleStrategy asyncExecutorIdleStrategy(final StatusIndicator controllableStatus)
     {
-        return getInteger(ASYNC_TASK_EXECUTOR_THREADS_PROP_NAME, 1);
+        final String idleStategyName = getProperty(ASYNC_EXECUTOR_IDLE_STRATEGY_PROP_NAME);
+        if (Strings.isEmpty(idleStategyName))
+        {
+            final SleepingIdleStrategy idleStrategy = new SleepingIdleStrategy(TimeUnit.MILLISECONDS.toNanos(1));
+            return idleStrategy;
+        }
+        return agentIdleStrategy(idleStategyName, controllableStatus);
     }
 
     /**

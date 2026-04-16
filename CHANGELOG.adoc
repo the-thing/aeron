@@ -4,18 +4,33 @@
 
 === New & Noteworthy
 
-* **Breaking:** **[Java Driver]** The name resolver interface has been changed. The NameResolver has had the lifecycle
-methods (init/doWork) removed to narrow the interface to the resolution methods. A new interface NameResolverAgent has
-been introduce to include the Agent lifecycle methods. Custom name resolvers will need to implement this interface to
-be managed correctly by the driver and be passed into the MediaDriver.Context. Default methods are provided so
+* **Breaking:** **[Driver]** Async executor is now a single-threaded `Agent`.
++
+Previously async executor could be configured to run on `N` threads (Java only). Now it can either be enabled in which
+case it runs on a dedicated `aeron-executor` thread or disabled (i.e. runs on the `conductor` thread instead).
++
+Removed the `aeron.driver.async.executor.threads` property and the corresponding
+configuration API (i.e. `MediaDriver.Context.asyncTaskExecutorThreads(int)`,
+`MediaDriver.Context.asyncTaskExecutor(Executor)`).
++
+Added new configuration properties:
++
+** `aeron.driver.async.executor.enabled` - to enable/disable async executor (defaults to `true`).
+** `aeron.driver.async.executor.idle.strategy` - to set idle strategy for an async executor when enabled. Defaults to
+sleeping for 1ms when idle.
+
+* **Breaking:** **[Java Driver]** The name resolver interface has been changed. The `NameResolver` has had the lifecycle
+methods (`init`/`doWork`) removed to narrow the interface to the resolution methods. A new interface `NameResolverAgent`
+has been introduce to include the `Agent` lifecycle methods. Custom name resolvers will need to implement this interface
+to be managed correctly by the driver and be passed into the `MediaDriver.Context`. Default methods are provided so
 implementing is not required.
 
-* **Breaking:** **[C Driver]** The name resolver interface has been changed. The C name resolver now requires and
-addtional on_start lifecycle method.
+* **Breaking:** **[C Driver]** The name resolver interface has been changed. The C name resolver now requires an
+additional `on_start` lifecycle method.
 
-* **Breaking:** **[C Driver]** The `aeronmd` binary now requires the aeron client library (libaeron.so/aeron.dll) to be
-present when running. This is because previously the library code was included twice.  Once in the driver library
-(libaeron_driver.so/aeron_driver.dll) and once in executable. The logging relies on a thread local symbol and without
+* **Breaking:** **[C Driver]** The `aeronmd` binary now requires the aeron client library (`libaeron.so`/`aeron.dll`)
+to be present when running. This is because previously the library code was included twice.  Once in the driver library
+(`libaeron_driver.so`/`aeron_driver.dll`) and once in executable. The logging relies on a thread local symbol and without
 this change it could be duplicated in some situations. The client library should reside in the same location as the
 driver library when being deployed.
 

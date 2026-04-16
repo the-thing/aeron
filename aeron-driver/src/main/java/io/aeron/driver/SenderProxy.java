@@ -30,11 +30,11 @@ final class SenderProxy extends CommandProxy
     private Sender sender;
 
     SenderProxy(
-        final ThreadingMode threadingMode,
         final OneToOneConcurrentArrayQueue<Runnable> commandQueue,
-        final AtomicCounter failCount)
+        final AtomicCounter failCount,
+        final boolean notConcurrent)
     {
-        super(threadingMode, commandQueue, failCount);
+        super(commandQueue, failCount, notConcurrent);
     }
 
     void sender(final Sender sender)

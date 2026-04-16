@@ -286,7 +286,8 @@ public final class CTestMediaDriver implements TestMediaDriver
         environment.put("AERON_DRIVER_SENDER_CYCLE_THRESHOLD", String.valueOf(context.senderCycleThresholdNs()));
         environment.put("AERON_DRIVER_RECEIVER_CYCLE_THRESHOLD", String.valueOf(context.receiverCycleThresholdNs()));
         environment.put("AERON_DRIVER_NAME_RESOLVER_THRESHOLD", String.valueOf(context.nameResolverThresholdNs()));
-        environment.put("AERON_DRIVER_ASYNC_EXECUTOR_THREADS", String.valueOf(context.asyncTaskExecutorThreads()));
+        environment.put("AERON_DRIVER_ASYNC_EXECUTOR_ENABLED", String.valueOf(context.asyncExecutorEnabled()));
+        environment.put("AERON_DRIVER_ASYNC_EXECUTOR_THREADS", context.asyncExecutorEnabled() ? "1" : "0");
         final String senderWildcardPortRange = context.senderWildcardPortRange();
         if (null != senderWildcardPortRange)
         {

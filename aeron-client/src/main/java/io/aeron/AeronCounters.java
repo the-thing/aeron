@@ -326,6 +326,12 @@ public final class AeronCounters
     @AeronCounter
     public static final int SYSTEM_COUNTER_ID_STATUS_MESSAGES_REJECTED = 44;
 
+    /**
+     * Counter id for failed offers to the async executor proxy.
+     */
+    @AeronCounter
+    public static final int SYSTEM_COUNTER_ID_ASYNC_EXECUTOR_PROXY_FAILS = 45;
+
     // Client/driver counters
     /**
      * System-wide counters for monitoring. These are separate from counters used for position tracking on streams.

@@ -31,11 +31,11 @@ final class ReceiverProxy extends CommandProxy
     private Receiver receiver;
 
     ReceiverProxy(
-        final ThreadingMode threadingMode,
         final OneToOneConcurrentArrayQueue<Runnable> commandQueue,
-        final AtomicCounter failCount)
+        final AtomicCounter failCount,
+        final boolean notConcurrent)
     {
-        super(threadingMode, commandQueue, failCount);
+        super(commandQueue, failCount, notConcurrent);
     }
 
     void receiver(final Receiver receiver)

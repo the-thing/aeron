@@ -59,6 +59,7 @@ import org.agrona.MutableDirectBuffer;
 import org.agrona.collections.Object2ObjectHashMap;
 import org.agrona.collections.ObjectHashSet;
 import org.agrona.concurrent.Agent;
+import org.agrona.concurrent.AgentInvoker;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.CachedNanoClock;
 import org.agrona.concurrent.EpochClock;
@@ -76,8 +77,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -194,9 +193,11 @@ public final class DriverConductor implements Agent
     private final LogFactory logFactory;
     private final ReceiverProxy receiverProxy;
     private final SenderProxy senderProxy;
+    private final AsyncExecutorProxy asyncExecutorProxy;
     private final ClientProxy clientProxy;
     private final RingBuffer toDriverCommands;
     private final ClientCommandAdapter clientCommandAdapter;
+    private final NameResolver nameResolver;
     private final ManyToOneConcurrentLinkedQueue<Runnable> driverCmdQueue;
     private final Object2ObjectHashMap<String, SendChannelEndpoint> sendChannelEndpointByChannelMap =
         new Object2ObjectHashMap<>();
@@ -222,12 +223,11 @@ public final class DriverConductor implements Agent
     private final AtomicCounter errorCounter;
     private final AtomicCounter imagesRejected;
     private final DutyCycleTracker dutyCycleTracker;
-    private final Executor asyncTaskExecutor;
-    private final boolean asyncExecutionDisabled;
+    private final AgentInvoker asyncTaskExecutorInvoker;
     private boolean asyncClientCommandInFlight;
-    private TimeTrackingNameResolver nameResolver;
 
-    DriverConductor(final MediaDriver.Context ctx)
+    DriverConductor(
+        final MediaDriver.Context ctx, final AgentInvoker asyncTaskExecutorInvoker, final NameResolver nameResolver)
     {
         this.ctx = ctx;
         timerIntervalNs = ctx.timerIntervalNs();
@@ -247,10 +247,10 @@ public final class DriverConductor implements Agent
         imagesRejected = ctx.systemCounters().get(IMAGES_REJECTED);
         dutyCycleTracker = ctx.conductorDutyCycleTracker();
 
-        asyncTaskExecutor = ctx.asyncTaskExecutor();
-        asyncExecutionDisabled = ctx.asyncTaskExecutorThreads() <= 0;
-
         countersManager = ctx.countersManager();
+
+        asyncExecutorProxy = ctx.asyncExecutorProxy();
+        this.asyncTaskExecutorInvoker = asyncTaskExecutorInvoker;
 
         clientCommandAdapter = new ClientCommandAdapter(
             errorCounter,
@@ -258,11 +258,7 @@ public final class DriverConductor implements Agent
             toDriverCommands,
             clientProxy,
             this);
-
-        nameResolver = new TimeTrackingNameResolver(
-            ctx.nameResolver(),
-            nanoClock,
-            ctx.nameResolverTimeTracker());
+        this.nameResolver = nameResolver;
 
         lastCommandConsumerPosition = toDriverCommands.consumerPosition();
     }
@@ -280,7 +276,10 @@ public final class DriverConductor implements Agent
         clockUpdateDeadlineNs = nowNs + CLOCK_UPDATE_INTERNAL_NS;
         timeOfLastToDriverPositionChangeNs = nowNs;
 
-        nameResolver.onStart();
+        if (null != asyncTaskExecutorInvoker)
+        {
+            asyncTaskExecutorInvoker.start();
+        }
 
         final SystemCounters systemCounters = ctx.systemCounters();
         systemCounters.get(RESOLUTION_CHANGES).appendToLabel(": driverName=" + ctx.resolverName());
@@ -291,23 +290,6 @@ public final class DriverConductor implements Agent
      */
     public void onClose()
     {
-        if (asyncTaskExecutor instanceof ExecutorService)
-        {
-            try
-            {
-                final ExecutorService executor = (ExecutorService)asyncTaskExecutor;
-                executor.shutdownNow();
-                if (!executor.awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-                {
-                    ctx.errorHandler().onError(new AeronEvent("failed to shutdown async task executor"));
-                }
-            }
-            catch (final Exception e)
-            {
-                ctx.errorHandler().onError(e);
-            }
-        }
-        nameResolver.onClose();
         CloseHelper.closeAll(receiveChannelEndpointByChannelMap.values());
         CloseHelper.closeAll(sendChannelEndpointByChannelMap.values());
         publicationImages.forEach(PublicationImage::free);
@@ -343,15 +325,20 @@ public final class DriverConductor implements Agent
         }
         workCount += drainCommandQueue();
         workCount += trackStreamPositions(workCount, nowNs);
-        workCount += nameResolver.doWork();
         workCount += freeEndOfLifeResources(ctx.resourceFreeLimit());
+        if (null != asyncTaskExecutorInvoker)
+        {
+            asyncTaskExecutorInvoker.invoke();
+        }
 
         return workCount;
     }
 
     boolean notAcceptingClientCommands()
     {
-        return senderProxy.isApplyingBackpressure() || receiverProxy.isApplyingBackpressure();
+        return senderProxy.isApplyingBackpressure() ||
+            receiverProxy.isApplyingBackpressure() ||
+            asyncExecutorProxy.isApplyingBackpressure();
     }
 
     @SuppressWarnings("MethodLength")
@@ -1766,14 +1753,14 @@ public final class DriverConductor implements Agent
         final Supplier<T> asyncTask,
         final Consumer<Supplier<T>> command)
     {
-        if (asyncExecutionDisabled)
+        if (asyncExecutorProxy.notConcurrent())
         {
             command.accept(asyncTask);
         }
         else
         {
             asyncClientCommandInFlight = true;
-            asyncTaskExecutor.execute(() ->
+            asyncExecutorProxy.offer(() ->
             {
                 final AsyncResult<T> asyncResult = AsyncResult.of(asyncTask);
                 addToCommandQueue(() ->
@@ -1797,13 +1784,13 @@ public final class DriverConductor implements Agent
 
     private <T> void executeAsyncTask(final Supplier<T> supplier, final Consumer<Supplier<T>> command)
     {
-        if (asyncExecutionDisabled)
+        if (asyncExecutorProxy.notConcurrent())
         {
             command.accept(supplier);
         }
         else
         {
-            asyncTaskExecutor.execute(() ->
+            asyncExecutorProxy.offer(() ->
             {
                 final AsyncResult<T> asyncResult = AsyncResult.of(supplier);
                 addToCommandQueue(() -> command.accept(asyncResult));

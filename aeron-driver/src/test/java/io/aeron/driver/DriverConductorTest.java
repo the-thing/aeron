@@ -29,7 +29,6 @@ import io.aeron.driver.media.WildcardPortManager;
 import io.aeron.driver.status.DutyCycleStallTracker;
 import io.aeron.driver.status.SystemCounterDescriptor;
 import io.aeron.driver.status.SystemCounters;
-import io.aeron.exceptions.AeronEvent;
 import io.aeron.logbuffer.HeaderWriter;
 import io.aeron.logbuffer.LogBufferDescriptor;
 import io.aeron.protocol.SetupFlyweight;
@@ -39,6 +38,7 @@ import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
 import org.agrona.ErrorHandler;
 import org.agrona.IoUtil;
+import org.agrona.concurrent.AgentInvoker;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.CachedNanoClock;
 import org.agrona.concurrent.ManyToOneConcurrentLinkedQueue;
@@ -64,16 +64,29 @@ import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.file.Path;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongConsumer;
 
-import static io.aeron.CommonContext.*;
-import static io.aeron.ErrorCode.*;
-import static io.aeron.driver.Configuration.*;
-import static io.aeron.driver.DriverConductor.EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS;
-import static io.aeron.driver.status.SystemCounterDescriptor.*;
+import static io.aeron.CommonContext.CONTROL_MODE_RESPONSE;
+import static io.aeron.CommonContext.InferableBoolean;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_PARAM_NAME;
+import static io.aeron.CommonContext.RESPONSE_CORRELATION_ID_PARAM_NAME;
+import static io.aeron.ErrorCode.GENERIC_ERROR;
+import static io.aeron.ErrorCode.INVALID_CHANNEL;
+import static io.aeron.ErrorCode.UNKNOWN_PUBLICATION;
+import static io.aeron.ErrorCode.UNKNOWN_SUBSCRIPTION;
+import static io.aeron.driver.Configuration.CLIENT_LIVENESS_TIMEOUT_DEFAULT_NS;
+import static io.aeron.driver.Configuration.CONDUCTOR_BUFFER_LENGTH_DEFAULT;
+import static io.aeron.driver.Configuration.DEFAULT_TIMER_INTERVAL_NS;
+import static io.aeron.driver.Configuration.MTU_LENGTH_DEFAULT;
+import static io.aeron.driver.Configuration.PUBLICATION_LINGER_DEFAULT_NS;
+import static io.aeron.driver.Configuration.imageLivenessTimeoutNs;
+import static io.aeron.driver.Configuration.publicationConnectionTimeoutNs;
+import static io.aeron.driver.status.SystemCounterDescriptor.CONDUCTOR_CYCLE_TIME_THRESHOLD_EXCEEDED;
+import static io.aeron.driver.status.SystemCounterDescriptor.CONDUCTOR_MAX_CYCLE_TIME;
+import static io.aeron.driver.status.SystemCounterDescriptor.NAME_RESOLVER_MAX_TIME;
+import static io.aeron.driver.status.SystemCounterDescriptor.NAME_RESOLVER_TIME_THRESHOLD_EXCEEDED;
 import static io.aeron.logbuffer.FrameDescriptor.FRAME_ALIGNMENT;
 import static io.aeron.logbuffer.FrameDescriptor.frameLengthOrdered;
 import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
@@ -82,13 +95,39 @@ import static io.aeron.status.HeartbeatTimestamp.HEARTBEAT_TYPE_ID;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.agrona.BitUtil.align;
-import static org.agrona.concurrent.status.CountersReader.*;
+import static org.agrona.concurrent.status.CountersReader.METADATA_LENGTH;
+import static org.agrona.concurrent.status.CountersReader.RECORD_ALLOCATED;
+import static org.agrona.concurrent.status.CountersReader.RECORD_UNUSED;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 class DriverConductorTest
 {
@@ -130,6 +169,9 @@ class DriverConductorTest
 
     private final SenderProxy senderProxy = mock(SenderProxy.class);
     private final ReceiverProxy receiverProxy = mock(ReceiverProxy.class);
+    private final AsyncExecutorProxy asyncExecutorProxy = mock(AsyncExecutorProxy.class);
+    private final AgentInvoker asyncExecutorInvoker = mock(AgentInvoker.class);
+    private final NameResolverAgent nameResolver = DefaultNameResolver.INSTANCE;
     private final DriverConductorProxy mockDriverConductorProxy = mock(DriverConductorProxy.class);
     private ReceiveChannelEndpoint receiveChannelEndpoint = null;
 
@@ -200,6 +242,7 @@ class DriverConductorTest
             .systemCounters(spySystemCounters)
             .receiverProxy(receiverProxy)
             .senderProxy(senderProxy)
+            .asyncExecutorProxy(asyncExecutorProxy)
             .driverConductorProxy(mockDriverConductorProxy)
             .receiveChannelEndpointThreadLocals(new ReceiveChannelEndpointThreadLocals())
             .conductorCycleThresholdNs(600_000_000)
@@ -209,14 +252,15 @@ class DriverConductorTest
             .nameResolverTimeTracker(nameResolverTimeTracker)
             .senderPortManager(new WildcardPortManager(WildcardPortManager.EMPTY_PORT_RANGE, true))
             .receiverPortManager(new WildcardPortManager(WildcardPortManager.EMPTY_PORT_RANGE, false))
-            .asyncTaskExecutor(CALLER_RUNS_TASK_EXECUTOR)
-            .asyncTaskExecutorThreads(0)
+            .asyncExecutorEnabled(false)
             .cncByteBuffer(IoUtil.mapNewFile(dir.resolve("test.cnc").toFile(), 1024))
             .countersMetaDataBuffer((UnsafeBuffer)spyCountersManager.metaDataBuffer())
             .countersValuesBuffer((UnsafeBuffer)spyCountersManager.valuesBuffer());
 
+        when(asyncExecutorProxy.notConcurrent()).thenReturn(true);
+
         driverProxy = new DriverProxy(toDriverCommands, toDriverCommands.nextCorrelationId());
-        driverConductor = new DriverConductor(ctx);
+        driverConductor = new DriverConductor(ctx, asyncExecutorInvoker, nameResolver);
         driverConductor.onStart();
 
         doAnswer(closeChannelEndpointAnswer).when(receiverProxy).closeReceiveChannelEndpoint(any());
@@ -226,7 +270,86 @@ class DriverConductorTest
     void after()
     {
         CloseHelper.close(receiveChannelEndpoint);
+        if (null != driverConductor)
+        {
+            driverConductor.onClose();
+        }
+    }
+
+    @Test
+    void shouldCallAgentInvokerStart()
+    {
+        reset(asyncExecutorInvoker);
+
+        driverConductor.onStart();
+
+        verify(asyncExecutorInvoker).start();
+        verifyNoMoreInteractions(asyncExecutorInvoker);
+    }
+
+    @Test
+    void shouldInvokeAgentInvoker()
+    {
+        reset(asyncExecutorInvoker);
+
+        driverConductor.doWork();
+        driverConductor.doWork();
+        driverConductor.doWork();
+
+        verify(asyncExecutorInvoker, times(3)).invoke();
+        verifyNoMoreInteractions(asyncExecutorInvoker);
+    }
+
+    @Test
+    void shouldNotCloseAgentInvoker()
+    {
+        reset(asyncExecutorInvoker);
+
         driverConductor.onClose();
+        driverConductor = null;
+
+        verifyNoInteractions(asyncExecutorInvoker);
+    }
+
+    @Test
+    void notAcceptingClientCommands()
+    {
+
+        doReturn(false, true, false)
+            .when(senderProxy)
+            .isApplyingBackpressure();
+
+        doReturn(false, true, false)
+            .when(receiverProxy)
+            .isApplyingBackpressure();
+
+        doReturn(false, true, false)
+            .when(asyncExecutorProxy)
+            .isApplyingBackpressure();
+
+        final InOrder inOrder = inOrder(senderProxy, receiverProxy, asyncExecutorProxy);
+
+        assertFalse(driverConductor.notAcceptingClientCommands());
+        inOrder.verify(senderProxy).isApplyingBackpressure();
+        inOrder.verify(receiverProxy).isApplyingBackpressure();
+        inOrder.verify(asyncExecutorProxy).isApplyingBackpressure();
+
+        assertTrue(driverConductor.notAcceptingClientCommands());
+        inOrder.verify(senderProxy).isApplyingBackpressure();
+
+        assertTrue(driverConductor.notAcceptingClientCommands());
+        inOrder.verify(senderProxy).isApplyingBackpressure();
+        inOrder.verify(receiverProxy).isApplyingBackpressure();
+
+        assertTrue(driverConductor.notAcceptingClientCommands());
+        inOrder.verify(senderProxy).isApplyingBackpressure();
+        inOrder.verify(receiverProxy).isApplyingBackpressure();
+        inOrder.verify(asyncExecutorProxy).isApplyingBackpressure();
+
+        assertFalse(driverConductor.notAcceptingClientCommands());
+        inOrder.verify(senderProxy).isApplyingBackpressure();
+        inOrder.verify(receiverProxy).isApplyingBackpressure();
+        inOrder.verify(asyncExecutorProxy).isApplyingBackpressure();
     }
 
     @Test
@@ -246,7 +369,6 @@ class DriverConductorTest
                 return true;
             }));
     }
-
 
     @Test
     void shouldBeAbleToAddSinglePublication()
@@ -1965,86 +2087,11 @@ class DriverConductorTest
     }
 
     @Test
-    void onCloseMustShutdownAsyncExecutor(@TempDir final Path dir) throws InterruptedException
-    {
-        final ExecutorService asyncTaskExecutor = mock(ExecutorService.class);
-        final DriverConductor conductor = new DriverConductor(ctx.clone()
-            .cncByteBuffer(IoUtil.mapNewFile(dir.resolve("some.txt").toFile(), 64))
-            .asyncTaskExecutor(asyncTaskExecutor));
-        conductor.onStart();
-
-        conductor.onClose();
-
-        final InOrder inOrder = inOrder(asyncTaskExecutor);
-        inOrder.verify(asyncTaskExecutor).shutdownNow();
-        inOrder.verify(asyncTaskExecutor).awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, SECONDS);
-        inOrder.verifyNoMoreInteractions();
-    }
-
-    @Test
-    void onCloseHandlesExceptionFromClosingAsyncExecutor(@TempDir final Path dir)
-    {
-        final ExecutorService asyncTaskExecutor = mock(ExecutorService.class);
-        final IllegalStateException closeException = new IllegalStateException("executor failed");
-        doThrow(closeException).when(asyncTaskExecutor).shutdownNow();
-        final DriverConductor conductor = new DriverConductor(ctx.clone()
-            .cncByteBuffer(IoUtil.mapNewFile(dir.resolve("some.txt").toFile(), 64))
-            .asyncTaskExecutor(asyncTaskExecutor));
-        conductor.onStart();
-
-        conductor.onClose();
-
-        final InOrder inOrder = inOrder(asyncTaskExecutor, mockErrorHandler);
-        inOrder.verify(asyncTaskExecutor).shutdownNow();
-        inOrder.verify(mockErrorHandler).onError(closeException);
-        inOrder.verifyNoMoreInteractions();
-    }
-
-    @Test
-    void onCloseHandlesExceptionFromClosingAsyncExecutor2(@TempDir final Path dir) throws InterruptedException
-    {
-        final ExecutorService asyncTaskExecutor = mock(ExecutorService.class);
-        final IllegalStateException closeException = new IllegalStateException("executor failed");
-        doThrow(closeException).when(asyncTaskExecutor).awaitTermination(anyLong(), any(TimeUnit.class));
-        final DriverConductor conductor = new DriverConductor(ctx.clone()
-            .cncByteBuffer(IoUtil.mapNewFile(dir.resolve("some.txt").toFile(), 64))
-            .asyncTaskExecutor(asyncTaskExecutor));
-        conductor.onStart();
-
-        conductor.onClose();
-
-        final InOrder inOrder = inOrder(asyncTaskExecutor, mockErrorHandler);
-        inOrder.verify(asyncTaskExecutor).shutdownNow();
-        inOrder.verify(asyncTaskExecutor).awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, SECONDS);
-        inOrder.verify(mockErrorHandler).onError(closeException);
-        inOrder.verifyNoMoreInteractions();
-    }
-
-    @Test
-    void onCloseShouldNotifyIfExecutorDoesNotCloseOnTime(@TempDir final Path dir) throws InterruptedException
-    {
-        final ExecutorService asyncTaskExecutor = mock(ExecutorService.class);
-        final DriverConductor conductor = new DriverConductor(ctx.clone()
-            .cncByteBuffer(IoUtil.mapNewFile(dir.resolve("some.txt").toFile(), 64))
-            .asyncTaskExecutor(asyncTaskExecutor));
-        conductor.onStart();
-
-        conductor.onClose();
-
-        final InOrder inOrder = inOrder(asyncTaskExecutor, mockErrorHandler);
-        inOrder.verify(asyncTaskExecutor).shutdownNow();
-        inOrder.verify(asyncTaskExecutor).awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_SECONDS, SECONDS);
-        inOrder.verify(mockErrorHandler).onError(argThat(
-            arg -> arg instanceof AeronEvent &&
-            arg.getMessage().equals("WARN - failed to shutdown async task executor")));
-        inOrder.verifyNoMoreInteractions();
-    }
-
-    @Test
     void onCloseShouldCallForceOnTheCncByteBuffer(@TempDir final Path dir)
     {
         final MappedByteBuffer cncByteBuffer = spy(IoUtil.mapNewFile(dir.resolve("test.cnc").toFile(), 1024));
-        final DriverConductor conductor = new DriverConductor(ctx.clone().cncByteBuffer(cncByteBuffer));
+        final DriverConductor conductor =
+            new DriverConductor(ctx.clone().cncByteBuffer(cncByteBuffer), asyncExecutorInvoker, nameResolver);
         conductor.onStart();
 
         conductor.onClose();

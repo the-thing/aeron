@@ -22,6 +22,7 @@ import io.aeron.driver.buffer.TestLogFactory;
 import io.aeron.driver.status.SystemCounters;
 import io.aeron.logbuffer.LogBufferDescriptor;
 import io.aeron.test.Tests;
+import org.agrona.concurrent.AgentInvoker;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.CachedNanoClock;
 import org.agrona.concurrent.ManyToOneConcurrentLinkedQueue;
@@ -67,6 +68,9 @@ class IpcPublicationTest
 
         final SenderProxy senderProxy = mock(SenderProxy.class);
         final ReceiverProxy receiverProxy = mock(ReceiverProxy.class);
+        final AsyncExecutorProxy asyncExecutorProxy = mock(AsyncExecutorProxy.class);
+        final AgentInvoker asyncExecutorInvoker = mock(AgentInvoker.class);
+        final NameResolver nameResolver = mock(NameResolver.class);
 
         final MediaDriver.Context ctx = new MediaDriver.Context()
             .tempBuffer(new UnsafeBuffer(new byte[METADATA_LENGTH]))
@@ -76,6 +80,7 @@ class IpcPublicationTest
             .clientProxy(mock(ClientProxy.class))
             .senderProxy(senderProxy)
             .receiverProxy(receiverProxy)
+            .asyncExecutorProxy(asyncExecutorProxy)
             .driverCommandQueue(new ManyToOneConcurrentLinkedQueue<>())
             .epochClock(SystemEpochClock.INSTANCE)
             .cachedEpochClock(new CachedEpochClock())
@@ -89,7 +94,7 @@ class IpcPublicationTest
             .nameResolverTimeTracker(new DutyCycleTracker());
 
         driverProxy = new DriverProxy(toDriverCommands, CLIENT_ID);
-        driverConductor = new DriverConductor(ctx);
+        driverConductor = new DriverConductor(ctx, asyncExecutorInvoker, nameResolver);
         driverConductor.onStart();
 
         driverProxy.addPublication(CommonContext.IPC_CHANNEL, STREAM_ID);

@@ -179,7 +179,7 @@ class ReceiverTest
             .receiverDutyCycleTracker(new DutyCycleTracker());
 
         receiverProxy = new ReceiverProxy(
-            ThreadingMode.DEDICATED, ctx.receiverCommandQueue(), mock(AtomicCounter.class));
+            ctx.receiverCommandQueue(), mock(AtomicCounter.class), false);
 
         receiver = new Receiver(ctx);
         receiverProxy.receiver(receiver);
@@ -677,7 +677,7 @@ class ReceiverTest
     private int drainConductorQueue(final Consumer<Runnable> consumer)
     {
         int workCount = 0;
-        for (;;)
+        for (; ; )
         {
             final Runnable command = toConductorQueue.poll();
             if (null != command)

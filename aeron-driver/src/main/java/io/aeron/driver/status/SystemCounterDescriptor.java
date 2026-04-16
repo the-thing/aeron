@@ -23,6 +23,7 @@ import org.agrona.concurrent.status.CountersManager;
 
 import static io.aeron.Aeron.NULL_VALUE;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_AERON_VERSION;
+import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_ASYNC_EXECUTOR_PROXY_FAILS;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_BYTES_CURRENTLY_MAPPED;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_BYTES_RECEIVED;
 import static io.aeron.AeronCounters.SYSTEM_COUNTER_ID_BYTES_SENT;
@@ -337,7 +338,14 @@ public enum SystemCounterDescriptor
      *
      * @since 1.51.0
      */
-    STATUS_MESSAGES_REJECTED(SYSTEM_COUNTER_ID_STATUS_MESSAGES_REJECTED, "Status Messages rejected");
+    STATUS_MESSAGES_REJECTED(SYSTEM_COUNTER_ID_STATUS_MESSAGES_REJECTED, "Status Messages rejected"),
+
+    /**
+     * Failed offers to the async executor proxy suggesting back-pressure.
+     *
+     * @since 1.51.0
+     */
+    ASYNC_EXECUTOR_PROXY_FAILS(SYSTEM_COUNTER_ID_ASYNC_EXECUTOR_PROXY_FAILS, "Failed offers to AsyncExecutorProxy");
 
     /**
      * All system counters have the same type id, i.e. system counters are the same type. Other types can exist.
