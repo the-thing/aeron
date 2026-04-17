@@ -4773,6 +4773,7 @@ public final class MediaDriver implements AutoCloseable
                 "\n    receiverIdleStrategy=" + receiverIdleStrategy +
                 "\n    sharedNetworkIdleStrategy=" + sharedNetworkIdleStrategy +
                 "\n    sharedIdleStrategy=" + sharedIdleStrategy +
+                "\n    asyncExecutorIdleStrategy=" + asyncExecutorIdleStrategy +
                 "\n    sendChannelEndpointSupplier=" + sendChannelEndpointSupplier +
                 "\n    receiveChannelEndpointSupplier=" + receiveChannelEndpointSupplier +
                 "\n    receiveChannelEndpointThreadLocals=" + receiveChannelEndpointThreadLocals +
