@@ -2185,7 +2185,7 @@ error:
     return -1;
 }
 
-static int aeron_client_conductor_ond_cmd_get_next_available_session_id(void *clientd, void *item)
+static int aeron_client_conductor_on_cmd_get_next_available_session_id(void *clientd, void *item)
 {
     aeron_client_conductor_t *conductor = (aeron_client_conductor_t *)clientd;
     aeron_async_get_next_available_session_id_t *async = (aeron_async_get_next_available_session_id_t *)item;
@@ -3323,7 +3323,7 @@ int aeron_client_conductor_async_get_next_available_session_id(
         return -1;
     }
 
-    cmd->command_base.func = aeron_client_conductor_ond_cmd_get_next_available_session_id;
+    cmd->command_base.func = aeron_client_conductor_on_cmd_get_next_available_session_id;
     cmd->command_base.item = NULL;
     cmd->error_message = NULL;
     cmd->error_message_length = 0;
@@ -3336,7 +3336,7 @@ int aeron_client_conductor_async_get_next_available_session_id(
     {
         if (conductor->invoker_mode)
         {
-            if (aeron_client_conductor_ond_cmd_get_next_available_session_id(conductor, cmd) < 0)
+            if (aeron_client_conductor_on_cmd_get_next_available_session_id(conductor, cmd) < 0)
             {
                 goto error;
             }
