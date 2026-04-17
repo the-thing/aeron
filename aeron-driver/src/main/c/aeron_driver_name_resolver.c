@@ -153,26 +153,24 @@ static int aeron_driver_name_resolver_from_sockaddr(
     struct sockaddr_storage *addr,
     aeron_name_resolver_cache_addr_t *cache_addr);
 
-static const char *aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
+static void aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
     char *bootstrap_neighbor,
-    struct sockaddr_storage *bootstrap_neighbor_address)
+    struct sockaddr_storage *bootstrap_neighbor_address,
+    char *buffer,
+    const size_t buffer_size)
 {
-    static char buffer[512] = "";
-    const size_t buffer_size = sizeof(buffer);
-
-    int offset = snprintf(buffer, buffer_size, "Bootstrap neighbor: name=%s resolved=", bootstrap_neighbor);
+    const int offset = snprintf(buffer, buffer_size, "Bootstrap neighbor: name=%s resolved=", bootstrap_neighbor);
     if (offset < 0)
     {
         snprintf(buffer, buffer_size, "Bootstrap neighbor");
-        return buffer;
+        return;
     }
+
     if (((size_t)offset) < buffer_size)
     {
         size_t capacity = buffer_size - (size_t)offset;
         aeron_format_source_identity((char *)(buffer + offset), capacity, bootstrap_neighbor_address);
     }
-
-    return buffer;
 }
 
 static void aeron_driver_name_resolver_resolve_bootstrap_neighbors(aeron_driver_name_resolver_t *driver_resolver)
@@ -193,8 +191,15 @@ static void aeron_driver_name_resolver_resolve_bootstrap_neighbors(aeron_driver_
             aeron_err_clear();
         }
 
-        const char *bootstrap_neighbor_label = aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
-            driver_resolver->bootstrap_neighbors[i], &driver_resolver->bootstrap_neighbor_addrs.array[i]);
+        char bootstrap_neighbor_label[AERON_COUNTER_MAX_LABEL_LENGTH] = { 0 };
+        const size_t buffer_size = sizeof(bootstrap_neighbor_label);
+
+        aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
+            driver_resolver->bootstrap_neighbors[i],
+            &driver_resolver->bootstrap_neighbor_addrs.array[i],
+            bootstrap_neighbor_label,
+            buffer_size);
+
         aeron_counters_manager_update_label(
             driver_resolver->counters_manager, driver_resolver->bootstrap_neighbor_counters.array[i].counter_id,
             strlen(bootstrap_neighbor_label), bootstrap_neighbor_label);
@@ -342,8 +347,14 @@ int aeron_driver_name_resolver_init(
             _driver_resolver->bootstrap_neighbors[i] = bootstrap_neighbors[num_neighbors - i - 1];
             _driver_resolver->bootstrap_neighbor_addrs.array[i].ss_family = AF_UNSPEC;
 
-            const char *bootstrap_neighbor_label = aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
-                _driver_resolver->bootstrap_neighbors[i], &_driver_resolver->bootstrap_neighbor_addrs.array[i]);
+            char bootstrap_neighbor_label[AERON_COUNTER_MAX_LABEL_LENGTH] = { 0 };
+            const size_t buffer_size = sizeof(bootstrap_neighbor_label);
+
+            aeron_driver_name_resolver_build_bootstrap_neighbor_counter_label(
+                _driver_resolver->bootstrap_neighbors[i],
+                &_driver_resolver->bootstrap_neighbor_addrs.array[i],
+                bootstrap_neighbor_label,
+                buffer_size);
 
             _driver_resolver->bootstrap_neighbor_counters.array[i].counter_id = aeron_counters_manager_allocate(
                 context->counters_manager,
