@@ -877,7 +877,13 @@ int aeron_driver_conductor_init(aeron_driver_conductor_t *conductor, aeron_drive
     conductor->conductor_proxy.threading_mode = context->threading_mode;
     conductor->conductor_proxy.conductor = conductor;
 
-    if (aeron_executor_init(&conductor->executor, context->async_executor_threads >= 1, NULL, conductor) < 0)
+    if (aeron_executor_init(
+        &conductor->executor,
+        context->async_executor_enabled,
+        context->async_executor_idle_strategy_func,
+        context->async_executor_idle_strategy_state,
+        NULL,
+        conductor) < 0)
     {
         goto error;
     }

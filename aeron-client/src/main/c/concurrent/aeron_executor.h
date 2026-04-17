@@ -59,6 +59,8 @@ aeron_executor_task_t;
 int aeron_executor_init(
     aeron_executor_t *executor,
     bool async,
+    aeron_idle_strategy_func_t idle_strategy_func,
+    void *idle_strategy_state,
     aeron_executor_on_execution_complete_func_t on_execution_complete,
     void *clientd);
 

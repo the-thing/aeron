@@ -101,19 +101,21 @@ static void aeron_executor_drain_and_close_submit_queue(void *state)
 int aeron_executor_init(
     aeron_executor_t *executor,
     bool async,
+    aeron_idle_strategy_func_t idle_strategy_func,
+    void *idle_strategy_state,
     aeron_executor_on_execution_complete_func_t on_execution_complete,
     void *clientd)
 {
     executor->async = async,
-        executor->on_execution_complete = on_execution_complete;
+    executor->on_execution_complete = on_execution_complete;
     executor->clientd = clientd;
 
     executor->runner.state = AERON_AGENT_STATE_UNUSED;
     executor->runner.role_name = NULL;
     executor->runner.on_close = NULL;
 
-    executor->idle_strategy_func = NULL;
-    executor->idle_strategy_state = NULL;
+    executor->idle_strategy_func = idle_strategy_func;
+    executor->idle_strategy_state = idle_strategy_state;
 
     if (async)
     {
@@ -132,19 +134,9 @@ int aeron_executor_init(
             return -1;
         }
 
-        if ((executor->idle_strategy_func = aeron_idle_strategy_load(
-            "sleep-ns",
-            &executor->idle_strategy_state,
-            "AERON_EXECUTOR_IDLE_STRATEGY",
-            "1ms")) == NULL)
-        {
-            AERON_APPEND_ERR("%s", "failed to load idle strategy");
-            return -1;
-        }
-
         if (aeron_agent_init(
             &executor->runner,
-            "async-executor",
+            "aeron-executor",
             executor,
             NULL,
             NULL,
@@ -182,8 +174,6 @@ int aeron_executor_close(aeron_executor_t *executor)
             AERON_APPEND_ERR("%s", "failed to close agent runner");
             return -1;
         }
-
-        aeron_free(executor->idle_strategy_state);
 
         if (NULL == executor->on_execution_complete)
         {

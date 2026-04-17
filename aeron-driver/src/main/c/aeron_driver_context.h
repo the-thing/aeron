@@ -150,6 +150,7 @@ typedef struct aeron_driver_context_stct
     bool rejoin_stream;                                     /* aeron.rejoin.stream = true */
     bool ats_enabled;
     bool connect_enabled;                                   /* aeron.driver.connect = true */
+    bool async_executor_enabled;                            /* aeron.driver.async.executor.enabled = true */
     uint64_t driver_timeout_ms;                             /* aeron.driver.timeout = 10s */
     uint64_t client_liveness_timeout_ns;                    /* aeron.client.liveness.timeout = 10s */
     uint64_t publication_linger_timeout_ns;                 /* aeron.publication.linger.timeout = 5s */
@@ -195,7 +196,6 @@ typedef struct aeron_driver_context_stct
     uint32_t sender_io_vector_capacity;                     /* aeron.sender.io.vector.capacity = 4 */
     uint32_t network_publication_max_messages_per_send;     /* aeron.network.publication.max.messages.per.send = 4 */
     uint32_t resource_free_limit;                           /* aeron.driver.resource.free.limit = 10 */
-    uint32_t async_executor_threads;                        /* aeron.driver.async.executor.threads = 1 */
     uint32_t max_resend;                                    /* aeron.max.resend = 16 */
 
     int32_t conductor_cpu_affinity_no;                      /* aeron.conductor.cpu.affinity = -1 */
@@ -266,6 +266,11 @@ typedef struct aeron_driver_context_stct
     void *receiver_idle_strategy_state;
     char *receiver_idle_strategy_init_args;
     const char *receiver_idle_strategy_name;
+
+    aeron_idle_strategy_func_t async_executor_idle_strategy_func;
+    void *async_executor_idle_strategy_state;
+    char *async_executor_idle_strategy_init_args;
+    const char *async_executor_idle_strategy_name;
 
     aeron_usable_fs_space_func_t usable_fs_space_func;
     aeron_raw_log_map_func_t raw_log_map_func;

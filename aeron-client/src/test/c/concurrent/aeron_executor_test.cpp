@@ -37,6 +37,8 @@ public:
         if (aeron_executor_init(
             &m_executor,
             be_async(),
+            aeron_idle_strategy_sleeping_idle,
+            &m_idle_sleep_ns,
             on_execution_complete_cb(),
             this) < 0)
         {
@@ -80,6 +82,7 @@ protected:
     std::function<int(int, void *, void *)> m_on_complete;
     int m_on_execute_count = 0;
     int m_on_complete_count = 0;
+    uint64_t m_idle_sleep_ns = 1000000;
 };
 
 class SyncExecutorTest : public ExecutorTest

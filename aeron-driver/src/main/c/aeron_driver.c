@@ -568,7 +568,6 @@ void aeron_driver_context_print_configuration(aeron_driver_context_t *context)
         fpout, "\n    network_publication_max_messages_per_send=%" PRIu64,
         (uint64_t)context->network_publication_max_messages_per_send);
     fprintf(fpout, "\n    resource_free_limit=%" PRIu32, context->resource_free_limit);
-    fprintf(fpout, "\n    async_executor_threads=%" PRIu32, context->async_executor_threads);
     fprintf(fpout, "\n    conductor_cpu_affinity_no=%" PRId32, context->conductor_cpu_affinity_no);
     fprintf(fpout, "\n    receiver_cpu_affinity_no=%" PRId32, context->receiver_cpu_affinity_no);
     fprintf(fpout, "\n    sender_cpu_affinity_no=%" PRId32, context->sender_cpu_affinity_no);
@@ -580,6 +579,7 @@ void aeron_driver_context_print_configuration(aeron_driver_context_t *context)
     /* cachedEpochClock */
     /* cachedNanoClock */
     fprintf(fpout, "\n    threading_mode=%s", aeron_driver_threading_mode_to_string(context->threading_mode));
+    fprintf(fpout, "\n    async_executor_enabled=%d", context->async_executor_enabled);
     fprintf(fpout, "\n    agent_on_start_func=%s",
         aeron_dlinfo_func((aeron_fptr_t)context->agent_on_start_func, buffer, sizeof(buffer)));
     fprintf(fpout, "\n    agent_on_start_state=%p", context->agent_on_start_state);
@@ -608,6 +608,11 @@ void aeron_driver_context_print_configuration(aeron_driver_context_t *context)
     fprintf(fpout, "\n    shared_idle_strategy_init_args=%p%s",
         (void *)context->shared_idle_strategy_init_args,
         context->shared_idle_strategy_init_args ? context->shared_idle_strategy_init_args : "");
+    fprintf(fpout, "\n    async_executor_idle_strategy_func=%s",
+    aeron_dlinfo_func((aeron_fptr_t)context->async_executor_idle_strategy_func, buffer, sizeof(buffer)));
+    fprintf(fpout, "\n    async_executor_idle_strategy_init_args=%p%s",
+        (void *)context->async_executor_idle_strategy_init_args,
+        context->async_executor_idle_strategy_init_args ? context->async_executor_idle_strategy_init_args : "");
     fprintf(fpout, "\n    unicast_flow_control_supplier_func=%s",
         aeron_dlinfo_func((aeron_fptr_t)context->unicast_flow_control_supplier_func, buffer, sizeof(buffer)));
     fprintf(fpout, "\n    multicast_flow_control_supplier_func=%s",

@@ -166,7 +166,7 @@ static void aeron_driver_untethered_subscription_state_change_null(
 #define AERON_SOCKET_SO_RCVBUF_DEFAULT (128 * 1024)
 #define AERON_SOCKET_SO_SNDBUF_DEFAULT (0)
 #define AERON_SOCKET_MULTICAST_TTL_DEFAULT (0)
-#define AERON_RECEIVER_GROUP_TAG_IS_PRESENT_DEFAULT false
+#define AERON_RECEIVER_GROUP_TAG_IS_PRESENT_DEFAULT (false)
 #define AERON_RECEIVER_GROUP_TAG_VALUE_DEFAULT (-1)
 #define AERON_FLOW_CONTROL_GROUP_TAG_DEFAULT (-1)
 #define AERON_FLOW_CONTROL_GROUP_MIN_SIZE_DEFAULT (0)
@@ -216,10 +216,10 @@ static void aeron_driver_untethered_subscription_state_change_null(
 #define AERON_SENDER_IO_VECTOR_CAPACITY_DEFAULT UINT32_C(4)
 #define AERON_NETWORK_PUBLICATION_MAX_MESSAGES_PER_SEND_DEFAULT UINT32_C(4)
 #define AERON_DRIVER_RESOURCE_FREE_LIMIT_DEFAULT UINT32_C(10)
-#define AERON_DRIVER_ASYNC_EXECUTOR_THREADS_DEFAULT UINT32_C(1)
+#define AERON_DRIVER_ASYNC_EXECUTOR_ENABLED_DEFAULT (true)
 #define AERON_CPU_AFFINITY_DEFAULT (-1)
-#define AERON_DRIVER_CONNECT_DEFAULT true
-#define AERON_ENABLE_EXPERIMENTAL_FEATURES_DEFAULT false
+#define AERON_DRIVER_CONNECT_DEFAULT (true)
+#define AERON_ENABLE_EXPERIMENTAL_FEATURES_DEFAULT (false)
 #define AERON_DRIVER_STREAM_SESSION_LIMIT_DEFAULT (INT32_MAX)
 
 
@@ -246,6 +246,30 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
     _context->receiver_proxy = NULL;
     _context->counters_manager = NULL;
     _context->error_log = NULL;
+
+    _context->conductor_idle_strategy_state = NULL;
+    _context->conductor_idle_strategy_init_args = NULL;
+    _context->conductor_idle_strategy_name = NULL;
+
+    _context->sender_idle_strategy_state = NULL;
+    _context->sender_idle_strategy_init_args = NULL;
+    _context->sender_idle_strategy_name = NULL;
+
+    _context->receiver_idle_strategy_state = NULL;
+    _context->receiver_idle_strategy_init_args = NULL;
+    _context->receiver_idle_strategy_name = NULL;
+
+    _context->shared_idle_strategy_state = NULL;
+    _context->shared_idle_strategy_init_args = NULL;
+    _context->shared_idle_strategy_name = NULL;
+
+    _context->shared_network_idle_strategy_state = NULL;
+    _context->shared_network_idle_strategy_init_args = NULL;
+    _context->shared_network_idle_strategy_name = NULL;
+
+    _context->async_executor_idle_strategy_state = NULL;
+    _context->async_executor_idle_strategy_init_args = NULL;
+    _context->async_executor_idle_strategy_name = NULL;
 
     _context->conductor_duty_cycle_tracker = &_context->conductor_duty_cycle_stall_tracker.tracker;
     _context->conductor_duty_cycle_stall_tracker.tracker.update =
@@ -452,7 +476,7 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
     _context->sender_io_vector_capacity = AERON_SENDER_IO_VECTOR_CAPACITY_DEFAULT;
     _context->network_publication_max_messages_per_send = AERON_NETWORK_PUBLICATION_MAX_MESSAGES_PER_SEND_DEFAULT;
     _context->resource_free_limit = AERON_DRIVER_RESOURCE_FREE_LIMIT_DEFAULT;
-    _context->async_executor_threads = AERON_DRIVER_ASYNC_EXECUTOR_THREADS_DEFAULT;
+    _context->async_executor_enabled = AERON_DRIVER_ASYNC_EXECUTOR_ENABLED_DEFAULT;
     _context->connect_enabled = AERON_DRIVER_CONNECT_DEFAULT;
     _context->conductor_cpu_affinity_no = AERON_CPU_AFFINITY_DEFAULT;
     _context->sender_cpu_affinity_no = AERON_CPU_AFFINITY_DEFAULT;
@@ -1023,12 +1047,8 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
         1,
         INT32_MAX);
 
-    _context->async_executor_threads = aeron_config_parse_uint32(
-        AERON_DRIVER_ASYNC_EXECUTOR_THREADS_ENV_VAR,
-        getenv(AERON_DRIVER_ASYNC_EXECUTOR_THREADS_ENV_VAR),
-        _context->async_executor_threads,
-        0,
-        1);
+    _context->async_executor_enabled = aeron_parse_bool(
+        getenv(AERON_DRIVER_ASYNC_EXECUTOR_ENABLED_ENV_VAR), _context->async_executor_enabled);
 
     _context->enable_experimental_features = aeron_parse_bool(
         getenv(AERON_ENABLE_EXPERIMENTAL_FEATURES_ENV_VAR), _context->enable_experimental_features);
@@ -1066,11 +1086,12 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
     _context->shared_network_idle_strategy_name = aeron_strndup("backoff", 10);
     _context->sender_idle_strategy_name = aeron_strndup("backoff", 10);
     _context->receiver_idle_strategy_name = aeron_strndup("backoff", 10);
+    _context->async_executor_idle_strategy_name = aeron_strndup("sleep-ns", 10);
 
     _context->conductor_idle_strategy_init_args =
         AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_CONDUCTOR_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);
     if ((_context->conductor_idle_strategy_func = aeron_idle_strategy_load(
-        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_CONDUCTOR_IDLE_STRATEGY_ENV_VAR, "backoff"),
+        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_CONDUCTOR_IDLE_STRATEGY_ENV_VAR, _context->conductor_idle_strategy_name),
         &_context->conductor_idle_strategy_state,
         AERON_CONDUCTOR_IDLE_STRATEGY_ENV_VAR,
         _context->conductor_idle_strategy_init_args)) == NULL)
@@ -1078,32 +1099,10 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
         goto error;
     }
 
-    _context->shared_idle_strategy_init_args =
-        AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_SHARED_IDLE_STRATEGY_ENV_INIT_ARGS_VAR);
-    if ((_context->shared_idle_strategy_func = aeron_idle_strategy_load(
-        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SHARED_IDLE_STRATEGY_ENV_VAR, "backoff"),
-        &_context->shared_idle_strategy_state,
-        AERON_SHARED_IDLE_STRATEGY_ENV_VAR,
-        _context->shared_idle_strategy_init_args)) == NULL)
-    {
-        goto error;
-    }
-
-    _context->shared_network_idle_strategy_init_args =
-        AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_SHAREDNETWORK_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);
-    if ((_context->shared_network_idle_strategy_func = aeron_idle_strategy_load(
-        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SHAREDNETWORK_IDLE_STRATEGY_ENV_VAR, "backoff"),
-        &_context->shared_network_idle_strategy_state,
-        AERON_SHAREDNETWORK_IDLE_STRATEGY_ENV_VAR,
-        _context->shared_network_idle_strategy_init_args)) == NULL)
-    {
-        goto error;
-    }
-
     _context->sender_idle_strategy_init_args =
         AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_SENDER_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);
     if ((_context->sender_idle_strategy_func = aeron_idle_strategy_load(
-        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SENDER_IDLE_STRATEGY_ENV_VAR, "backoff"),
+        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SENDER_IDLE_STRATEGY_ENV_VAR, _context->sender_idle_strategy_name),
         &_context->sender_idle_strategy_state,
         AERON_SENDER_IDLE_STRATEGY_ENV_VAR,
         _context->sender_idle_strategy_init_args)) == NULL)
@@ -1114,10 +1113,44 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
     _context->receiver_idle_strategy_init_args =
         AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_RECEIVER_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);
     if ((_context->receiver_idle_strategy_func = aeron_idle_strategy_load(
-        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_RECEIVER_IDLE_STRATEGY_ENV_VAR, "backoff"),
+        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_RECEIVER_IDLE_STRATEGY_ENV_VAR,  _context->receiver_idle_strategy_name),
         &_context->receiver_idle_strategy_state,
         AERON_RECEIVER_IDLE_STRATEGY_ENV_VAR,
         _context->receiver_idle_strategy_init_args)) == NULL)
+    {
+        goto error;
+    }
+
+    _context->shared_idle_strategy_init_args =
+        AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_SHARED_IDLE_STRATEGY_ENV_INIT_ARGS_VAR);
+    if ((_context->shared_idle_strategy_func = aeron_idle_strategy_load(
+        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SHARED_IDLE_STRATEGY_ENV_VAR, _context->shared_idle_strategy_name),
+        &_context->shared_idle_strategy_state,
+        AERON_SHARED_IDLE_STRATEGY_ENV_VAR,
+        _context->shared_idle_strategy_init_args)) == NULL)
+    {
+        goto error;
+    }
+
+    _context->shared_network_idle_strategy_init_args =
+        AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_SHAREDNETWORK_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);
+    if ((_context->shared_network_idle_strategy_func = aeron_idle_strategy_load(
+        AERON_CONFIG_GETENV_OR_DEFAULT(AERON_SHAREDNETWORK_IDLE_STRATEGY_ENV_VAR, _context->shared_network_idle_strategy_name),
+        &_context->shared_network_idle_strategy_state,
+        AERON_SHAREDNETWORK_IDLE_STRATEGY_ENV_VAR,
+        _context->shared_network_idle_strategy_init_args)) == NULL)
+    {
+        goto error;
+    }
+
+    _context->async_executor_idle_strategy_init_args =
+        NULL == getenv(AERON_ASYNC_EXECUTOR_IDLE_STRATEGY_ENV_VAR) ? aeron_strndup("1ms", 3) :
+        AERON_CONFIG_STRNDUP_GETENV_OR_NULL(AERON_ASYNC_EXECUTOR_IDLE_STRATEGY_INIT_ARGS_ENV_VAR);;
+    if ((_context->async_executor_idle_strategy_func = aeron_idle_strategy_load(
+    AERON_CONFIG_GETENV_OR_DEFAULT(AERON_ASYNC_EXECUTOR_IDLE_STRATEGY_ENV_VAR, _context->async_executor_idle_strategy_name),
+        &_context->async_executor_idle_strategy_state,
+        AERON_ASYNC_EXECUTOR_IDLE_STRATEGY_ENV_VAR,
+        _context->async_executor_idle_strategy_init_args)) == NULL)
     {
         goto error;
     }
@@ -1389,20 +1422,23 @@ int aeron_driver_context_close(aeron_driver_context_t *context)
     }
 
     aeron_free(context->conductor_idle_strategy_state);
-    aeron_free(context->receiver_idle_strategy_state);
     aeron_free(context->sender_idle_strategy_state);
+    aeron_free(context->receiver_idle_strategy_state);
     aeron_free(context->shared_idle_strategy_state);
     aeron_free(context->shared_network_idle_strategy_state);
+    aeron_free(context->async_executor_idle_strategy_state);
     aeron_free((void *)context->conductor_idle_strategy_name);
-    aeron_free((void *)context->shared_network_idle_strategy_name);
-    aeron_free((void *)context->shared_idle_strategy_name);
     aeron_free((void *)context->sender_idle_strategy_name);
     aeron_free((void *)context->receiver_idle_strategy_name);
+    aeron_free((void *)context->shared_idle_strategy_name);
+    aeron_free((void *)context->shared_network_idle_strategy_name);
+    aeron_free((void *)context->async_executor_idle_strategy_name);
     aeron_free(context->conductor_idle_strategy_init_args);
     aeron_free(context->sender_idle_strategy_init_args);
     aeron_free(context->receiver_idle_strategy_init_args);
     aeron_free(context->shared_idle_strategy_init_args);
     aeron_free(context->shared_network_idle_strategy_init_args);
+    aeron_free(context->async_executor_idle_strategy_init_args);
     aeron_free(context->bindings_clientd_entries);
     aeron_free(context->cached_clock);
     aeron_free(context->sender_cached_clock);
@@ -2197,6 +2233,8 @@ int aeron_driver_context_set_sharednetwork_idle_strategy(aeron_driver_context_t 
 
     aeron_free(context->shared_network_idle_strategy_state);
     aeron_free((void *)context->shared_network_idle_strategy_name);
+    context->shared_network_idle_strategy_state = NULL;
+    context->shared_network_idle_strategy_name = NULL;
 
     if ((context->shared_network_idle_strategy_func = aeron_idle_strategy_load(
         value,
@@ -2224,6 +2262,8 @@ int aeron_driver_context_set_shared_idle_strategy(aeron_driver_context_t *contex
 
     aeron_free(context->shared_idle_strategy_state);
     aeron_free((void *)context->shared_idle_strategy_name);
+    context->shared_idle_strategy_state = NULL;
+    context->shared_idle_strategy_name = NULL;
 
     if ((context->shared_idle_strategy_func = aeron_idle_strategy_load(
         value,
@@ -2326,6 +2366,50 @@ int aeron_driver_context_set_agent_on_start_function(
 
     context->agent_on_start_func = value;
     context->agent_on_start_state = state;
+
+    return 0;
+}
+
+int aeron_driver_context_set_async_executor_idle_strategy(aeron_driver_context_t *context, const char *value)
+{
+    AERON_DRIVER_CONTEXT_SET_CHECK_ARG_AND_RETURN(-1, context);
+    AERON_DRIVER_CONTEXT_SET_CHECK_ARG_AND_RETURN(-1, value);
+
+    aeron_free(context->async_executor_idle_strategy_state);
+    aeron_free((void *)context->async_executor_idle_strategy_name);
+    context->async_executor_idle_strategy_state = NULL;
+    context->async_executor_idle_strategy_name = NULL;
+
+    if ((context->async_executor_idle_strategy_func = aeron_idle_strategy_load(
+        value,
+        &context->async_executor_idle_strategy_state,
+        AERON_ASYNC_EXECUTOR_IDLE_STRATEGY_ENV_VAR,
+        context->async_executor_idle_strategy_init_args)) == NULL)
+    {
+        return -1;
+    }
+
+    context->async_executor_idle_strategy_name = aeron_strndup(value, AERON_MAX_PATH);
+
+    return 0;
+}
+
+const char *aeron_driver_context_get_async_executor_idle_strategy(aeron_driver_context_t *context)
+{
+    return NULL != context ? context->async_executor_idle_strategy_name : AERON_IDLE_STRATEGY_BACKOFF_DEFAULT;
+}
+
+const char *aeron_driver_context_get_async_executor_idle_strategy_init_args(aeron_driver_context_t *context)
+{
+    return NULL != context ? context->async_executor_idle_strategy_init_args : NULL;
+}
+
+int aeron_driver_context_set_async_executor_idle_strategy_init_args(aeron_driver_context_t *context, const char *value)
+{
+    AERON_DRIVER_CONTEXT_SET_CHECK_ARG_AND_RETURN(-1, context);
+
+    aeron_free(context->async_executor_idle_strategy_init_args);
+    context->async_executor_idle_strategy_init_args = NULL == value ? NULL : aeron_strndup(value, AERON_MAX_PATH);
 
     return 0;
 }
@@ -3234,20 +3318,20 @@ uint32_t aeron_driver_context_get_resource_free_limit(aeron_driver_context_t *co
     return NULL != context ? context->resource_free_limit : AERON_DRIVER_RESOURCE_FREE_LIMIT_DEFAULT;
 }
 
-int aeron_driver_context_set_async_executor_threads(aeron_driver_context_t *context, uint32_t value)
+int aeron_driver_context_set_async_executor_enabled(aeron_driver_context_t *context, bool value)
 {
     if (NULL == context)
     {
         return -1;
     }
 
-    context->async_executor_threads = value;
+    context->async_executor_enabled = value;
     return 0;
 }
 
-uint32_t aeron_driver_context_get_async_executor_threads(aeron_driver_context_t *context)
+bool aeron_driver_context_get_async_executor_enabled(aeron_driver_context_t *context)
 {
-    return NULL != context ? context->async_executor_threads : AERON_DRIVER_ASYNC_EXECUTOR_THREADS_DEFAULT;
+    return NULL != context ? context->async_executor_enabled : AERON_DRIVER_ASYNC_EXECUTOR_ENABLED_DEFAULT;
 }
 
 void aeron_set_thread_affinity_on_start(void *state, const char *role_name)
