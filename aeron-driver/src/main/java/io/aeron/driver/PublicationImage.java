@@ -19,6 +19,7 @@ import io.aeron.driver.buffer.RawLog;
 import io.aeron.driver.media.ImageConnection;
 import io.aeron.driver.media.ReceiveChannelEndpoint;
 import io.aeron.driver.media.ReceiveDestinationTransport;
+import io.aeron.driver.media.UdpChannel;
 import io.aeron.driver.reports.LossReport;
 import io.aeron.driver.status.SystemCounters;
 import io.aeron.logbuffer.FrameDescriptor;
@@ -34,6 +35,7 @@ import org.agrona.collections.ArrayListUtil;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.concurrent.CachedNanoClock;
 import org.agrona.concurrent.EpochClock;
+import org.agrona.concurrent.EpochNanoClock;
 import org.agrona.concurrent.NanoClock;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
@@ -43,6 +45,7 @@ import org.agrona.concurrent.status.ReadablePosition;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.net.InetSocketAddress;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -188,6 +191,8 @@ public final class PublicationImage
     private final int initialTermId;
     private final short flags;
     private final boolean isReliable;
+    private final boolean isReceiveTimestampEnabled;
+    private final int receiveTimestampOffset;
     private boolean smEnabled = true;
 
     private boolean isRebuilding = true;
@@ -196,6 +201,7 @@ public final class PublicationImage
     private volatile State state = State.INIT;
 
     private final CachedNanoClock cachedNanoClock;
+    private final EpochNanoClock receiveTimestampClock;
     private final ReceiveChannelEndpoint channelEndpoint;
     private final UnsafeBuffer[] termBuffers;
     private final Position hwmPosition;
@@ -272,6 +278,11 @@ public final class PublicationImage
 
         this.subscriberPositions = positionArray(subscriberPositions, nowNs);
         this.isReliable = isReliable;
+
+        receiveTimestampClock = ctx.channelReceiveTimestampClock();
+        final UdpChannel udpChannel = channelEndpoint.subscriptionUdpChannel();
+        isReceiveTimestampEnabled = udpChannel.isChannelReceiveTimestampEnabled();
+        receiveTimestampOffset = DataHeaderFlyweight.DATA_OFFSET + udpChannel.channelReceiveTimestampOffset();
 
         final SystemCounters systemCounters = ctx.systemCounters();
         heartbeatsReceived = systemCounters.get(HEARTBEATS_RECEIVED);
@@ -633,19 +644,16 @@ public final class PublicationImage
         }
 
         final int termLength = termLengthMask + 1;
-        // validate first frame in the packet (assumes `length` and `frameLength` were validated already)
-        if (termOffset < 0 ||
-            !FrameDescriptor.isFrameAligned(termOffset) ||
-            ((long)termOffset + BitUtil.align(
-                (long)FrameDescriptor.frameLength(buffer, 0), FrameDescriptor.FRAME_ALIGNMENT)) > termLength)
+        final int endOffset = validatePacket(termOffset, buffer, length, termLength);
+        if (endOffset < 0)
         {
             invalidPackets.increment();
             return 0;
         }
 
-        final boolean isHeartbeat = DataHeaderFlyweight.isHeartbeat(buffer, length);
+        final boolean isHeartbeat = 0 == endOffset;
         final long packetPosition = computePosition(termId, termOffset, positionBitsToShift, initialTermId);
-        final long proposedPosition = isHeartbeat ? packetPosition : packetPosition + length;
+        final long proposedPosition = packetPosition + endOffset;
 
         if (!isFlowControlOverRun(proposedPosition))
         {
@@ -708,6 +716,77 @@ public final class PublicationImage
         }
 
         return length;
+    }
+
+    private int validatePacket(
+        final int termOffset, final UnsafeBuffer buffer, final int length, final int termLength)
+    {
+        if (termOffset < 0 || termOffset > termLength || !FrameDescriptor.isFrameAligned(termOffset))
+        {
+            return -1;
+        }
+
+        if (DataHeaderFlyweight.HEADER_LENGTH == length && 0 == FrameDescriptor.frameLength(buffer, 0))
+        {
+            return 0; // heartbeat
+        }
+
+        int offset = 0;
+        int frameType = -1;
+        long nextTermOffset = termOffset, receiveTimestamp = 0;
+        do
+        {
+            final int frameLength = FrameDescriptor.frameLength(buffer, offset);
+            if (frameLength <= 0)
+            {
+                break;
+            }
+
+            frameType = FrameDescriptor.frameType(buffer, offset);
+            if (0 != (frameType & 0xFFFE))
+            {
+                break; // invalid frameType
+            }
+
+            if (DataHeaderFlyweight.termOffset(buffer, offset) != nextTermOffset)
+            {
+                break; // invalid termOffset
+            }
+
+            final long alignedFrameLength = BitUtil.align((long)frameLength, FrameDescriptor.FRAME_ALIGNMENT);
+            nextTermOffset += alignedFrameLength;
+            if (nextTermOffset > termLength)
+            {
+                break; // exceeds log buffer length
+            }
+
+            // we assume that `sessionId`, `streamId`, `termId`, `version`, `flags` are all sane
+
+            if (isReceiveTimestampEnabled &&
+                0 != (FrameDescriptor.frameFlags(buffer, offset) & DataHeaderFlyweight.BEGIN_FLAG))
+            {
+                final int timestampOffset = receiveTimestampOffset;
+                if ((timestampOffset + SIZE_OF_LONG) <= frameLength && (offset + frameLength) <= length)
+                {
+                    if (0 == receiveTimestamp)
+                    {
+                        receiveTimestamp = receiveTimestampClock.nanoTime();
+                    }
+                    buffer.putLong(offset + timestampOffset, receiveTimestamp, ByteOrder.LITTLE_ENDIAN);
+                }
+            }
+
+            offset += (int)alignedFrameLength;
+        }
+        while (length - offset >= DataHeaderFlyweight.HEADER_LENGTH);
+
+        if (length != offset &&
+            (offset < length || DataHeaderFlyweight.HDR_TYPE_PAD != frameType))
+        {
+            return -1; // invalid packet
+        }
+
+        return offset;
     }
 
     private static void logRevoke(

@@ -20,17 +20,14 @@ import io.aeron.driver.buffer.RawLog;
 import io.aeron.driver.media.ReceiveChannelEndpoint;
 import io.aeron.driver.media.UdpChannel;
 import io.aeron.driver.reports.LossReport;
-import io.aeron.driver.status.ReceiverHwm;
-import io.aeron.driver.status.ReceiverNaksSent;
-import io.aeron.driver.status.ReceiverPos;
-import io.aeron.driver.status.SystemCounterDescriptor;
-import io.aeron.driver.status.SystemCounters;
+import io.aeron.driver.status.*;
 import io.aeron.logbuffer.FrameDescriptor;
 import io.aeron.protocol.DataHeaderFlyweight;
 import org.agrona.BitUtil;
 import org.agrona.ExpandableArrayBuffer;
 import org.agrona.concurrent.CachedEpochClock;
 import org.agrona.concurrent.CachedNanoClock;
+import org.agrona.concurrent.EpochNanoClock;
 import org.agrona.concurrent.UnsafeBuffer;
 import org.agrona.concurrent.status.AtomicCounter;
 import org.agrona.concurrent.status.CountersManager;
@@ -49,23 +46,13 @@ import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
-import static io.aeron.logbuffer.LogBufferDescriptor.LOG_META_DATA_LENGTH;
-import static io.aeron.logbuffer.LogBufferDescriptor.PARTITION_COUNT;
-import static io.aeron.logbuffer.LogBufferDescriptor.computePosition;
-import static io.aeron.logbuffer.LogBufferDescriptor.indexByPosition;
-import static io.aeron.logbuffer.LogBufferDescriptor.positionBitsToShift;
-import static io.aeron.protocol.DataHeaderFlyweight.BEGIN_AND_END_FLAGS;
-import static io.aeron.protocol.DataHeaderFlyweight.CURRENT_VERSION;
-import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_DATA;
-import static io.aeron.protocol.DataHeaderFlyweight.HDR_TYPE_PAD;
-import static io.aeron.protocol.DataHeaderFlyweight.HEADER_LENGTH;
+import static io.aeron.driver.status.SystemCounterDescriptor.INVALID_PACKETS;
+import static io.aeron.logbuffer.LogBufferDescriptor.*;
+import static io.aeron.protocol.DataHeaderFlyweight.*;
+import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 class PublicationImageTest
 {
@@ -96,6 +83,8 @@ class PublicationImageTest
         StandardCharsets.US_ASCII);
     private final DataHeaderFlyweight headerFlyweight = new DataHeaderFlyweight();
     private final LossReport lossReport = mock(LossReport.class);
+    private final ArrayList<SubscriberPosition> subscriberPositions = new ArrayList<>();
+    private final EpochNanoClock channelReceiveTimestampClock = mock(EpochNanoClock.class);
     private Position hwmPosition;
     private Position rcvPosition;
     private AtomicCounter rcvNaksSent;
@@ -107,6 +96,7 @@ class PublicationImageTest
         epochClock.update(TimeUnit.HOURS.toMillis(1));
         nanoClock.update(TimeUnit.HOURS.toNanos(1));
         ctx
+            .channelReceiveTimestampClock(channelReceiveTimestampClock)
             .receiverCachedNanoClock(nanoClock)
             .nanoClock(nanoClock)
             .epochClock(epochClock)
@@ -135,7 +125,6 @@ class PublicationImageTest
         when(subscriptionLink1.isTether()).thenReturn(false);
         final SubscriberPosition subscriberPosition2 = mock(SubscriberPosition.class);
         when(subscriberPosition2.subscription()).thenReturn(subscriptionLink2);
-        final ArrayList<SubscriberPosition> subscriberPositions = new ArrayList<>();
         subscriberPositions.add(subscriberPosition1);
         subscriberPositions.add(subscriberPosition2);
 
@@ -199,7 +188,7 @@ class PublicationImageTest
     }
 
     @Test
-    void shouldAdvanceHighWaterMarkByPacketLengthWhenItContainsPaddingFrame()
+    void shouldAdvanceHighWaterMarkByLogicalLengthWhenItContainsPaddingFrame()
     {
         final int totalLength = 512;
         final int packetLength = 288;
@@ -217,7 +206,7 @@ class PublicationImageTest
         assertEquals(packetLength, bytes);
         final int positionBitsToShift = positionBitsToShift(TERM_LENGTH);
         final long packetPosition = computePosition(termId, termOffset, positionBitsToShift, INITIAL_TERM_ID);
-        assertEquals(packetPosition + packetLength, hwmPosition.get());
+        assertEquals(packetPosition + totalLength, hwmPosition.get());
         final UnsafeBuffer activeTermBuffer =
             rawLog.termBuffers()[indexByPosition(packetPosition, positionBitsToShift)];
         for (int i = 0; i < packetLength; i++)
@@ -364,7 +353,23 @@ class PublicationImageTest
             0,
             image.insertPacket(termId, termOffset, buffer, alignedFrameLength, TRANSPORT_INDEX, srcAddress));
 
-        assertEquals(1, ctx.systemCounters().get(SystemCounterDescriptor.INVALID_PACKETS).get());
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { HDR_TYPE_DATA, HDR_TYPE_PAD })
+    void shouldRejectFrameIfTermOffsetExceedsTermLength(final int type)
+    {
+        final int termId = 0;
+        final int termOffset = TERM_LENGTH * 4;
+        final int alignedFrameLength = writeFrame(0, termOffset, termId, 100, (short)0, type, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, alignedFrameLength, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
     }
 
     @ParameterizedTest
@@ -380,11 +385,11 @@ class PublicationImageTest
             0,
             image.insertPacket(termId, termOffset, buffer, alignedFrameLength, TRANSPORT_INDEX, srcAddress));
 
-        assertEquals(1, ctx.systemCounters().get(SystemCounterDescriptor.INVALID_PACKETS).get());
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
     }
 
     @ParameterizedTest
-    @CsvSource({ "0,130", "1,160", "0,2147483647", "1,2147483616"})
+    @CsvSource({ "0,130", "1,160", "0,2147483647", "1,2147483616" })
     void shouldRejectFrameIfTermOffsetPlusAlignedFrameLengthExceedTermBufferLength(
         final int type, final int frameLength)
     {
@@ -398,7 +403,264 @@ class PublicationImageTest
             0,
             image.insertPacket(termId, termOffset, buffer, HEADER_LENGTH, TRANSPORT_INDEX, srcAddress));
 
-        assertEquals(1, ctx.systemCounters().get(SystemCounterDescriptor.INVALID_PACKETS).get());
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @Test
+    void shouldRejectPacketIfLastDataFrameIfIncomplete()
+    {
+        final int termId = 5;
+        final int termOffset = 64;
+        final int alignedLength = writeFrame(0, termOffset, termId, 100, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        writeFrame(alignedLength, termOffset + alignedLength, termId, 200, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, 384, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { HDR_TYPE_PAD - 1, HDR_TYPE_DATA + 1, HDR_TYPE_EXT })
+    void shouldRejectPacketContainingAnInvalidFrameType(final int type)
+    {
+        final int termOffset = 128;
+        final int termId = -19;
+        final int alignedLength = writeFrame(0, termOffset, termId, 32, BEGIN_AND_END_FLAGS, type, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, alignedLength, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @Test
+    void shouldRejectPacketIfSubsequentFramesHaveInvalidTermOffset()
+    {
+        final int termId = 5;
+        final int termOffset = 64;
+        final int alignedLength = writeFrame(0, termOffset, termId, 100, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        writeFrame(alignedLength, termOffset + 111, termId, 200, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, 512, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @Test
+    void shouldRejectPacketIfSubsequentFramesExceedTermLength()
+    {
+        final int termId = 111;
+        final int termOffset = TERM_LENGTH - 128;
+        final int frameLength1 = writeFrame(0, termOffset, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        final int frameLength2 =
+            writeFrame(frameLength1, termOffset + frameLength1, termId, 77, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, frameLength1 + frameLength2, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @Test
+    void shouldRejectPacketIfItHasTrailingBytes()
+    {
+        final int termId = 42;
+        final int termOffset = 1024;
+        writeFrame(0, termOffset, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        writeFrame(96, termOffset + 96, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        buffer.putInt(192, -1024, LITTLE_ENDIAN);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            0,
+            image.insertPacket(termId, termOffset, buffer, 256, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(1, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @Test
+    void shouldAcceptPacketThatEndsWithPaddingFrameExceedingThePacketLength()
+    {
+        final int termId = 42;
+        final int termOffset = 1024;
+        writeFrame(0, termOffset, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        writeFrame(96, termOffset + 96, termId, 192, BEGIN_AND_END_FLAGS, HDR_TYPE_PAD, 0);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            128,
+            image.insertPacket(termId, termOffset, buffer, 128, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(0, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { HDR_TYPE_SETUP, HDR_TYPE_DATA, HDR_TYPE_NAK })
+    void shouldAllowAnyPacketTypesAsHeartbeat(final int type)
+    {
+        final int termId = -9;
+        final int termOffset = 64;
+        headerFlyweight.wrap(buffer, 0, HEADER_LENGTH);
+        headerFlyweight
+            .termId(termId)
+            .termOffset(termOffset)
+            .frameLength(0)
+            .headerType(type);
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+
+        assertEquals(
+            HEADER_LENGTH,
+            image.insertPacket(termId, termOffset, buffer, HEADER_LENGTH, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(0, ctx.systemCounters().get(INVALID_PACKETS).get());
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = { UdpChannel.RESERVED_VALUE_MESSAGE_OFFSET, 16 })
+    void shouldTimestampEveryBeginFrameUsingSpecifiedOffset(final int channelReceiveTimestampOffset)
+    {
+        final int termId = 8;
+        final int termOffset = 64;
+        buffer.setMemory(0, buffer.capacity(), (byte)0);
+        int offset = writeFrame(0, termOffset, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 32, BEGIN_FLAG, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 64, (short)0, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 96, (short)0, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 32, END_FLAG, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 100, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 200, BEGIN_END_AND_EOS_FLAGS, HDR_TYPE_PAD, 0);
+
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+        final String uri = "aeron:udp?endpoint=localhost:5050";
+        final UdpChannel udpChannel = mock(UdpChannel.class);
+        when(udpChannel.channelUri()).thenReturn(ChannelUri.parse(uri));
+        when(udpChannel.isChannelReceiveTimestampEnabled()).thenReturn(true);
+        when(udpChannel.channelReceiveTimestampOffset()).thenReturn(channelReceiveTimestampOffset);
+        when(receiveChannelEndpoint.subscriptionUdpChannel()).thenReturn(udpChannel);
+        when(receiveChannelEndpoint.originalUriString()).thenReturn(uri);
+        final long receiveTimestamp = 6328236423844368L;
+        when(channelReceiveTimestampClock.nanoTime()).thenReturn(receiveTimestamp);
+
+        image = new PublicationImage(
+            CORRELATION_ID,
+            ctx,
+            receiveChannelEndpoint,
+            TRANSPORT_INDEX,
+            controlAddress,
+            SESSION_ID,
+            STREAM_ID,
+            INITIAL_TERM_ID,
+            ACTIVE_TERM_ID,
+            TERM_OFFSET,
+            FLAGS,
+            true,
+            ctx.untetheredWindowLimitTimeoutNs(),
+            ctx.untetheredLingerTimeoutNs(),
+            ctx.untetheredRestingTimeoutNs(),
+            rawLog,
+            feedbackDelayGenerator,
+            subscriberPositions,
+            hwmPosition,
+            rcvPosition,
+            rcvNaksSent,
+            SOURCE_IDENTITY,
+            congestionControl);
+
+        assertEquals(
+            offset,
+            image.insertPacket(termId, termOffset, buffer, offset, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(0, ctx.systemCounters().get(INVALID_PACKETS).get());
+        verify(channelReceiveTimestampClock).nanoTime();
+        verifyNoMoreInteractions(channelReceiveTimestampClock);
+
+        final int timestampOffset = HEADER_LENGTH + channelReceiveTimestampOffset;
+        assertEquals(receiveTimestamp, buffer.getLong(timestampOffset, LITTLE_ENDIAN));
+        assertEquals(receiveTimestamp, buffer.getLong(96 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(160 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(256 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(384 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(receiveTimestamp, buffer.getLong(448 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(receiveTimestamp, buffer.getLong(608 + timestampOffset, LITTLE_ENDIAN));
+    }
+
+    @Test
+    void shouldOnlyTimestampFramesIfOffsetIsNotOutOfBounds()
+    {
+        final int termId = 8;
+        final int termOffset = 64;
+        buffer.setMemory(0, buffer.capacity(), (byte)0);
+        int offset = writeFrame(0, termOffset, termId, 64, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 32, BEGIN_FLAG, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 64, (short)0, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 96, (short)0, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 32, END_FLAG, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 100, BEGIN_AND_END_FLAGS, HDR_TYPE_DATA, 0);
+        offset += writeFrame(offset, termOffset + offset, termId, 200, BEGIN_END_AND_EOS_FLAGS, HDR_TYPE_PAD, 0);
+
+        final int channelReceiveTimestampOffset = 56;
+        final InetSocketAddress srcAddress = mock(InetSocketAddress.class);
+        final String uri = "aeron:udp?endpoint=localhost:5050";
+        final UdpChannel udpChannel = mock(UdpChannel.class);
+        when(udpChannel.channelUri()).thenReturn(ChannelUri.parse(uri));
+        when(udpChannel.isChannelReceiveTimestampEnabled()).thenReturn(true);
+        when(udpChannel.channelReceiveTimestampOffset()).thenReturn(channelReceiveTimestampOffset);
+        when(receiveChannelEndpoint.subscriptionUdpChannel()).thenReturn(udpChannel);
+        when(receiveChannelEndpoint.originalUriString()).thenReturn(uri);
+        final long receiveTimestamp = -57834574957934L;
+        when(channelReceiveTimestampClock.nanoTime()).thenReturn(receiveTimestamp);
+
+        image = new PublicationImage(
+            CORRELATION_ID,
+            ctx,
+            receiveChannelEndpoint,
+            TRANSPORT_INDEX,
+            controlAddress,
+            SESSION_ID,
+            STREAM_ID,
+            INITIAL_TERM_ID,
+            ACTIVE_TERM_ID,
+            TERM_OFFSET,
+            FLAGS,
+            true,
+            ctx.untetheredWindowLimitTimeoutNs(),
+            ctx.untetheredLingerTimeoutNs(),
+            ctx.untetheredRestingTimeoutNs(),
+            rawLog,
+            feedbackDelayGenerator,
+            subscriberPositions,
+            hwmPosition,
+            rcvPosition,
+            rcvNaksSent,
+            SOURCE_IDENTITY,
+            congestionControl);
+
+        assertEquals(
+            offset,
+            image.insertPacket(termId, termOffset, buffer, offset, TRANSPORT_INDEX, srcAddress));
+
+        assertEquals(0, ctx.systemCounters().get(INVALID_PACKETS).get());
+        verify(channelReceiveTimestampClock).nanoTime();
+        verifyNoMoreInteractions(channelReceiveTimestampClock);
+
+        final int timestampOffset = HEADER_LENGTH + channelReceiveTimestampOffset;
+        assertEquals(receiveTimestamp, buffer.getLong(timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(96 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(160 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(256 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(0, buffer.getLong(384 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(receiveTimestamp, buffer.getLong(448 + timestampOffset, LITTLE_ENDIAN));
+        assertEquals(receiveTimestamp, buffer.getLong(608 + timestampOffset, LITTLE_ENDIAN));
     }
 
     private int writeFrame(

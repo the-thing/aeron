@@ -36,6 +36,7 @@ import io.aeron.protocol.SetupFlyweight;
 import io.aeron.protocol.StatusMessageFlyweight;
 import io.aeron.test.InterruptAfter;
 import io.aeron.test.InterruptingTestCallback;
+import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.ErrorHandler;
 import org.agrona.concurrent.CachedEpochClock;
@@ -349,7 +350,8 @@ class ReceiverTest
         receiver.doWork();
 
         fillDataFrame(dataHeader, 0);
-        receiveChannelEndpoint.onDataPacket(dataHeader, dataBuffer, dataHeader.frameLength(), senderAddress, 0);
+        receiveChannelEndpoint.onDataPacket(
+            dataHeader, dataBuffer, alignFrame(dataHeader.frameLength()), senderAddress, 0);
 
         final int readOutcome = TermReader.read(
             termBuffers[ACTIVE_INDEX],
@@ -421,10 +423,12 @@ class ReceiverTest
         receiver.doWork();
 
         fillDataFrame(dataHeader, 0);  // initial data frame
-        receiveChannelEndpoint.onDataPacket(dataHeader, dataBuffer, dataHeader.frameLength(), senderAddress, 0);
+        receiveChannelEndpoint.onDataPacket(
+            dataHeader, dataBuffer, alignFrame(dataHeader.frameLength()), senderAddress, 0);
 
         fillDataFrame(dataHeader, 0);  // heartbeat with same term offset
-        receiveChannelEndpoint.onDataPacket(dataHeader, dataBuffer, dataHeader.frameLength(), senderAddress, 0);
+        receiveChannelEndpoint.onDataPacket(
+            dataHeader, dataBuffer, alignFrame(dataHeader.frameLength()), senderAddress, 0);
 
         final int readOutcome = TermReader.read(
             termBuffers[ACTIVE_INDEX],
@@ -495,10 +499,12 @@ class ReceiverTest
         receiver.doWork();
 
         fillDataFrame(dataHeader, 0);  // heartbeat with same term offset
-        receiveChannelEndpoint.onDataPacket(dataHeader, dataBuffer, dataHeader.frameLength(), senderAddress, 0);
+        receiveChannelEndpoint.onDataPacket(
+            dataHeader, dataBuffer, alignFrame(dataHeader.frameLength()), senderAddress, 0);
 
         fillDataFrame(dataHeader, 0);  // initial data frame
-        receiveChannelEndpoint.onDataPacket(dataHeader, dataBuffer, dataHeader.frameLength(), senderAddress, 0);
+        receiveChannelEndpoint.onDataPacket(
+            dataHeader, dataBuffer, alignFrame(dataHeader.frameLength()), senderAddress, 0);
 
         final int readOutcome = TermReader.read(
             termBuffers[ACTIVE_INDEX],
@@ -519,6 +525,11 @@ class ReceiverTest
             mockSubscriberPosition);
 
         assertThat(readOutcome, is(1));
+    }
+
+    private static int alignFrame(final int i)
+    {
+        return BitUtil.align(i, FrameDescriptor.FRAME_ALIGNMENT);
     }
 
     @Test
@@ -678,10 +689,7 @@ class ReceiverTest
             .flags(DataHeaderFlyweight.BEGIN_AND_END_FLAGS)
             .version(HeaderFlyweight.CURRENT_VERSION);
 
-        if (0 < ReceiverTest.FAKE_PAYLOAD.length)
-        {
-            dataBuffer.putBytes(header.dataOffset(), ReceiverTest.FAKE_PAYLOAD);
-        }
+        dataBuffer.putBytes(header.dataOffset(), ReceiverTest.FAKE_PAYLOAD);
     }
 
     private void fillSetupFrame(final SetupFlyweight header)

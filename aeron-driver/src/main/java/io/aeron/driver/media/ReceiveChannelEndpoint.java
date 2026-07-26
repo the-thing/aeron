@@ -32,7 +32,6 @@ import io.aeron.protocol.SetupFlyweight;
 import io.aeron.protocol.StatusMessageFlyweight;
 import io.aeron.status.ChannelEndpointStatus;
 import io.aeron.status.LocalSocketAddressStatus;
-import org.agrona.BitUtil;
 import org.agrona.CloseHelper;
 import org.agrona.collections.ArrayUtil;
 import org.agrona.collections.Hashing;
@@ -52,7 +51,6 @@ import java.util.concurrent.TimeUnit;
 import static io.aeron.driver.status.SystemCounterDescriptor.POSSIBLE_TTL_ASYMMETRY;
 import static io.aeron.driver.status.SystemCounterDescriptor.SHORT_SENDS;
 import static io.aeron.protocol.StatusMessageFlyweight.SEND_SETUP_FLAG;
-import static java.nio.ByteOrder.LITTLE_ENDIAN;
 
 abstract class ReceiveChannelEndpointLhsPadding extends UdpChannelTransport
 {
@@ -708,12 +706,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
         final InetSocketAddress srcAddress,
         final int transportIndex)
     {
-        if (isChannelReceiveTimestampEnabled && 0 != (header.flags() & DataHeaderFlyweight.BEGIN_FLAG))
-        {
-            applyChannelReceiveTimestamp(buffer, length);
-        }
         updateTimeOfLastActivityNs(cachedNanoClock.nanoTime(), transportIndex);
-
         return dispatcher.onDataPacket(this, header, buffer, length, srcAddress, transportIndex);
     }
 
@@ -1095,20 +1088,6 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
             LocalSocketAddressStatus.updateBindAddress(
                 localSocketAddressIndicator, bindAddressAndPort, context.countersMetaDataBuffer());
             localSocketAddressIndicator.setRelease(ChannelEndpointStatus.ACTIVE);
-        }
-    }
-
-    private void applyChannelReceiveTimestamp(final UnsafeBuffer buffer, final int length)
-    {
-        if (length > DataHeaderFlyweight.HEADER_LENGTH)
-        {
-            final int offset = udpChannel.channelReceiveTimestampOffset();
-
-            if (DataHeaderFlyweight.DATA_OFFSET + offset + BitUtil.SIZE_OF_LONG < length) // FIXME: bug
-            {
-                buffer.putLong(
-                    DataHeaderFlyweight.DATA_OFFSET + offset, channelReceiveTimestampClock.nanoTime(), LITTLE_ENDIAN);
-            }
         }
     }
 
