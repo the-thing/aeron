@@ -374,8 +374,8 @@ public:
      * @param offset offset in the buffer at which the encoded message begins.
      * @param length in bytes of the encoded message.
      * @param reservedValueSupplier for the frame.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     inline std::int64_t offer(
         const concurrent::AtomicBuffer &buffer,
@@ -403,8 +403,8 @@ public:
      * @param buffer containing message.
      * @param offset offset in the buffer at which the encoded message begins.
      * @param length in bytes of the encoded message.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     inline std::int64_t offer(const concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length)
     {
@@ -428,8 +428,8 @@ public:
      * @param startBuffer containing part of the message.
      * @param lastBuffer after the message.
      * @param reservedValueSupplier for the frame.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     template<class BufferIterator> std::int64_t offer(
         BufferIterator startBuffer,
@@ -489,8 +489,8 @@ public:
      * @param buffers containing parts of the message.
      * @param length of the array of buffers.
      * @param reservedValueSupplier for the frame.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     std::int64_t offer(
         const concurrent::AtomicBuffer *buffers,
@@ -505,8 +505,8 @@ public:
      *
      * @param buffers containing parts of the message.
      * @param reservedValueSupplier for the frame.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     template<std::size_t N>
     std::int64_t offer(
@@ -522,8 +522,8 @@ public:
      * @param buffer contain the message.
      * @param length of the message.
      * @param reservedValueSupplier for the frame.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      */
     std::int64_t offer(
         const std::uint8_t *buffer,
@@ -572,8 +572,8 @@ public:
      *
      * @param length      of the range to claim, in bytes..
      * @param bufferClaim to be populate if the claim succeeds.
-     * @return The new stream position, otherwise {@link #NOT_CONNECTED}, {@link #BACK_PRESSURED},
-     * {@link #ADMIN_ACTION} or {@link #CLOSED}.
+     * @return The new stream position, otherwise {@link aeron#NOT_CONNECTED}, {@link aeron#BACK_PRESSURED},
+     * {@link aeron#ADMIN_ACTION} or {@link aeron#PUBLICATION_CLOSED}.
      * @throws IllegalArgumentException if the length is greater than max payload length within an MTU.
      * @see BufferClaim::commit
      */

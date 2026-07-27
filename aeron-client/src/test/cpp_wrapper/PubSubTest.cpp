@@ -96,9 +96,9 @@ TEST_P(PubSubTest, shouldSubscribePublishAndReceiveContextCallbacks)
     EXPECT_CALL(mockOnNewSubscription, Call(channel, streamId, _));
     EXPECT_CALL(mockOnAvailableImage, Call(_));
     EXPECT_CALL(mockOnUnavailableImage, Call(_)).WillOnce(
-        [&](Image &image)
+        [&](Image &)
         {
-            aeron::concurrent::atomic::putInt32Volatile(&imageUnavailable, 1);
+            atomic::putInt32Volatile(&imageUnavailable, 1);
         });;
     EXPECT_CALL(mockClientClose, Call());
 
@@ -120,7 +120,7 @@ TEST_P(PubSubTest, shouldSubscribePublishAndReceiveContextCallbacks)
             POLL_FOR(pub->isConnected() && sub->isConnected(), invoker);
 
             on_reserved_value_supplier_t reservedValueSupplier =
-                [=](AtomicBuffer &termBuffer, util::index_t termOffset, util::index_t length)
+                [=](AtomicBuffer &, index_t, index_t)
                 {
                     return reservedValue;
                 };
@@ -132,13 +132,13 @@ TEST_P(PubSubTest, shouldSubscribePublishAndReceiveContextCallbacks)
 
             POLL_FOR(0 < pub->offer(buffer, 0, length, reservedValueSupplier), invoker);
             POLL_FOR(0 < sub->poll(
-                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+                [&](concurrent::AtomicBuffer &b, util::index_t offset, util::index_t len, Header &header)
                 {
-                    EXPECT_EQ(message, buffer.getString(offset));
+                    EXPECT_EQ(message, b.getString(offset));
                     EXPECT_EQ(reservedValue, header.reservedValue());
                     EXPECT_EQ(sessionId, header.sessionId());
                     EXPECT_EQ(streamId, header.streamId());
-                    EXPECT_EQ(length, header.frameLength() - dataHeaderLength);
+                    EXPECT_EQ(len, header.frameLength() - dataHeaderLength);
                     EXPECT_EQ(expectedPosition, header.position());
                 },
                 1), invoker);
@@ -167,9 +167,9 @@ TEST_P(PubSubTest, shouldSubscribePublishAndReceiveSubscriptionCallbacks)
 
     EXPECT_CALL(mockOnAvailableImage, Call(_));
     EXPECT_CALL(mockOnUnavailableImage, Call(_)).WillOnce(
-        [&](Image &image)
+        [&](Image &)
         {
-            aeron::concurrent::atomic::putInt32Volatile(&imageUnavailable, 1);
+            atomic::putInt32Volatile(&imageUnavailable, 1);
         });
 
     ctx.useConductorAgentInvoker(true);
@@ -193,9 +193,9 @@ TEST_P(PubSubTest, shouldSubscribePublishAndReceiveSubscriptionCallbacks)
 
             POLL_FOR(
                 0 < sub->poll(
-                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+                [&](concurrent::AtomicBuffer &b, util::index_t offset, util::index_t, Header &)
                 {
-                    EXPECT_EQ(message, buffer.getString(offset));
+                    EXPECT_EQ(message, b.getString(offset));
                 },
                 1),
                 invoker);
@@ -242,7 +242,7 @@ TEST_P(PubSubTest, shouldSubscribeExclusivePublish)
         POLL_FOR(0 < pub->offer(buffer), invoker);
 
         POLL_FOR(0 < sub->poll(
-            [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t length, Header &header)
+            [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t, Header &header)
             {
                 EXPECT_EQ(message, b.getString(offset));
                 EXPECT_EQ(termId, header.termId());
@@ -388,11 +388,11 @@ TEST_P(PubSubTest, shouldBlockPollSubscription)
         std::int64_t bytesConsumed = 0;
         POLL_FOR(pub->position() <= (
             bytesConsumed += sub->blockPoll(
-                [&](concurrent::AtomicBuffer &buffer,
-                    util::index_t offset,
+                [&](concurrent::AtomicBuffer &,
+                    util::index_t,
                     util::index_t length,
                     std::int32_t sessionId,
-                    std::int32_t termId)
+                    std::int32_t)
                 {
                     bytesReceived += length;
                     EXPECT_EQ(pub->sessionId(), sessionId);
@@ -437,7 +437,7 @@ TEST_P(PubSubTest, shouldTryClaimAndControlledPollSubscription)
 
         POLL_FOR(
             0 < sub->controlledPoll(
-                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t, Header &)
                 {
                     seen = true;
                     return message == buffer.getString(offset) ?
@@ -484,7 +484,7 @@ TEST_P(PubSubTest, shouldExclusivePublicationTryClaimAndControlledPollSubscripti
 
         POLL_FOR(
             0 < sub->controlledPoll(
-                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t, Header &)
                 {
                     seen = true;
                     return message == buffer.getString(offset) ?
@@ -540,13 +540,7 @@ TEST_P(PubSubTest, shouldHandleEosPosition)
             std::int64_t tStart = aeron_epoch_clock();
             while (0 < messagesRemaining)
             {
-                int pollCount = sub->poll(
-                    [&](
-                        concurrent::AtomicBuffer &buffer,
-                        util::index_t offset,
-                        util::index_t length,
-                        Header &header)
-                    {}, 1);
+                int pollCount = sub->poll([&](AtomicBuffer &, index_t, index_t, Header &) {}, 1);
 
                 if (0 == pollCount)
                 {
@@ -570,13 +564,7 @@ TEST_P(PubSubTest, shouldHandleEosPosition)
             messagesRemaining = numMessages;
             while (5 < messagesRemaining)
             {
-                int pollCount = sub->poll(
-                    [&](
-                        concurrent::AtomicBuffer &buffer,
-                        util::index_t offset,
-                        util::index_t length,
-                        Header &header)
-                    {}, 1);
+                int pollCount = sub->poll([&](AtomicBuffer &, index_t, index_t, Header &) {}, 1);
 
                 if (0 == pollCount)
                 {
@@ -598,7 +586,7 @@ TEST_P(PubSubTest, shouldHandleEosPosition)
         std::int64_t tStart = aeron_epoch_clock();
         while (0 < messagesRemaining)
         {
-            int pollCount = sub->poll([&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header) {}, 1);
+            int pollCount = sub->poll([&](AtomicBuffer &, index_t, index_t, Header &) {}, 1);
 
             if (0 == pollCount)
             {
@@ -656,9 +644,9 @@ TEST_F(PubSubTest, DISABLED_shouldError)
         POLL_FOR(0 < pub->offer(buffer), invoker);
 
         POLL_FOR(0 < sub->poll(
-            [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+            [&](concurrent::AtomicBuffer &b, util::index_t offset, util::index_t, Header &header)
             {
-                EXPECT_EQ(message, buffer.getString(offset));
+                EXPECT_EQ(message, b.getString(offset));
                 EXPECT_EQ(termId, header.termId());
                 EXPECT_EQ(termOffset, header.termOffset());
                 EXPECT_EQ(initialTermId, header.initialTermId());
@@ -708,11 +696,11 @@ public:
         }
 
         int count = 0;
-        m_innerHandler = [&](AtomicBuffer &buffer, index_t offset, index_t length, Header &header)
+        m_innerHandler = [&](AtomicBuffer &b, index_t offset, index_t length, Header &)
         {
             count++;
             ASSERT_EQ(messageSize, length);
-            ASSERT_EQ(0, memcmp(buffer.buffer() + offset, vec.data(), length));
+            ASSERT_EQ(0, memcmp(b.buffer() + offset, vec.data(), length));
         };
 
         std::int64_t t0 = aeron_epoch_clock();
