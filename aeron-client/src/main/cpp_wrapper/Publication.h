@@ -471,8 +471,7 @@ public:
             iovCount++;
         }
 
-        aeron_iovec_t *iov = 0 == iovCount ?
-            nullptr : (iovCount <= IOVEC_STACK_CAPACITY ? stackIov.data() : overflowIov.data());
+        aeron_iovec_t *iov = iovCount <= IOVEC_STACK_CAPACITY ? stackIov.data() : overflowIov.data();
         const std::int64_t position = aeron_publication_offerv(
             m_publication, iov, iovCount, reservedValueSupplierCallback, (void *)&reservedValueSupplier);
 

@@ -242,16 +242,16 @@ TEST_P(PubSubTest, shouldSubscribeExclusivePublish)
         POLL_FOR(0 < pub->offer(buffer), invoker);
 
         POLL_FOR(0 < sub->poll(
-            [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &header)
+            [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t length, Header &header)
             {
-                EXPECT_EQ(message, buffer.getString(offset));
+                EXPECT_EQ(message, b.getString(offset));
                 EXPECT_EQ(termId, header.termId());
                 EXPECT_EQ(termOffset, header.termOffset());
                 EXPECT_EQ(initialTermId, header.initialTermId());
             },
             1), invoker);
 
-        std::array<std::uint8_t, 16> partBytes;
+        std::array<std::uint8_t, 16> partBytes{};
         for (std::size_t i = 0; i < partBytes.size(); i++)
         {
             partBytes[i] = static_cast<std::uint8_t>(i);
@@ -259,17 +259,17 @@ TEST_P(PubSubTest, shouldSubscribeExclusivePublish)
         AtomicBuffer partBuffer(partBytes);
         std::vector<AtomicBuffer> buffers(17, partBuffer);
 
-        for (std::size_t vectorLength : { std::size_t(16), std::size_t(17) })
+        for (std::size_t vectorLength : { 0, 16, 17 })
         {
             POLL_FOR(0 < pub->offer(buffers.begin(), buffers.begin() + vectorLength), invoker);
             POLL_FOR(0 < sub->poll(
-                [&](concurrent::AtomicBuffer &buffer, util::index_t offset, util::index_t length, Header &)
+                [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t length, Header &)
                 {
                     EXPECT_EQ(vectorLength * partBytes.size(), static_cast<std::size_t>(length));
                     for (util::index_t i = 0; i < length; i++)
                     {
                         EXPECT_EQ(partBytes[static_cast<std::size_t>(i) % partBytes.size()],
-                            buffer.getUInt8(offset + i));
+                            b.getUInt8(offset + i));
                     }
                 },
                 1), invoker);
@@ -278,6 +278,78 @@ TEST_P(PubSubTest, shouldSubscribeExclusivePublish)
 
     invoker.invoke();
 }
+
+TEST_P(PubSubTest, shouldSubscribeConcurrentPublish)
+{
+    buffer_t buf;
+    AtomicBuffer buffer(buf);
+    std::int32_t streamId = 982375;
+    std::int32_t termId = 23;
+    std::int32_t initialTermId = 3;
+    std::int32_t termOffset = 1024;
+    ChannelUriStringBuilder uriBuilder;
+    const std::string channel = setParameters(std::get<0>(GetParam()), std::get<1>(GetParam()), uriBuilder)
+        .termId(termId)
+        .termOffset(termOffset)
+        .initialTermId(initialTermId)
+        .networkInterface("localhost")
+        .build();
+
+    Context ctx;
+    ctx.useConductorAgentInvoker(true);
+
+    std::shared_ptr<Aeron> aeron = Aeron::connect(ctx);
+    std::int64_t subId = aeron->addSubscription(channel, streamId);
+    std::int64_t pubId = aeron->addPublication(channel, streamId);
+    AgentInvoker<ClientConductor> &invoker = aeron->conductorAgentInvoker();
+
+    {
+        POLL_FOR_NON_NULL(sub, aeron->findSubscription(subId), invoker);
+        POLL_FOR_NON_NULL(pub, aeron->findPublication(pubId), invoker);
+        POLL_FOR(pub->isConnected() && sub->isConnected(), invoker);
+
+        std::string message = "hello world!";
+        buffer.putString(0, message);
+        POLL_FOR(0 < pub->offer(buffer), invoker);
+
+        POLL_FOR(0 < sub->poll(
+            [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t length, Header &header)
+            {
+                EXPECT_EQ(message, b.getString(offset));
+                EXPECT_EQ(termId, header.termId());
+                EXPECT_EQ(termOffset, header.termOffset());
+                EXPECT_EQ(initialTermId, header.initialTermId());
+            },
+            1), invoker);
+
+        std::array<std::uint8_t, 16> partBytes{};
+        for (std::size_t i = 0; i < partBytes.size(); i++)
+        {
+            partBytes[i] = static_cast<std::uint8_t>(i);
+        }
+        AtomicBuffer partBuffer(partBytes);
+        std::vector<AtomicBuffer> buffers(17, partBuffer);
+
+        for (std::size_t vectorLength : { 0, 16, 17 })
+        {
+            POLL_FOR(0 < pub->offer(buffers.begin(), buffers.begin() + vectorLength), invoker);
+            POLL_FOR(0 < sub->poll(
+                [&](const concurrent::AtomicBuffer &b, util::index_t offset, util::index_t length, Header &)
+                {
+                    EXPECT_EQ(vectorLength * partBytes.size(), static_cast<std::size_t>(length));
+                    for (util::index_t i = 0; i < length; i++)
+                    {
+                        EXPECT_EQ(partBytes[static_cast<std::size_t>(i) % partBytes.size()],
+                            b.getUInt8(offset + i));
+                    }
+                },
+                1), invoker);
+        }
+    }
+
+    invoker.invoke();
+}
+
 
 TEST_P(PubSubTest, shouldBlockPollSubscription)
 {
