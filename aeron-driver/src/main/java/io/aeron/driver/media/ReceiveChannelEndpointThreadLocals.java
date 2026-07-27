@@ -232,6 +232,7 @@ public final class ReceiveChannelEndpointThreadLocals
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ReceiveChannelEndpointThreadLocals{" +

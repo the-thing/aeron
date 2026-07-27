@@ -44,6 +44,7 @@ public abstract class Processor extends AbstractProcessor
     /**
      * {@inheritDoc}
      */
+    @Override
     public SourceVersion getSupportedSourceVersion()
     {
         return SourceVersion.latest();
@@ -52,6 +53,7 @@ public abstract class Processor extends AbstractProcessor
     /**
      * {@inheritDoc}
      */
+    @Override
     public synchronized void init(final ProcessingEnvironment processingEnv)
     {
         enabled = System.getProperty(getEnabledPropertyName(), "true").equalsIgnoreCase("true");
@@ -95,6 +97,7 @@ public abstract class Processor extends AbstractProcessor
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv)
     {
         if (enabled)

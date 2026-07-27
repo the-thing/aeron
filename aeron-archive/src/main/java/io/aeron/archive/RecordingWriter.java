@@ -104,6 +104,7 @@ final class RecordingWriter implements BlockHandler, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onBlock(
         final DirectBuffer termBuffer, final int termOffset, final int length, final int sessionId, final int termId)
     {
@@ -169,6 +170,7 @@ final class RecordingWriter implements BlockHandler, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (!isClosed)

@@ -44,6 +44,7 @@ public final class ImageRateReporter implements Runnable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void run()
     {
         long lastTimestampMs = System.currentTimeMillis();

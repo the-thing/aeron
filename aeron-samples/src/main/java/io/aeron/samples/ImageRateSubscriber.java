@@ -84,6 +84,7 @@ public final class ImageRateSubscriber extends ImageRateSubscriberRhsPadding imp
     /**
      * {@inheritDoc}
      */
+    @Override
     public void run()
     {
         while (!subscription.isConnected())

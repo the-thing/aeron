@@ -242,6 +242,7 @@ public final class DriverConductor implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         final long nowNs = nanoClock.nanoTime();
@@ -259,6 +260,7 @@ public final class DriverConductor implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         CloseHelper.closeAll(receiveChannelEndpointByChannelMap.values());
@@ -283,6 +285,7 @@ public final class DriverConductor implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "driver-conductor";
@@ -291,6 +294,7 @@ public final class DriverConductor implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowNs = nanoClock.nanoTime();

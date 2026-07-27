@@ -169,6 +169,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(serviceAgentRunner);
@@ -2063,6 +2064,7 @@ public final class ClusteredServiceContainer implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "ClusteredServiceContainer.Context" +

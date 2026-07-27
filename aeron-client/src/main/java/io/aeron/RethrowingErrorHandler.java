@@ -38,6 +38,7 @@ public final class RethrowingErrorHandler implements ErrorHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onError(final Throwable ex)
     {
         LangUtil.rethrowUnchecked(ex);

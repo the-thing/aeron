@@ -34,6 +34,7 @@ public class DefaultSendChannelEndpointSupplier implements SendChannelEndpointSu
     /**
      * {@inheritDoc}
      */
+    @Override
     public SendChannelEndpoint newInstance(
         final UdpChannel udpChannel, final AtomicCounter statusIndicator, final MediaDriver.Context context)
     {

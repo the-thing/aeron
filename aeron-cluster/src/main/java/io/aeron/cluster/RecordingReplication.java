@@ -156,6 +156,7 @@ final class RecordingReplication implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (!hasReplicationEnded)

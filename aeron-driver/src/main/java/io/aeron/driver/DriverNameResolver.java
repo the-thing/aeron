@@ -166,6 +166,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public void init(final CountersReader countersReader, final CounterProvider counterProvider)
     {
         final ExpandableArrayBuffer expandableArrayBuffer = new ExpandableArrayBuffer();
@@ -199,6 +200,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         for (int i = 0; i < bootstrapNeighborAddresses.length; ++i)
@@ -217,6 +219,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowMs = clock.time();
@@ -254,6 +257,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         delegateResolver.onClose();
@@ -263,6 +267,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public InetAddress resolve(final String name, final String uriParamName, final boolean isReResolution)
     {
         DriverNameResolverCache.CacheEntry entry;
@@ -305,6 +310,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public String lookup(final String name, final String uriParamName, final boolean isReLookup)
     {
         // here we would look up advertised endpoints/control IP:port pairs by name. Currently, we just return delegate.
@@ -314,6 +320,7 @@ final class DriverNameResolver implements UdpNameResolutionTransport.UdpFrameHan
     /**
      * {@inheritDoc}
      */
+    @Override
     public int onFrame(
         final UnsafeBuffer unsafeBuffer, final int length, final InetSocketAddress srcAddress, final long nowMs)
     {

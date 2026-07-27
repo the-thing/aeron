@@ -79,6 +79,7 @@ public final class ControlTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         for (final Transport transport : transports)
@@ -99,6 +100,7 @@ public final class ControlTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public int pollTransports()
     {
         totalBytesReceived = 0;
@@ -180,6 +182,7 @@ public final class ControlTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ControlTransportPoller{}";

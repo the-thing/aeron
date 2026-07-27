@@ -168,6 +168,7 @@ public class IndexedReplicatedRecording implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(

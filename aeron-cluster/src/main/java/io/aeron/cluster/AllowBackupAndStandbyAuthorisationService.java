@@ -35,6 +35,7 @@ public enum AllowBackupAndStandbyAuthorisationService implements AuthorisationSe
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isAuthorised(
         final int protocolId,
         final int actionId,

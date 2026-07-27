@@ -158,6 +158,7 @@ public class RejectImageFlyweight extends CorrelatedMessageFlyweight
     /**
      * {@inheritDoc}
      */
+    @Override
     public RejectImageFlyweight clientId(final long clientId)
     {
         super.clientId(clientId);
@@ -167,6 +168,7 @@ public class RejectImageFlyweight extends CorrelatedMessageFlyweight
     /**
      * {@inheritDoc}
      */
+    @Override
     public RejectImageFlyweight correlationId(final long correlationId)
     {
         super.correlationId(correlationId);

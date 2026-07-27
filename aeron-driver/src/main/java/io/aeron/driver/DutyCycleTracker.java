@@ -80,6 +80,7 @@ public class DutyCycleTracker extends DutyCycleTrackerFields
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "DutyCycleTracker{" +

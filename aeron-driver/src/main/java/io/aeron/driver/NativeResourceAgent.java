@@ -53,6 +53,7 @@ final class NativeResourceAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         nameResolver.onStart();
@@ -61,6 +62,7 @@ final class NativeResourceAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;
@@ -74,6 +76,7 @@ final class NativeResourceAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         nameResolver.onClose();
@@ -88,6 +91,7 @@ final class NativeResourceAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "aeron-md-nra";

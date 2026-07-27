@@ -889,6 +889,7 @@ public final class Aeron implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "Aeron{" +
@@ -1908,6 +1909,7 @@ public final class Aeron implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context aeronDirectoryName(final String dirName)
         {
             super.aeronDirectoryName(dirName);
@@ -1987,6 +1989,7 @@ public final class Aeron implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "Aeron.Context" +

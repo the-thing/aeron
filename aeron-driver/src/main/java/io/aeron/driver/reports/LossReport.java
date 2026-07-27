@@ -169,6 +169,7 @@ public final class LossReport
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "LossReport{" +

@@ -55,6 +55,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         controlSession.activeListing(null);
@@ -63,6 +64,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         isDone = true;
@@ -71,6 +73,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return isDone;
@@ -79,6 +82,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return Aeron.NULL_VALUE;
@@ -87,6 +91,7 @@ class ListRecordingSubscriptionsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;

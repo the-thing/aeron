@@ -57,6 +57,7 @@ final class SubscriberPosition
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "SubscriberPosition{" +

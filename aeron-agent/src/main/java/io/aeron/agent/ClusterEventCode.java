@@ -211,6 +211,7 @@ public enum ClusterEventCode implements EventCode
     /**
      * {@inheritDoc}
      */
+    @Override
     public int id()
     {
         return id;

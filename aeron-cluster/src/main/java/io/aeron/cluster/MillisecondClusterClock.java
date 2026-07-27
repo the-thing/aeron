@@ -34,6 +34,7 @@ public class MillisecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long time()
     {
         return System.currentTimeMillis();
@@ -42,6 +43,7 @@ public class MillisecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeMillis()
     {
         return System.currentTimeMillis();
@@ -50,6 +52,7 @@ public class MillisecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeMicros()
     {
         return MILLISECONDS.toMicros(System.currentTimeMillis());
@@ -58,6 +61,7 @@ public class MillisecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeNanos()
     {
         return MILLISECONDS.toNanos(System.currentTimeMillis());
@@ -66,6 +70,7 @@ public class MillisecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long convertToNanos(final long time)
     {
         return MILLISECONDS.toNanos(time);

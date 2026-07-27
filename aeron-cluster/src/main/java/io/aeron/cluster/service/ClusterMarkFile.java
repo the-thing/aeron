@@ -337,6 +337,7 @@ public final class ClusterMarkFile implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (!markFile.isClosed())
@@ -624,6 +625,7 @@ public final class ClusterMarkFile implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ClusterMarkFile{" +

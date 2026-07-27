@@ -60,6 +60,7 @@ public class BasicAuctionClusteredService implements ClusteredService
      * {@inheritDoc}
      */
     // tag::start[]
+    @Override
     public void onStart(final Cluster cluster, final Image snapshotImage)
     {
         this.cluster = cluster;                      // <1>
@@ -76,6 +77,7 @@ public class BasicAuctionClusteredService implements ClusteredService
      * {@inheritDoc}
      */
     // tag::message[]
+    @Override
     public void onSessionMessage(
         final ClientSession session,
         final long timestamp,
@@ -110,6 +112,7 @@ public class BasicAuctionClusteredService implements ClusteredService
      * {@inheritDoc}
      */
     // tag::takeSnapshot[]
+    @Override
     public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
     {
         snapshotBuffer.putLong(SNAPSHOT_CUSTOMER_ID_OFFSET, auction.getCurrentWinningCustomerId());  // <1>
@@ -159,6 +162,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRoleChange(final Cluster.Role newRole)
     {
     }
@@ -166,6 +170,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTerminate(final Cluster cluster)
     {
     }
@@ -173,6 +178,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onSessionOpen(final ClientSession session, final long timestamp)
     {
         System.out.println("onSessionOpen(" + session + ")");
@@ -181,6 +187,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onSessionClose(final ClientSession session, final long timestamp, final CloseReason closeReason)
     {
         System.out.println("onSessionClose(" + session + ")");
@@ -189,6 +196,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTimerEvent(final long correlationId, final long timestamp)
     {
     }
@@ -232,6 +240,7 @@ public class BasicAuctionClusteredService implements ClusteredService
         /**
          * {@inheritDoc}
          */
+        @Override
         public boolean equals(final Object o)
         {
             if (this == o)
@@ -252,6 +261,7 @@ public class BasicAuctionClusteredService implements ClusteredService
         /**
          * {@inheritDoc}
          */
+        @Override
         public int hashCode()
         {
             return Objects.hash(bestPrice, currentWinningCustomerId);
@@ -260,6 +270,7 @@ public class BasicAuctionClusteredService implements ClusteredService
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "Auction{" +
@@ -272,6 +283,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean equals(final Object o)
     {
         if (this == o)
@@ -292,6 +304,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public int hashCode()
     {
         return Objects.hash(auction);
@@ -300,6 +313,7 @@ public class BasicAuctionClusteredService implements ClusteredService
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "BasicAuctionClusteredService{" +

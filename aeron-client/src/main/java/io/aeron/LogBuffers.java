@@ -217,6 +217,7 @@ public final class LogBuffers implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         close(fileChannel, logMetaDataBuffer, mappedByteBuffers);

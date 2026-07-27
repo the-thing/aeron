@@ -42,6 +42,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public InetAddress resolve(final String name, final String uriParamName, final boolean isReResolution)
     {
         final long beginNs = clock.nanoTime();
@@ -63,6 +64,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String lookup(final String name, final String uriParamName, final boolean isReLookup)
     {
         final long beginNs = clock.nanoTime();
@@ -84,6 +86,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void init(final CountersReader countersReader, final CounterProvider counterProvider)
     {
         delegateResolver.init(countersReader, counterProvider);
@@ -92,6 +95,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         delegateResolver.onStart();
@@ -100,6 +104,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         return delegateResolver.doWork();
@@ -108,6 +113,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         delegateResolver.onClose();
@@ -116,6 +122,7 @@ final class TimeTrackingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String name()
     {
         return "TimeTracking(" + delegateResolver.name() + ")";

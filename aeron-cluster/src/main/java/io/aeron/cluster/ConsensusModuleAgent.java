@@ -278,6 +278,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         if (!aeron.isClosed())
@@ -315,6 +316,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         archive = AeronArchive.connect(ctx.archiveContext().clone());
@@ -387,6 +389,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long timestamp = clusterClock.time();
@@ -471,6 +474,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int memberId()
     {
         return memberId;
@@ -479,6 +483,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return ctx.agentRoleName();
@@ -487,6 +492,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public long time()
     {
         return clusterClock.time();
@@ -495,6 +501,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public TimeUnit timeUnit()
     {
         return clusterTimeUnit;
@@ -503,6 +510,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public IdleStrategy idleStrategy()
     {
         return this;
@@ -546,6 +554,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public Aeron aeron()
     {
         return aeron;
@@ -554,6 +563,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public AeronArchive archive()
     {
         return extensionArchive;
@@ -562,6 +572,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public AuthorisationService authorisationService()
     {
         return authorisationService;
@@ -570,6 +581,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public ClusterClientSession getClientSession(final long clusterSessionId)
     {
         return sessionManager.findBySessionId(clusterSessionId);
@@ -578,6 +590,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void closeClusterSession(final long clusterSessionId)
     {
         onServiceCloseSession(clusterSessionId);
@@ -586,6 +599,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int commitPositionCounterId()
     {
         return commitPosition.id();
@@ -594,6 +608,7 @@ final class ConsensusModuleAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int clusterId()
     {
         return ctx.clusterId();

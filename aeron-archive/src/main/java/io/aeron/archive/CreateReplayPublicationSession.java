@@ -83,6 +83,7 @@ final class CreateReplayPublicationSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (NULL_VALUE != publicationRegistrationId)
@@ -94,6 +95,7 @@ final class CreateReplayPublicationSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         isDone = true;
@@ -102,6 +104,7 @@ final class CreateReplayPublicationSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return isDone;
@@ -110,6 +113,7 @@ final class CreateReplayPublicationSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return publicationRegistrationId;
@@ -118,6 +122,7 @@ final class CreateReplayPublicationSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;

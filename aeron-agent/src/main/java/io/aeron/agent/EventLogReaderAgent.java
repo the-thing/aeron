@@ -153,6 +153,7 @@ public final class EventLogReaderAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         appendFileHeader(nanoClock.nanoTime(), epochClock.time());
@@ -171,6 +172,7 @@ public final class EventLogReaderAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         CloseHelper.close(fileChannel);
@@ -179,6 +181,7 @@ public final class EventLogReaderAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "event-log-reader";
@@ -187,6 +190,7 @@ public final class EventLogReaderAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final int eventsRead = ringBuffer.read(messageHandler, EVENT_READER_FRAME_LIMIT);

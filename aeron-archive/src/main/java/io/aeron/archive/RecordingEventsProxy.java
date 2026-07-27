@@ -45,6 +45,7 @@ class RecordingEventsProxy implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(publication);

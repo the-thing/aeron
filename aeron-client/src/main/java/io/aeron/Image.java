@@ -807,6 +807,7 @@ public final class Image
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "Image{" +

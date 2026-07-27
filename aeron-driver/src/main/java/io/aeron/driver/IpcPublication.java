@@ -180,6 +180,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public long subscribableRegistrationId()
     {
         return registrationId;
@@ -238,6 +239,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(errorHandler, publisherPos);
@@ -287,6 +289,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addSubscriber(
         final SubscriptionLink subscriptionLink, final ReadablePosition subscriberPosition, final long nowNs)
     {
@@ -302,6 +305,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void removeSubscriber(final SubscriptionLink subscriptionLink, final ReadablePosition subscriberPosition)
     {
         subscriberPositions = ArrayUtil.remove(subscriberPositions, subscriberPosition);
@@ -328,6 +332,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTimeEvent(final long timeNs, final long timeMs, final DriverConductor conductor)
     {
         switch (state)
@@ -396,6 +401,7 @@ public final class IpcPublication implements DriverManagedResource, Subscribable
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean hasReachedEndOfLife()
     {
         return reachedEndOfLife;

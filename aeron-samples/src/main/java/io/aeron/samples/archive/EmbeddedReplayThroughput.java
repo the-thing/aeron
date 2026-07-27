@@ -144,6 +144,7 @@ public class EmbeddedReplayThroughput extends EmbeddedReplayThroughputRhsPadding
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(

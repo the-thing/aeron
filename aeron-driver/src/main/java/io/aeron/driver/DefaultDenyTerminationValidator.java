@@ -34,6 +34,7 @@ public class DefaultDenyTerminationValidator implements TerminationValidator
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean allowTermination(
         final File aeronDir, final DirectBuffer tokenBuffer, final int tokenOffset, final int tokenLength)
     {

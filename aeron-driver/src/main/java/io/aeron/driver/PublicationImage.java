@@ -319,6 +319,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(errorHandler, hwmPosition);
@@ -381,6 +382,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public long subscribableRegistrationId()
     {
         return correlationId;
@@ -389,6 +391,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addSubscriber(
         final SubscriptionLink subscriptionLink, final ReadablePosition subscriberPosition, final long nowNs)
     {
@@ -402,6 +405,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public void removeSubscriber(final SubscriptionLink subscriptionLink, final ReadablePosition subscriberPosition)
     {
         subscriberPositions = ArrayUtil.remove(subscriberPositions, subscriberPosition);
@@ -430,6 +434,7 @@ public final class PublicationImage
      * <p>
      * {@inheritDoc}
      */
+    @Override
     public void onGapDetected(final int termId, final int termOffset, final int length)
     {
         final long changeNumber = (long)BEGIN_LOSS_CHANGE_VH.get(this) + 1;
@@ -1023,6 +1028,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     @SuppressWarnings("fallthrough")
     public void onTimeEvent(final long timeNs, final long timesMs, final DriverConductor conductor)
     {
@@ -1080,6 +1086,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean hasReachedEndOfLife()
     {
         return hasReceiverReleased && State.DONE == state;
@@ -1374,6 +1381,7 @@ public final class PublicationImage
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "PublicationImage{" +

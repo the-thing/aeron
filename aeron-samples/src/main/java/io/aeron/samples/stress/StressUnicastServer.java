@@ -65,6 +65,7 @@ public class StressUnicastServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         info("server=" + serverAddress + ", client=" + clientAddress);
@@ -84,6 +85,7 @@ public class StressUnicastServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int count = 0;
@@ -115,6 +117,7 @@ public class StressUnicastServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "Stress Server";
@@ -123,6 +126,7 @@ public class StressUnicastServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         CloseHelper.quietCloseAll(unicastSubscription, unicastPublication, aeron);

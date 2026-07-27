@@ -131,6 +131,7 @@ final class ControlSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return controlSessionId;
@@ -139,6 +140,7 @@ final class ControlSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         if (State.DONE != state || null != abortReason && SESSION_CLOSED_MSG.equals(reason))
@@ -155,6 +157,7 @@ final class ControlSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         final CountedErrorHandler errorHandler = conductor.errorHandler;
@@ -194,6 +197,7 @@ final class ControlSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return state == State.DONE;
@@ -202,6 +206,7 @@ final class ControlSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;

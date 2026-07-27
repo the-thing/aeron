@@ -334,6 +334,7 @@ public final class PersistentSubscription implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.quietCloseAll(this::closeLive, this::closeReplay, asyncAeronArchive, ctx::close);

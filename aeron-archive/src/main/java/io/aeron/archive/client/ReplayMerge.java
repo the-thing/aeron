@@ -626,6 +626,7 @@ public final class ReplayMerge implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ReplayMerge{" +

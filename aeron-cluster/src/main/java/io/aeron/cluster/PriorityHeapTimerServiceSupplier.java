@@ -32,6 +32,7 @@ public class PriorityHeapTimerServiceSupplier implements TimerServiceSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public TimerService newInstance(final TimeUnit timeUnit, final TimerService.TimerHandler timerHandler)
     {
         return new PriorityHeapTimerService(timerHandler);

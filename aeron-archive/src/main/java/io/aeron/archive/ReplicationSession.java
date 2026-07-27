@@ -165,6 +165,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return replicationId;
@@ -173,6 +174,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return State.DONE == state;
@@ -181,6 +183,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         this.state(State.DONE, "abort");
@@ -189,6 +192,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         final ArchiveConductor archiveConductor = controlSession.archiveConductor();
@@ -208,6 +212,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;
@@ -285,6 +290,7 @@ class ReplicationSession implements Session, RecordingDescriptorConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRecordingDescriptor(
         final long controlSessionId,
         final long correlationId,

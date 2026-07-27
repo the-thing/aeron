@@ -46,6 +46,7 @@ public class TaggedMulticastFlowControl extends AbstractMinMulticastFlowControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public long onStatusMessage(
         final StatusMessageFlyweight flyweight,
         final InetSocketAddress receiverAddress,
@@ -61,6 +62,7 @@ public class TaggedMulticastFlowControl extends AbstractMinMulticastFlowControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTriggerSendSetup(
         final StatusMessageFlyweight flyweight,
         final InetSocketAddress receiverAddress,
@@ -72,6 +74,7 @@ public class TaggedMulticastFlowControl extends AbstractMinMulticastFlowControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onError(final ErrorFlyweight errorFlyweight, final InetSocketAddress receiverAddress, final long timeNs)
     {
         processError(errorFlyweight, receiverAddress, timeNs, matchesTag(errorFlyweight));

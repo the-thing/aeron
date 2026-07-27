@@ -36,6 +36,7 @@ public final class CountersAnswer implements Answer<Counter>
     /**
      * {@inheritDoc}
      */
+    @Override
     public Counter answer(final InvocationOnMock invocation)
     {
         final int counterId;

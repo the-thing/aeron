@@ -227,6 +227,7 @@ public class SendChannelEndpoint extends UdpChannelTransport
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         super.close();

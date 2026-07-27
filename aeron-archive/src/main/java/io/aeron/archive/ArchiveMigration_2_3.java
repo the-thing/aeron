@@ -43,6 +43,7 @@ class ArchiveMigration_2_3 implements ArchiveMigrationStep
     /**
      * {@inheritDoc}
      */
+    @Override
     public int minimumVersion()
     {
         return MINIMUM_VERSION;
@@ -51,6 +52,7 @@ class ArchiveMigration_2_3 implements ArchiveMigrationStep
     /**
      * {@inheritDoc}
      */
+    @Override
     @SuppressWarnings("try")
     public void migrate(
         final PrintStream stream,
@@ -100,6 +102,7 @@ class ArchiveMigration_2_3 implements ArchiveMigrationStep
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "to " + fullVersionString(minimumVersion());

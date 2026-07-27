@@ -32,6 +32,7 @@ public class MinMulticastFlowControlSupplier implements FlowControlSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public FlowControl newInstance(final UdpChannel udpChannel, final int streamId, final long registrationId)
     {
         return new MinMulticastFlowControl();

@@ -49,6 +49,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         isDone = true;
@@ -57,6 +58,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return isDone;
@@ -65,6 +67,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return correlationId;
@@ -73,6 +76,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         if (isDone)
@@ -140,6 +144,7 @@ abstract class AbstractListRecordingsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         controlSession.activeListing(null);

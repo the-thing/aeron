@@ -121,6 +121,7 @@ public class ClusteredArchive implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(consensusModule, archive);

@@ -35,6 +35,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public TimeUnit timeUnit()
     {
         return TimeUnit.NANOSECONDS;
@@ -43,6 +44,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long time()
     {
         return HighResolutionClock.epochNanos();
@@ -51,6 +53,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeMillis()
     {
         return System.currentTimeMillis();
@@ -59,6 +62,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeMicros()
     {
         return HighResolutionClock.epochMicros();
@@ -67,6 +71,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long timeNanos()
     {
         return HighResolutionClock.epochNanos();
@@ -75,6 +80,7 @@ public class NanosecondClusterClock implements ClusterClock
     /**
      * {@inheritDoc}
      */
+    @Override
     public long convertToNanos(final long time)
     {
         return time;

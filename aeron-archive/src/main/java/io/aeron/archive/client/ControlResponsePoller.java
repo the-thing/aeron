@@ -348,6 +348,7 @@ public final class ControlResponsePoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ControlResponsePoller{" +

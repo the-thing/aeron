@@ -306,6 +306,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(errorHandler, publisherPos);
@@ -403,6 +404,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public long subscribableRegistrationId()
     {
         return registrationId;
@@ -411,6 +413,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addSubscriber(
         final SubscriptionLink subscriptionLink, final ReadablePosition position, final long nowNs)
     {
@@ -430,6 +433,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public void removeSubscriber(final SubscriptionLink subscriptionLink, final ReadablePosition position)
     {
         removeSpyPosition(position);
@@ -626,6 +630,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public void resend(final int termId, final int termOffset, final int length)
     {
         channelEndpoint.resendHook(sessionId, streamId, termId, termOffset, length);
@@ -1131,6 +1136,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTimeEvent(final long timeNs, final long timeMs, final DriverConductor conductor)
     {
         switch (state)
@@ -1218,6 +1224,7 @@ public final class NetworkPublication
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean hasReachedEndOfLife()
     {
         return hasSenderReleased;

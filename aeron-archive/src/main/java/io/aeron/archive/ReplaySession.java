@@ -170,6 +170,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         final CountedErrorHandler errorHandler = controlSession.archiveConductor().context().countedErrorHandler();
@@ -194,6 +195,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return sessionId;
@@ -202,6 +204,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;
@@ -241,6 +244,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         isAborted = true;
@@ -249,6 +253,7 @@ class ReplaySession implements Session, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return state == State.DONE;

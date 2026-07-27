@@ -64,6 +64,7 @@ public final class SystemCounters implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "SystemCounters{" +

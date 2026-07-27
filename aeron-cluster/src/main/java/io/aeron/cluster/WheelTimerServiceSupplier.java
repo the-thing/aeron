@@ -55,6 +55,7 @@ public class WheelTimerServiceSupplier implements TimerServiceSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public TimerService newInstance(final TimeUnit clusterTimeUnit, final TimerService.TimerHandler timerHandler)
     {
         final long startTimeInClusterTimeUnits = clusterTimeUnit.convert(startTime, timeUnit);

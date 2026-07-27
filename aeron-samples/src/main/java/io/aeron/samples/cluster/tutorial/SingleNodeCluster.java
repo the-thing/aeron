@@ -76,6 +76,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onMessage(
             final long clusterSessionId,
             final long timestamp,
@@ -90,6 +91,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onNewLeader(
             final long clusterSessionId,
             final long leadershipTermId,
@@ -110,6 +112,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onStart(final Cluster cluster, final Image snapshotImage)
         {
             this.cluster = cluster;
@@ -134,6 +137,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onSessionOpen(final ClientSession session, final long timestamp)
         {
             System.out.println("onSessionOpen " + session.id());
@@ -142,6 +146,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onSessionClose(final ClientSession session, final long timestamp, final CloseReason closeReason)
         {
             System.out.println("onSessionClose " + session.id() + " " + closeReason);
@@ -150,6 +155,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onSessionMessage(
             final ClientSession session,
             final long timestamp,
@@ -179,6 +185,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onTimerEvent(final long correlationId, final long timestamp)
         {
             System.out.println("onTimerEvent " + correlationId);
@@ -192,6 +199,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onTakeSnapshot(final ExclusivePublication snapshotPublication)
         {
             System.out.println("onTakeSnapshot messageCount=" + messageCount);
@@ -207,6 +215,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onRoleChange(final Cluster.Role newRole)
         {
             System.out.println("onRoleChange " + newRole);
@@ -215,6 +224,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onTerminate(final Cluster cluster)
         {
         }
@@ -222,6 +232,7 @@ public final class SingleNodeCluster implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public void onNewLeadershipTermEvent(
             final long leadershipTermId,
             final long logPosition,
@@ -287,6 +298,7 @@ public final class SingleNodeCluster implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         final ErrorHandler errorHandler = clusteredMediaDriver.mediaDriver().context().errorHandler();

@@ -82,6 +82,7 @@ public class OptimalMulticastDelayGenerator implements FeedbackDelayGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public long generateDelayNs()
     {
         return (long)generateNewOptimalDelay();
@@ -113,6 +114,7 @@ public class OptimalMulticastDelayGenerator implements FeedbackDelayGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "OptimalMulticastDelayGenerator{" +

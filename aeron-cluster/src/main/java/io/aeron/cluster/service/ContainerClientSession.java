@@ -133,6 +133,7 @@ final class ContainerClientSession implements ClientSession
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ClientSession{" +

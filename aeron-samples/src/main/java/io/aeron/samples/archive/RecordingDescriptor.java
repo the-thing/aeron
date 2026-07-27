@@ -291,6 +291,7 @@ public class RecordingDescriptor
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "RecordingDescriptor{" +

@@ -38,6 +38,7 @@ public class DefaultNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public InetAddress resolve(final String name, final String uriParamName, final boolean isReResolution)
     {
         InetAddress resolvedAddress = null;

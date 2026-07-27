@@ -71,6 +71,7 @@ public class StressMdcServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         aeron = Aeron.connect(new Aeron.Context());
@@ -95,6 +96,7 @@ public class StressMdcServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         if (!mdcSubscription1.isConnected() || !mdcSubscription2.isConnected())
@@ -143,6 +145,7 @@ public class StressMdcServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "Stress MDC Server";
@@ -151,6 +154,7 @@ public class StressMdcServer implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         CloseHelper.quietCloseAll(mdcSubscription1, mdcSubscription2, mdcPublication, aeron);

@@ -92,6 +92,7 @@ public class FileStoreLogFactory implements LogFactory
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
     }

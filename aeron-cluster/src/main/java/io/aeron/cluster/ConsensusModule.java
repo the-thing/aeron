@@ -370,6 +370,7 @@ public final class ConsensusModule implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(conductorRunner, conductorInvoker);
@@ -4545,6 +4546,7 @@ public final class ConsensusModule implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "ConsensusModule.Context" +
@@ -4635,6 +4637,7 @@ public final class ConsensusModule implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ConsensusModule{" +

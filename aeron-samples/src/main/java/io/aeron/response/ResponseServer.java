@@ -186,6 +186,7 @@ public class ResponseServer implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.quietCloseAll(serverSubscription, prototypeResponsePublication);
@@ -195,6 +196,7 @@ public class ResponseServer implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "ResponseServer";
@@ -271,6 +273,7 @@ public class ResponseServer implements AutoCloseable, Agent
         /**
          * {@inheritDoc}
          */
+        @Override
         public void close()
         {
             CloseHelper.close(publication);

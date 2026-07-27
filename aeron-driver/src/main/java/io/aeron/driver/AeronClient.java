@@ -46,6 +46,7 @@ final class AeronClient implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         heartbeatTimestamp.close();
@@ -54,6 +55,7 @@ final class AeronClient implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTimeEvent(final long timeNs, final long timeMs, final DriverConductor conductor)
     {
         if (timeMs > (heartbeatTimestamp.get() + clientLivenessTimeoutMs))
@@ -73,6 +75,7 @@ final class AeronClient implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean hasReachedEndOfLife()
     {
         return reachedEndOfLife;

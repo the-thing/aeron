@@ -96,6 +96,7 @@ public final class EgressAdapter implements FragmentHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     @SuppressWarnings("MethodLength")
     public void onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {

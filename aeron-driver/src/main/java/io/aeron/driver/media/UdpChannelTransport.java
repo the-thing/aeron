@@ -279,6 +279,7 @@ public abstract class UdpChannelTransport implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(errorHandler, sendDatagramChannel);

@@ -260,19 +260,21 @@ abstract class ArchiveConductor
     /**
      * {@inheritDoc}
      */
+    @Override
     protected final void preSessionsClose()
     {
         closeSessionWorkers();
     }
 
     /**
-     * {@inheritDoc}
+     * Close all {@code SessionWorker} agents.
      */
     protected abstract void closeSessionWorkers();
 
     /**
      * {@inheritDoc}
      */
+    @Override
     protected void postSessionsClose()
     {
         if (isAbort)
@@ -311,6 +313,7 @@ abstract class ArchiveConductor
     /**
      * {@inheritDoc}
      */
+    @Override
     protected void abort()
     {
         try
@@ -342,6 +345,7 @@ abstract class ArchiveConductor
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowNs = nanoClock.nanoTime();

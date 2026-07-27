@@ -669,7 +669,7 @@ public final class ArchiveTool
      * @return {@code true} if no errors have been encountered, {@code false} otherwise (the recording is marked
      * as unusable if {@code false} is returned)
      * @throws AeronException if there is no recording with {@code recordingId} in the archive
-     **/
+     */
     public static boolean verifyRecording(
         final PrintStream out,
         final File archiveDir,

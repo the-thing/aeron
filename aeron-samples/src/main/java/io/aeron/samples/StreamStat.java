@@ -255,6 +255,7 @@ public final class StreamStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public boolean equals(final Object o)
         {
             if (this == o)
@@ -277,6 +278,7 @@ public final class StreamStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public int hashCode()
         {
             int result = sessionId;
@@ -289,6 +291,7 @@ public final class StreamStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "StreamCompositeKey{" +
@@ -311,6 +314,7 @@ public final class StreamStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "StreamPosition{" +

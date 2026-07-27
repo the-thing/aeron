@@ -84,6 +84,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return recordingId;
@@ -92,6 +93,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return state == State.STOPPED;
@@ -100,6 +102,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
         abortReason = reason;
@@ -109,6 +112,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         recordingWriter.close();
@@ -118,6 +122,7 @@ class RecordingSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;

@@ -80,6 +80,7 @@ public class DebugSendChannelEndpoint extends SendChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public int send(final ByteBuffer buffer)
     {
         int count = buffer.remaining();
@@ -96,6 +97,7 @@ public class DebugSendChannelEndpoint extends SendChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStatusMessage(
         final StatusMessageFlyweight msg,
         final UnsafeBuffer buffer,
@@ -111,6 +113,7 @@ public class DebugSendChannelEndpoint extends SendChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onNakMessage(
         final NakFlyweight msg,
         final UnsafeBuffer buffer,
@@ -126,6 +129,7 @@ public class DebugSendChannelEndpoint extends SendChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRttMeasurement(
         final RttMeasurementFlyweight msg,
         final UnsafeBuffer buffer,

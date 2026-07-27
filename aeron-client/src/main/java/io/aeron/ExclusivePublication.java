@@ -177,6 +177,7 @@ public final class ExclusivePublication extends ExclusivePublicationValues
     /**
      * {@inheritDoc}
      */
+    @Override
     public long position()
     {
         if (isClosed)
@@ -190,6 +191,7 @@ public final class ExclusivePublication extends ExclusivePublicationValues
     /**
      * {@inheritDoc}
      */
+    @Override
     public long availableWindow()
     {
         if (isClosed)

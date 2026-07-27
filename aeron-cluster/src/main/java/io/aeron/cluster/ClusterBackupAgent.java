@@ -177,6 +177,7 @@ public final class ClusterBackupAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         recordingLog = new RecordingLog(ctx.clusterDir(), true);
@@ -193,6 +194,7 @@ public final class ClusterBackupAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         if (!aeron.isClosed())
@@ -229,6 +231,7 @@ public final class ClusterBackupAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowMs = epochClock.time();
@@ -309,6 +312,7 @@ public final class ClusterBackupAgent implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "cluster-backup";

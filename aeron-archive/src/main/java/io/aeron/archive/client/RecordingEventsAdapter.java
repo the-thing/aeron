@@ -66,6 +66,7 @@ public final class RecordingEventsAdapter implements FragmentHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
         messageHeaderDecoder.wrap(buffer, offset);

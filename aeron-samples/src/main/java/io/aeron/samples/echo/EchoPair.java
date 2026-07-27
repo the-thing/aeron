@@ -60,6 +60,7 @@ public class EchoPair implements ControlledFragmentHandler, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public Action onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
         final long offerPosition = publication.offer(buffer, offset, length);

@@ -276,6 +276,7 @@ public class ArchiveMarkFile implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (!markFile.isClosed())
@@ -559,6 +560,7 @@ public class ArchiveMarkFile implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ArchiveMarkFile{" +

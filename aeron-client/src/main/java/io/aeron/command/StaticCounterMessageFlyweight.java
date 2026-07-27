@@ -282,6 +282,7 @@ public class StaticCounterMessageFlyweight extends CorrelatedMessageFlyweight
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "StaticCounterMessageFlyweight{" +

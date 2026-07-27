@@ -112,6 +112,7 @@ public class EmbeddedRecordingThroughput implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(

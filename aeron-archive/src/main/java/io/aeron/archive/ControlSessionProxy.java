@@ -38,6 +38,7 @@ class ControlSessionProxy implements SessionProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return controlSession.sessionId();
@@ -46,6 +47,7 @@ class ControlSessionProxy implements SessionProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean challenge(final byte[] encodedChallenge)
     {
         if (controlResponseProxy.sendChallenge(
@@ -64,6 +66,7 @@ class ControlSessionProxy implements SessionProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean authenticate(final byte[] encodedPrincipal)
     {
         if (controlResponseProxy.sendResponse(
@@ -84,6 +87,7 @@ class ControlSessionProxy implements SessionProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public void reject()
     {
         controlSession.reject();

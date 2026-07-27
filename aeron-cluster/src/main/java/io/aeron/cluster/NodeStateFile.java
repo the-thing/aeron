@@ -242,6 +242,7 @@ public class NodeStateFile implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         IoUtil.unmap(mappedFile);

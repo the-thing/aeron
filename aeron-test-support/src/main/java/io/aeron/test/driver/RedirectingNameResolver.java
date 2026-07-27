@@ -63,6 +63,7 @@ public class RedirectingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void init(final CountersReader countersReader, final CounterProvider counterProvider)
     {
         countersReader.forEach((counterId, typeId, keyBuffer, label) ->
@@ -102,6 +103,7 @@ public class RedirectingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String lookup(final String name, final String uriParamName, final boolean isReLookup)
     {
         return name.endsWith(":X") ? name.substring(0, name.length() - 2) : name;
@@ -110,6 +112,7 @@ public class RedirectingNameResolver implements NameResolverAgent
     /**
      * {@inheritDoc}
      */
+    @Override
     public InetAddress resolve(final String name, final String uriParamName, final boolean isReResolution)
     {
         final NameEntry nameEntry = nameToEntryMap.get(name);

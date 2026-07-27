@@ -313,6 +313,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         super.close();
@@ -1094,6 +1095,7 @@ public class ReceiveChannelEndpoint extends ReceiveChannelEndpointRhsPadding
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ReceiveChannelEndpoint{" +

@@ -45,6 +45,7 @@ public final class SimpleAuthorisationService implements AuthorisationService
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isAuthorised(
         final int protocolId,
         final int actionId,

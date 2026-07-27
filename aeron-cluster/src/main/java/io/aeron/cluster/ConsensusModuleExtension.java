@@ -145,6 +145,7 @@ public interface ConsensusModuleExtension extends AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     void close();
 
     /**

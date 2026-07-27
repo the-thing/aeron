@@ -37,6 +37,7 @@ public class DefaultMulticastFlowControlSupplier implements FlowControlSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public FlowControl newInstance(final UdpChannel udpChannel, final int streamId, final long registrationId)
     {
         final String fcStr = udpChannel.channelUri().get(CommonContext.FLOW_CONTROL_PARAM_NAME);
@@ -92,6 +93,7 @@ public class DefaultMulticastFlowControlSupplier implements FlowControlSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "DefaultMulticastFlowControlSupplier{flowControlClass=" +

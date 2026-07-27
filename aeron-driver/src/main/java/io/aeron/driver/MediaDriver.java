@@ -527,6 +527,7 @@ public final class MediaDriver implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "MediaDriver{" + ctx.aeronDirectoryName() + '}';
@@ -768,6 +769,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         @SuppressWarnings("MethodLength")
         public Context conclude()
         {
@@ -891,6 +893,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context aeronDirectoryName(final String dirName)
         {
             super.aeronDirectoryName(dirName);
@@ -900,6 +903,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context driverTimeoutMs(final long value)
         {
             super.driverTimeoutMs(value);
@@ -909,6 +913,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context countersMetaDataBuffer(final UnsafeBuffer countersMetaDataBuffer)
         {
             super.countersMetaDataBuffer(countersMetaDataBuffer);
@@ -918,6 +923,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context countersValuesBuffer(final UnsafeBuffer countersValuesBuffer)
         {
             super.countersValuesBuffer(countersValuesBuffer);
@@ -4026,6 +4032,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public Context enableExperimentalFeatures(final boolean enableExperimentalFeatures)
         {
             super.enableExperimentalFeatures(enableExperimentalFeatures);
@@ -4672,6 +4679,7 @@ public final class MediaDriver implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         @SuppressWarnings("MethodLength")
         public String toString()
         {

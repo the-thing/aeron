@@ -133,6 +133,7 @@ public final class RecordingEventsPoller implements ControlledFragmentHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     public ControlledFragmentHandler.Action onFragment(
         final DirectBuffer buffer, final int offset, final int length, final Header header)
     {

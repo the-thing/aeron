@@ -151,6 +151,7 @@ public class ClusteredMediaDriver implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(consensusModule, archive, driver);

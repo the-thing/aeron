@@ -189,6 +189,7 @@ final class MultipleRecordingReplication implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(recordingReplication);

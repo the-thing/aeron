@@ -80,6 +80,7 @@ class DeleteSegmentsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         controlSession.archiveConductor().removeDeleteSegmentsSession(this);
@@ -89,6 +90,7 @@ class DeleteSegmentsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public void abort(final String reason)
     {
     }
@@ -96,6 +98,7 @@ class DeleteSegmentsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isDone()
     {
         return files.isEmpty();
@@ -104,6 +107,7 @@ class DeleteSegmentsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public long sessionId()
     {
         return recordingId;
@@ -112,6 +116,7 @@ class DeleteSegmentsSession implements Session
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         return switch (state)

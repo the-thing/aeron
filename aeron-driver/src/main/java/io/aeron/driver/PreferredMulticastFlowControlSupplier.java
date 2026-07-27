@@ -36,6 +36,7 @@ public class PreferredMulticastFlowControlSupplier implements FlowControlSupplie
     /**
      * {@inheritDoc}
      */
+    @Override
     public FlowControl newInstance(final UdpChannel udpChannel, final int streamId, final long registrationId)
     {
         return new PreferredMulticastFlowControl();

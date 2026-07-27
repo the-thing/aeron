@@ -37,6 +37,7 @@ public interface NameResolverAgent extends NameResolver, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     default int doWork()
     {
         return 0;
@@ -45,6 +46,7 @@ public interface NameResolverAgent extends NameResolver, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     default String roleName()
     {
         return name();

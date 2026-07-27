@@ -335,6 +335,7 @@ final class LogPublisher
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "LogPublisher{" +

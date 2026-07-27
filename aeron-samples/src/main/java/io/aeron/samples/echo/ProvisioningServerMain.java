@@ -97,6 +97,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         try
@@ -117,6 +118,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         return provisioning.doWork();
@@ -125,6 +127,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "EchoProvisioningServer";
@@ -133,6 +136,7 @@ public final class ProvisioningServerMain implements Agent, AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (null != beanName)

@@ -301,6 +301,7 @@ public final class RecordingSignalPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "RecordingSignalPoller{" +

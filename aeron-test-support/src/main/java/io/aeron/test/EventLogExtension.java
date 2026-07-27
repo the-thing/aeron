@@ -29,6 +29,7 @@ public class EventLogExtension implements BeforeEachCallback, AfterEachCallback
     /**
      * {@inheritDoc}
      */
+    @Override
     public void beforeEach(final ExtensionContext context)
     {
         final String className = context.getTestClass().map(Class::getSimpleName).orElse("<UNKNOWN>");
@@ -40,6 +41,7 @@ public class EventLogExtension implements BeforeEachCallback, AfterEachCallback
     /**
      * {@inheritDoc}
      */
+    @Override
     public void afterEach(final ExtensionContext context)
     {
         Tests.resetLogCollecting();

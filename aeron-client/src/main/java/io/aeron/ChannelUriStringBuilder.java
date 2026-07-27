@@ -2516,6 +2516,7 @@ public final class ChannelUriStringBuilder
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return build();

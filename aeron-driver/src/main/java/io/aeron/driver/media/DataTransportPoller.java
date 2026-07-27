@@ -71,6 +71,7 @@ public final class DataTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         for (final ChannelAndTransport transport : channelAndTransports)
@@ -92,6 +93,7 @@ public final class DataTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public int pollTransports()
     {
         totalBytesReceived = 0;
@@ -254,6 +256,7 @@ public final class DataTransportPoller extends UdpTransportPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "DataTransportPoller{}";

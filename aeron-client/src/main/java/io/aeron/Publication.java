@@ -777,6 +777,7 @@ public abstract class Publication implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "Publication{" +

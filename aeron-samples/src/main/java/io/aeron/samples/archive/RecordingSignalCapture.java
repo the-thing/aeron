@@ -61,6 +61,7 @@ public final class RecordingSignalCapture implements RecordingSignalConsumer
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onSignal(
         final long controlSessionId,
         final long correlationId,

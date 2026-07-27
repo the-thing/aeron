@@ -26,6 +26,7 @@ public class SampleAuthenticatorSupplier implements AuthenticatorSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public Authenticator get()
     {
         return new SampleAuthenticator();

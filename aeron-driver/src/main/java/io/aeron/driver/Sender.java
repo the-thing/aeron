@@ -93,6 +93,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         final long nowNs = nanoClock.nanoTime();
@@ -104,6 +105,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         controlTransportPoller.close();
@@ -112,6 +114,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowNs = nanoClock.nanoTime();
@@ -153,6 +156,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "sender";

@@ -58,6 +58,7 @@ public class ClusterComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public int typeCode()
     {
         return EventCodeType.CLUSTER.getTypeCode();
@@ -66,6 +67,7 @@ public class ClusterComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public void decode(
         final MutableDirectBuffer buffer, final int offset, final int eventCodeId, final StringBuilder builder)
     {
@@ -75,6 +77,7 @@ public class ClusterComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public AgentBuilder addInstrumentation(final AgentBuilder agentBuilder, final Map<String, String> configOptions)
     {
         ENABLED_EVENTS.clear();
@@ -118,6 +121,7 @@ public class ClusterComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public void reset()
     {
         ENABLED_EVENTS.clear();
@@ -126,6 +130,7 @@ public class ClusterComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public String version()
     {
         return AeronCounters.formatVersionInfo(

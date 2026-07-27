@@ -40,6 +40,7 @@ final class SessionKey
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean equals(final Object o)
     {
         if (this == o)
@@ -60,6 +61,7 @@ final class SessionKey
     /**
      * {@inheritDoc}
      */
+    @Override
     public int hashCode()
     {
         return 31 * sessionId * streamId * channel.hashCode();
@@ -68,6 +70,7 @@ final class SessionKey
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "SessionKey{" +

@@ -104,6 +104,7 @@ public class StressUnicastClient implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         info("server=" + serverAddress + ", client=" + clientAddress);
@@ -120,6 +121,7 @@ public class StressUnicastClient implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         if (0 == messageLength)
@@ -190,6 +192,7 @@ public class StressUnicastClient implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         CloseHelper.quietCloseAll(aeron);
@@ -198,6 +201,7 @@ public class StressUnicastClient implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return null;
@@ -206,6 +210,7 @@ public class StressUnicastClient implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "StressClient{" +

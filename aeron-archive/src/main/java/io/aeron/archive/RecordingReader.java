@@ -114,6 +114,7 @@ class RecordingReader implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         closeRecordingSegment();

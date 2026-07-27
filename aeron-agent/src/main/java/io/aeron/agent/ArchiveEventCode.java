@@ -324,6 +324,7 @@ public enum ArchiveEventCode implements EventCode
     /**
      * {@inheritDoc}
      */
+    @Override
     public int id()
     {
         return id;

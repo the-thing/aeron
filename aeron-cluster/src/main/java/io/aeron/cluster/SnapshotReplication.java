@@ -135,6 +135,7 @@ class SnapshotReplication implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(multipleRecordingReplication);

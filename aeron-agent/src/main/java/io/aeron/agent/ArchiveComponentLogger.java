@@ -57,6 +57,7 @@ public final class ArchiveComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public int typeCode()
     {
         return EventCodeType.ARCHIVE.getTypeCode();
@@ -65,6 +66,7 @@ public final class ArchiveComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public void decode(
         final MutableDirectBuffer buffer, final int offset, final int eventCodeId, final StringBuilder builder)
     {
@@ -74,6 +76,7 @@ public final class ArchiveComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public AgentBuilder addInstrumentation(final AgentBuilder agentBuilder, final Map<String, String> configOptions)
     {
         ENABLED_EVENTS.clear();
@@ -173,6 +176,7 @@ public final class ArchiveComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public void reset()
     {
         ENABLED_EVENTS.clear();
@@ -181,6 +185,7 @@ public final class ArchiveComponentLogger implements ComponentLogger
     /**
      * {@inheritDoc}
      */
+    @Override
     public String version()
     {
         return AeronCounters.formatVersionInfo(

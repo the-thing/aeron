@@ -73,6 +73,7 @@ public final class Receiver implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         final long nowNs = nanoClock.nanoTime();
@@ -84,6 +85,7 @@ public final class Receiver implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onClose()
     {
         dataTransportPoller.close();
@@ -92,6 +94,7 @@ public final class Receiver implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "receiver";
@@ -100,6 +103,7 @@ public final class Receiver implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         final long nowNs = nanoClock.nanoTime();

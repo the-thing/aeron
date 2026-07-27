@@ -57,6 +57,7 @@ public class WildcardPortManager implements PortManager
     /**
      * {@inheritDoc}
      */
+    @Override
     public InetSocketAddress getManagedPort(
         final UdpChannel udpChannel,
         final InetSocketAddress bindAddress) throws BindException
@@ -83,6 +84,7 @@ public class WildcardPortManager implements PortManager
     /**
      * {@inheritDoc}
      */
+    @Override
     public void freeManagedPort(final InetSocketAddress bindAddress)
     {
         if (bindAddress.getPort() != 0)

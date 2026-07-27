@@ -80,6 +80,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onStart()
     {
         try
@@ -100,6 +101,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "inmemory-event-log-reader";
@@ -108,6 +110,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         synchronized (mutex)
@@ -138,6 +141,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public void setCollecting(final boolean isCollecting)
     {
         state = isCollecting ? State.COLLECTING : State.IGNORING;
@@ -146,6 +150,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public void startCollecting(final String name)
     {
         synchronized (mutex)
@@ -159,6 +164,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isCollecting()
     {
         return state == State.COLLECTING;
@@ -167,6 +173,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public void reset()
     {
         synchronized (mutex)
@@ -179,6 +186,7 @@ public final class CollectingEventLogReaderAgent implements Agent, CollectingEve
     /**
      * {@inheritDoc}
      */
+    @Override
     public void writeToFile(final String filename)
     {
         synchronized (mutex)

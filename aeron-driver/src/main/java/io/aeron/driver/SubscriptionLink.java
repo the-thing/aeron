@@ -211,6 +211,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         for (final Map.Entry<Subscribable, ReadablePosition> entry : positionBySubscribableMap.entrySet())
@@ -224,6 +225,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onTimeEvent(final long timeNs, final long timeMs, final DriverConductor conductor)
     {
         if (aeronClient.hasTimedOut())
@@ -236,6 +238,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean hasReachedEndOfLife()
     {
         return reachedEndOfLife;
@@ -244,6 +247,7 @@ public abstract class SubscriptionLink implements DriverManagedResource
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return this.getClass().getName() + "{" +

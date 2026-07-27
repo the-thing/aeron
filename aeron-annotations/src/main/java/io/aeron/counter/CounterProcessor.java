@@ -65,6 +65,7 @@ public class CounterProcessor extends Processor
     /**
      * {@inheritDoc}
      */
+    @Override
     public void doProcess(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv)
     {
         final Map<String, CounterInfo> counterInfoMap = new HashMap<>();

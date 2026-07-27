@@ -221,6 +221,7 @@ final class ClientProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ClientProxy{}";

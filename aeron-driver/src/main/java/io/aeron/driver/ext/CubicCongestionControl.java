@@ -169,6 +169,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(errorHandler, rttIndicator);
@@ -178,6 +179,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean shouldMeasureRtt(final long nowNs)
     {
         return CubicCongestionControlConfiguration.MEASURE_RTT && ((lastRttTimestampNs + rttTimeoutNs) - nowNs < 0);
@@ -186,6 +188,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRttMeasurementSent(final long nowNs)
     {
         lastRttTimestampNs = nowNs;
@@ -194,6 +197,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRttMeasurement(final long nowNs, final long rttNs, final InetSocketAddress srcAddress)
     {
         lastRttTimestampNs = nowNs;
@@ -205,6 +209,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public long onTrackRebuild(
         final long nowNs,
         final long newConsumptionPosition,
@@ -269,6 +274,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public int initialWindowLength()
     {
         return initialWindowLength;
@@ -277,6 +283,7 @@ public class CubicCongestionControl implements CongestionControl
     /**
      * {@inheritDoc}
      */
+    @Override
     public int maxWindowLength()
     {
         return maxWindowLength;

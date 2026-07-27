@@ -53,6 +53,7 @@ public final class ConsensusModuleProxy implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(publication);

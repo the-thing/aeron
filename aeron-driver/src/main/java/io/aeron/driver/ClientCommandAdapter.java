@@ -104,6 +104,7 @@ final class ClientCommandAdapter implements ControlledMessageHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     @SuppressWarnings("MethodLength")
     public ControlledMessageHandler.Action onMessage(
         final int msgTypeId, final MutableDirectBuffer buffer, final int index, final int length)

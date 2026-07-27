@@ -43,6 +43,7 @@ class SessionWorker<T extends Session> implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return roleName;
@@ -51,6 +52,7 @@ class SessionWorker<T extends Session> implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;
@@ -81,6 +83,7 @@ class SessionWorker<T extends Session> implements Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public final void onClose()
     {
         if (isClosed)
@@ -108,14 +111,16 @@ class SessionWorker<T extends Session> implements Agent
     }
 
     /**
-     * {@inheritDoc}
+     * Abort work.
      */
     protected void abort()
     {
     }
 
     /**
-     * {@inheritDoc}
+     * Close {@code session} and handle any exceptions thrown by {@link Session#close()}.
+     *
+     * @param session to close.
      */
     protected void closeSession(final T session)
     {
@@ -130,21 +135,23 @@ class SessionWorker<T extends Session> implements Agent
     }
 
     /**
-     * {@inheritDoc}
+     * Hook for specific behaviour after all sessions have been closed.
      */
     protected void postSessionsClose()
     {
     }
 
     /**
-     * {@inheritDoc}
+     * Hook for specific behaviour before all sessions are closed.
      */
     protected void preSessionsClose()
     {
     }
 
     /**
-     * {@inheritDoc}
+     * Add a {@code session} to the list of sessions used by this worker.
+     *
+     * @param session to add.
      */
     protected void addSession(final T session)
     {

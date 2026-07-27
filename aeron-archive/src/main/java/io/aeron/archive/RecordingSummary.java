@@ -75,6 +75,7 @@ public class RecordingSummary
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "RecordingSummary{" +

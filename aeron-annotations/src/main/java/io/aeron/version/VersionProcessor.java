@@ -77,6 +77,7 @@ public class VersionProcessor extends AbstractProcessor
     /**
      * {@inheritDoc}
      */
+    @Override
     public SourceVersion getSupportedSourceVersion()
     {
         return SourceVersion.latest();
@@ -85,6 +86,7 @@ public class VersionProcessor extends AbstractProcessor
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean process(final Set<? extends TypeElement> annotations, final RoundEnvironment roundEnv)
     {
         final Messager messager = processingEnv.getMessager();

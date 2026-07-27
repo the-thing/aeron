@@ -109,6 +109,7 @@ public class LossDetector implements TermGapScanner.GapHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onGap(final int termId, final int offset, final int length)
     {
         scannedTermId = termId;

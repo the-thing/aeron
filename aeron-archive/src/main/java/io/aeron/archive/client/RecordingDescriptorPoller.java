@@ -279,6 +279,7 @@ public final class RecordingDescriptorPoller
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "RecordingDescriptorPoller{" +

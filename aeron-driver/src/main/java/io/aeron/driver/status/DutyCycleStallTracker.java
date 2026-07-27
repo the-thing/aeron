@@ -80,6 +80,7 @@ public class DutyCycleStallTracker extends DutyCycleTracker
     /**
      * {@inheritDoc}
      */
+    @Override
     public void reportMeasurement(final long durationNs)
     {
         if (!maxCycleTime.isClosed())
@@ -96,6 +97,7 @@ public class DutyCycleStallTracker extends DutyCycleTracker
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "DutyCycleStallTracker{" +

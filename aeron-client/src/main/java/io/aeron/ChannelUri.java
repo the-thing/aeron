@@ -264,6 +264,7 @@ public final class ChannelUri
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean equals(final Object o)
     {
         if (this == o)
@@ -287,6 +288,7 @@ public final class ChannelUri
     /**
      * {@inheritDoc}
      */
+    @Override
     public int hashCode()
     {
         int result = 19;

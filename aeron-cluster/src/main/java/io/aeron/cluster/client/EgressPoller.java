@@ -232,6 +232,7 @@ public final class EgressPoller implements ControlledFragmentHandler
     /**
      * {@inheritDoc}
      */
+    @Override
     public ControlledFragmentAssembler.Action onFragment(
         final DirectBuffer buffer, final int offset, final int length, final Header header)
     {

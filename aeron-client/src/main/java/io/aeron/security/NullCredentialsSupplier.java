@@ -37,6 +37,7 @@ public class NullCredentialsSupplier implements CredentialsSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public byte[] encodedCredentials()
     {
         return NULL_CREDENTIAL;
@@ -45,6 +46,7 @@ public class NullCredentialsSupplier implements CredentialsSupplier
     /**
      * {@inheritDoc}
      */
+    @Override
     public byte[] onChallenge(final byte[] encodedChallenge)
     {
         return NULL_CREDENTIAL;

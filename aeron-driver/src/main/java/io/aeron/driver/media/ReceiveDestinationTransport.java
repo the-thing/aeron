@@ -154,6 +154,7 @@ public final class ReceiveDestinationTransport extends ReceiveDestinationTranspo
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         super.close();
@@ -233,6 +234,7 @@ public final class ReceiveDestinationTransport extends ReceiveDestinationTranspo
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ReceiveDestinationTransport{" +

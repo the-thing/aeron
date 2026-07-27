@@ -154,6 +154,7 @@ public final class CncFileReader implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         if (!isClosed)

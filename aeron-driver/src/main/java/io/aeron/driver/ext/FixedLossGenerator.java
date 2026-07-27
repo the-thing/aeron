@@ -49,6 +49,7 @@ public class FixedLossGenerator implements LossGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean shouldDropFrame(final InetSocketAddress address, final UnsafeBuffer buffer, final int length)
     {
         return false;
@@ -57,6 +58,7 @@ public class FixedLossGenerator implements LossGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean shouldDropFrame(
         final InetSocketAddress address,
         final UnsafeBuffer buffer,

@@ -288,6 +288,7 @@ public class BacklogStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public boolean equals(final Object o)
         {
             if (this == o)
@@ -310,6 +311,7 @@ public class BacklogStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public int hashCode()
         {
             int result = sessionId;
@@ -322,6 +324,7 @@ public class BacklogStat
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "StreamCompositeKey{" +

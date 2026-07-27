@@ -72,6 +72,7 @@ public final class StaticDelayGenerator implements FeedbackDelayGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public long generateDelayNs()
     {
         return delayInNs;
@@ -80,6 +81,7 @@ public final class StaticDelayGenerator implements FeedbackDelayGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public long retryDelayNs()
     {
         return retryDelayNs;
@@ -88,6 +90,7 @@ public final class StaticDelayGenerator implements FeedbackDelayGenerator
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "StaticDelayGenerator{" +

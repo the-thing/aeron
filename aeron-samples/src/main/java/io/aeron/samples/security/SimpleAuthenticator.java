@@ -46,6 +46,7 @@ public final class SimpleAuthenticator implements Authenticator
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onConnectRequest(final long sessionId, final byte[] encodedCredentials, final long nowMs)
     {
         final Principal principal = principalsByCredentialsMap.get(new Credentials(encodedCredentials));
@@ -58,6 +59,7 @@ public final class SimpleAuthenticator implements Authenticator
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onChallengeResponse(final long sessionId, final byte[] encodedCredentials, final long nowMs)
     {
         throw new UnsupportedOperationException();
@@ -66,6 +68,7 @@ public final class SimpleAuthenticator implements Authenticator
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onConnectedSession(final SessionProxy sessionProxy, final long nowMs)
     {
         final long sessionId = sessionProxy.sessionId();
@@ -86,6 +89,7 @@ public final class SimpleAuthenticator implements Authenticator
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onChallengedSession(final SessionProxy sessionProxy, final long nowMs)
     {
         throw new UnsupportedOperationException();

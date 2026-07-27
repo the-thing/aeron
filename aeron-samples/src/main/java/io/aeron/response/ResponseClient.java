@@ -113,6 +113,7 @@ public class ResponseClient implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public int doWork()
     {
         int workCount = 0;
@@ -142,6 +143,7 @@ public class ResponseClient implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String roleName()
     {
         return "ResponseClient";
@@ -150,6 +152,7 @@ public class ResponseClient implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         publication.revokeOnClose();
@@ -220,6 +223,7 @@ public class ResponseClient implements AutoCloseable, Agent
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "ResponseClient{" +

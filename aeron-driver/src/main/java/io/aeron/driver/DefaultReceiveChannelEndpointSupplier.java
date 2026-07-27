@@ -34,6 +34,7 @@ public class DefaultReceiveChannelEndpointSupplier implements ReceiveChannelEndp
     /**
      * {@inheritDoc}
      */
+    @Override
     public ReceiveChannelEndpoint newInstance(
         final UdpChannel udpChannel,
         final DataPacketDispatcher dispatcher,

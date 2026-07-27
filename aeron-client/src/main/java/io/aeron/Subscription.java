@@ -642,6 +642,7 @@ public final class Subscription extends SubscriptionFields implements AutoClosea
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "Subscription{" +

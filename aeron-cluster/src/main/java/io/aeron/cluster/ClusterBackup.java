@@ -307,6 +307,7 @@ public final class ClusterBackup implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.close(agentRunner);
@@ -1974,6 +1975,7 @@ public final class ClusterBackup implements AutoCloseable
         /**
          * {@inheritDoc}
          */
+        @Override
         public String toString()
         {
             return "ClusterBackup.Context" +

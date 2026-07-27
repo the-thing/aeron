@@ -120,6 +120,7 @@ public class StaticCounterFlyweight
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "StaticCounterFlyweight{" +

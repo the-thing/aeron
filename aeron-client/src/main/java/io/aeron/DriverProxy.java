@@ -539,6 +539,7 @@ public final class DriverProxy
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "DriverProxy{" +

@@ -87,6 +87,7 @@ public class DebugReceiveChannelEndpoint extends ReceiveChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public int sendTo(final ByteBuffer buffer, final InetSocketAddress remoteAddress)
     {
         int result = buffer.remaining();
@@ -103,6 +104,7 @@ public class DebugReceiveChannelEndpoint extends ReceiveChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public int onDataPacket(
         final DataHeaderFlyweight header,
         final UnsafeBuffer buffer,
@@ -124,6 +126,7 @@ public class DebugReceiveChannelEndpoint extends ReceiveChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onSetupMessage(
         final SetupFlyweight header,
         final UnsafeBuffer buffer,
@@ -140,6 +143,7 @@ public class DebugReceiveChannelEndpoint extends ReceiveChannelEndpoint
     /**
      * {@inheritDoc}
      */
+    @Override
     public void onRttMeasurement(
         final RttMeasurementFlyweight header,
         final UnsafeBuffer buffer,

@@ -122,6 +122,7 @@ public class NextAvailableSessionIdFlyweight
     /**
      * {@inheritDoc}
      */
+    @Override
     public String toString()
     {
         return "NextSessionIdFlyweight{" +

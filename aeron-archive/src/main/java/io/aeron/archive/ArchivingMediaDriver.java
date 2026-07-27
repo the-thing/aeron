@@ -128,6 +128,7 @@ public class ArchivingMediaDriver implements AutoCloseable
     /**
      * {@inheritDoc}
      */
+    @Override
     public void close()
     {
         CloseHelper.closeAll(archive, driver);
