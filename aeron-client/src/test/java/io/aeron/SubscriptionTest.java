@@ -29,15 +29,27 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.InOrder;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 
 import static io.aeron.Aeron.NULL_VALUE;
-import static io.aeron.status.ChannelEndpointStatus.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static io.aeron.status.ChannelEndpointStatus.ACTIVE;
+import static io.aeron.status.ChannelEndpointStatus.CLOSING;
+import static io.aeron.status.ChannelEndpointStatus.ERRORED;
+import static io.aeron.status.ChannelEndpointStatus.INITIALIZING;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class SubscriptionTest
 {
@@ -167,28 +179,22 @@ class SubscriptionTest
         subscription.addImage(imageOneMock);
         subscription.addImage(imageTwoMock);
 
-        final List<Image> polledImages = new ArrayList<>();
-        when(imageOneMock.poll(any(FragmentHandler.class), anyInt())).then(
-            (invocation) ->
-            {
-                polledImages.add(imageOneMock);
-                return 1;
-            });
-        when(imageTwoMock.poll(any(FragmentHandler.class), anyInt())).then(
-            (invocation) ->
-            {
-                polledImages.add(imageTwoMock);
-                return 1;
-            });
+        when(imageOneMock.poll(any(), anyInt())).then((invocation) -> 1);
+        when(imageTwoMock.poll(any(), anyInt())).then((invocation) -> 1);
+
+        final InOrder inOrder = inOrder(imageOneMock, imageTwoMock);
 
         for (int i = 0; i < 6; i++)
         {
             assertEquals(1, subscription.poll(fragmentHandler, 1));
         }
 
-        assertEquals(
-            List.of(imageOneMock, imageTwoMock, imageOneMock, imageTwoMock, imageOneMock, imageTwoMock),
-            polledImages);
+        inOrder.verify(imageOneMock).poll(any(), anyInt());
+        inOrder.verify(imageTwoMock).poll(any(), anyInt());
+        inOrder.verify(imageOneMock).poll(any(), anyInt());
+        inOrder.verify(imageTwoMock).poll(any(), anyInt());
+        inOrder.verify(imageOneMock).poll(any(), anyInt());
+        inOrder.verify(imageTwoMock).poll(any(), anyInt());
     }
 
     @Test
@@ -198,28 +204,22 @@ class SubscriptionTest
         subscription.addImage(imageOneMock);
         subscription.addImage(imageTwoMock);
 
-        final List<Image> polledImages = new ArrayList<>();
-        when(imageOneMock.controlledPoll(any(ControlledFragmentHandler.class), anyInt())).then(
-            (invocation) ->
-            {
-                polledImages.add(imageOneMock);
-                return 1;
-            });
-        when(imageTwoMock.controlledPoll(any(ControlledFragmentHandler.class), anyInt())).then(
-            (invocation) ->
-            {
-                polledImages.add(imageTwoMock);
-                return 1;
-            });
+        when(imageOneMock.controlledPoll(any(), anyInt())).then((invocation) -> 1);
+        when(imageTwoMock.controlledPoll(any(), anyInt())).then((invocation) -> 1);
+
+        final InOrder inOrder = inOrder(imageOneMock, imageTwoMock);
 
         for (int i = 0; i < 6; i++)
         {
             assertEquals(1, subscription.controlledPoll(controlledFragmentHandler, 1));
         }
 
-        assertEquals(
-            List.of(imageOneMock, imageTwoMock, imageOneMock, imageTwoMock, imageOneMock, imageTwoMock),
-            polledImages);
+        inOrder.verify(imageOneMock).controlledPoll(any(), anyInt());
+        inOrder.verify(imageTwoMock).controlledPoll(any(), anyInt());
+        inOrder.verify(imageOneMock).controlledPoll(any(), anyInt());
+        inOrder.verify(imageTwoMock).controlledPoll(any(), anyInt());
+        inOrder.verify(imageOneMock).controlledPoll(any(), anyInt());
+        inOrder.verify(imageTwoMock).controlledPoll(any(), anyInt());
     }
 
     @ValueSource(longs = { INITIALIZING, ERRORED, CLOSING })
