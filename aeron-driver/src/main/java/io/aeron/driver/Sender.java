@@ -27,6 +27,9 @@ import org.agrona.concurrent.status.AtomicCounter;
 
 import java.net.InetSocketAddress;
 
+import static io.aeron.CommonContext.threadName;
+import static io.aeron.driver.MediaDriver.AERON_DRIVER_SENDER_THREAD_NAME;
+import static io.aeron.driver.MediaDriver.AERON_DRIVER_SENDER_THREAD_NAME_CLASSIC;
 import static io.aeron.driver.status.SystemCounterDescriptor.*;
 
 class SenderLhsPadding
@@ -73,6 +76,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     private final CachedNanoClock cachedNanoClock;
     private final DriverConductorProxy conductorProxy;
     private final DutyCycleTracker dutyCycleTracker;
+    private String roleName;
 
     Sender(final MediaDriver.Context ctx)
     {
@@ -88,6 +92,7 @@ public final class Sender extends SenderRhsPadding implements Agent
         dutyCycleRatio = ctx.sendToStatusMessagePollRatio();
         conductorProxy = ctx.driverConductorProxy();
         dutyCycleTracker = ctx.senderDutyCycleTracker();
+        roleName = threadName(AERON_DRIVER_SENDER_THREAD_NAME, AERON_DRIVER_SENDER_THREAD_NAME_CLASSIC);
     }
 
     /**
@@ -159,7 +164,7 @@ public final class Sender extends SenderRhsPadding implements Agent
     @Override
     public String roleName()
     {
-        return "sender";
+        return roleName;
     }
 
     void onRegisterSendChannelEndpoint(final SendChannelEndpoint channelEndpoint)
