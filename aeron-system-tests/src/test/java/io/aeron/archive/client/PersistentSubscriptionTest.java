@@ -2918,17 +2918,25 @@ abstract class PersistentSubscriptionTest
     {
         final ChannelUriStringBuilder channelUriStringBuilder = new ChannelUriStringBuilder(channel);
 
-        final PersistentPublication persistentPublication =
-            PersistentPublication.create(aeronArchive, channel, STREAM_ID);
+        final String untetheredChannel = channelUriStringBuilder
+            .tether(false)
+            .untetheredLingerTimeout("50ms")
+            .untetheredRestingTimeout("50ms")
+            .untetheredWindowLimitTimeout("50ms")
+            .build();
+        final String publicationChannel = "ipc".equals(channelUriStringBuilder.media()) ? untetheredChannel : channel;
+        final String tetheredChannel = channelUriStringBuilder.tether(true).build();
+
+        final PersistentPublication persistentPublication = PersistentPublication.create(
+            aeronArchive, publicationChannel, STREAM_ID);
 
         persistentSubscriptionCtx
             .recordingId(persistentPublication.recordingId())
-            .liveChannel(channelUriStringBuilder.tether(false).build());
+            .liveChannel(untetheredChannel);
 
         final CountingFragmentHandler fastSubscriptionFragmentHandler = new CountingFragmentHandler();
         try (PersistentSubscription persistentSubscription = PersistentSubscription.create(persistentSubscriptionCtx);
-            Subscription fastSubscription = aeron.addSubscription(channelUriStringBuilder.tether(true)
-                .build(), STREAM_ID))
+            Subscription fastSubscription = aeron.addSubscription(tetheredChannel, STREAM_ID))
         {
             Tests.awaitConnected(fastSubscription);
 
@@ -3510,6 +3518,7 @@ abstract class PersistentSubscriptionTest
 
     private static void checkForInterrupt(final String message)
     {
+        LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
         if (Thread.interrupted())
         {
             fail(message);
@@ -3743,11 +3752,22 @@ abstract class PersistentSubscriptionTest
 
     private static void executeUntil(final BooleanSupplier predicate, final Runnable runnable)
     {
-        Tests.await(() ->
+        do
         {
             runnable.run();
-            return predicate.getAsBoolean();
-        });
+            if (predicate.getAsBoolean())
+            {
+                break;
+            }
+
+            Tests.sleep(1);
+
+            if (Thread.currentThread().isInterrupted())
+            {
+                throw new TimeoutException("while awaiting");
+            }
+        }
+        while (true);
     }
 
     private static void executeUntil(
@@ -4132,17 +4152,27 @@ abstract class PersistentSubscriptionTest
         {
             final UnsafeBuffer wrapper = new UnsafeBuffer();
 
-            long position = publication.position();
+            final MutableLong position = new MutableLong();
+            final Supplier<String> msg = () -> "failed to offer due to " + Publication.errorString(position.get());
+
+            position.set(publication.position());
             for (final byte[] message : messages)
             {
                 wrapper.wrap(message);
-                while ((position = publication.offer(wrapper)) < 0)
+                do
                 {
-                    Tests.yieldingIdle("failed to offer due to " + Publication.errorString(position));
+                    position.set(publication.offer(wrapper));
+                    if (0 < position.get())
+                    {
+                        break;
+                    }
+                    Tests.yieldingIdle(msg);
                 }
+                while (true);
             }
             publishedMessageCount += messages.size();
-            return position;
+
+            return position.get();
         }
 
         long stop()
