@@ -65,6 +65,16 @@ aeron_threading_mode_t;
 int aeron_driver_context_set_threading_mode(aeron_driver_context_t *context, aeron_threading_mode_t mode);
 aeron_threading_mode_t aeron_driver_context_get_threading_mode(aeron_driver_context_t *context);
 
+#define AERON_THREAD_NAMING_ENV_VAR "AERON_THREAD_NAMING"
+typedef enum aeron_thread_naming_enum
+{
+    AERON_THREAD_NAMING_CLASSIC,
+    AERON_THREAD_NAMING_NEW
+}
+aeron_thread_naming_t;
+int aeron_driver_context_set_thread_naming(aeron_driver_context_t *context, aeron_thread_naming_t naming);
+aeron_thread_naming_t aeron_driver_context_get_thread_naming(aeron_driver_context_t *context);
+
 /**
  * Attempt to delete directories on start if they exist.
  */

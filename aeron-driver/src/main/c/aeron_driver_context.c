@@ -73,6 +73,29 @@ aeron_threading_mode_t aeron_config_parse_threading_mode(const char *threading_m
     return result;
 }
 
+aeron_thread_naming_t aeron_config_parse_thread_naming(const char *thread_naming, aeron_thread_naming_t def)
+{
+    aeron_thread_naming_t result = def;
+    if (NULL != thread_naming)
+    {
+        if (strncmp(thread_naming, "classic", sizeof("classic")) == 0)
+        {
+            result = AERON_THREAD_NAMING_CLASSIC;
+        }
+        else if (strncmp(thread_naming, "new", sizeof("new")) == 0)
+        {
+            result = AERON_THREAD_NAMING_NEW;
+        }
+        else
+        {
+            aeron_config_prop_warning(AERON_THREAD_NAMING_ENV_VAR, thread_naming);
+        }
+    }
+
+    return result;
+
+}
+
 aeron_inferable_boolean_t aeron_config_parse_inferable_boolean(
     const char *inferable_boolean, aeron_inferable_boolean_t def)
 {
@@ -149,6 +172,7 @@ static void aeron_driver_untethered_subscription_state_change_null(
 
 #define AERON_DIR_WARN_IF_EXISTS_DEFAULT false
 #define AERON_THREADING_MODE_DEFAULT AERON_THREADING_MODE_DEDICATED
+#define AERON_THREAD_NAMING_DEFAULT AERON_THREAD_NAMING_CLASSIC
 #define AERON_DIR_DELETE_ON_START_DEFAULT false
 #define AERON_DIR_DELETE_ON_SHUTDOWN_DEFAULT false
 #define AERON_CLIENT_LIVENESS_TIMEOUT_NS_DEFAULT (10 * 1000 * 1000 * INT64_C(1000))
@@ -422,6 +446,8 @@ int aeron_driver_context_init(aeron_driver_context_t **context)
 
     _context->threading_mode = aeron_config_parse_threading_mode(
         getenv(AERON_THREADING_MODE_ENV_VAR), AERON_THREADING_MODE_DEFAULT);
+    _context->thread_naming = aeron_config_parse_thread_naming(
+        getenv(AERON_THREAD_NAMING_ENV_VAR), AERON_THREAD_NAMING_DEFAULT);
     _context->receiver_group_consideration = aeron_config_parse_inferable_boolean(
         getenv(AERON_RECEIVER_GROUP_CONSIDERATION_ENV_VAR), AERON_RECEIVER_GROUP_CONSIDERATION_DEFAULT);
     _context->dirs_delete_on_start = AERON_DIR_DELETE_ON_START_DEFAULT;
@@ -1727,6 +1753,18 @@ int aeron_driver_context_set_threading_mode(aeron_driver_context_t *context, aer
 aeron_threading_mode_t aeron_driver_context_get_threading_mode(aeron_driver_context_t *context)
 {
     return NULL != context ? context->threading_mode : AERON_THREADING_MODE_DEFAULT;
+}
+
+int aeron_driver_context_set_thread_naming(aeron_driver_context_t *context, aeron_thread_naming_t naming)
+{
+    AERON_DRIVER_CONTEXT_SET_CHECK_ARG_AND_RETURN(-1, context);
+
+    context->thread_naming = naming;
+    return 0;
+}
+aeron_thread_naming_t aeron_driver_context_get_thread_naming(aeron_driver_context_t *context)
+{
+    return NULL != context ? context->thread_naming : AERON_THREAD_NAMING_DEFAULT;
 }
 
 int aeron_driver_context_set_dir_delete_on_start(aeron_driver_context_t *context, bool value)
@@ -3371,18 +3409,23 @@ void aeron_set_thread_affinity_on_start(void *state, const char *role_name)
     int result = 0;
     if (0 <= context->conductor_cpu_affinity_no &&
        (0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_CONDUCTOR, role_name) ||
-        0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED, role_name)))
+        0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_CONDUCTOR_NEW, role_name) ||
+        0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED, role_name) ||
+        0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED_NEW, role_name)))
     {
         result = aeron_thread_set_affinity(role_name, (uint8_t)context->conductor_cpu_affinity_no);
     }
     else if (0 <= context->sender_cpu_affinity_no &&
             (0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SENDER, role_name) ||
-             0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED_NETWORK, role_name)))
+             0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SENDER_NEW, role_name) ||
+             0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED_NETWORK, role_name) ||
+             0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_SHARED_NETWORK_NEW, role_name)))
     {
         result = aeron_thread_set_affinity(role_name, (uint8_t)context->sender_cpu_affinity_no);
     }
     else if (0 <= context->receiver_cpu_affinity_no &&
-             0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_RECEIVER, role_name))
+             (0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_RECEIVER, role_name) ||
+              0 == strcmp(AERON_DRIVER_AGENT_ROLE_NAME_RECEIVER_NEW, role_name)))
     {
         result = aeron_thread_set_affinity(role_name, (uint8_t)context->receiver_cpu_affinity_no);
     }
