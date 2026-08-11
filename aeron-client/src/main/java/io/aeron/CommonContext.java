@@ -21,6 +21,7 @@ import io.aeron.exceptions.AeronException;
 import io.aeron.exceptions.ConcurrentConcludeException;
 import io.aeron.exceptions.DriverTimeoutException;
 import io.aeron.logbuffer.LogBufferDescriptor;
+import io.aeron.logging.BinaryRenderer;
 import org.agrona.BufferUtil;
 import org.agrona.CloseHelper;
 import org.agrona.DirectBuffer;
@@ -192,6 +193,31 @@ public class CommonContext implements Cloneable
      */
     @Config(defaultType = DefaultType.STRING, defaultString = "stderr", existsInC = false)
     public static final String FALLBACK_LOGGER_PROP_NAME = "aeron.fallback.logger";
+
+    /**
+     * Configuration property for the driver event settings.
+     */
+    public static final String EVENT_LOG = "aeron.event.log";
+
+    /**
+     * Configuration property for the agnet class used for logging.
+     */
+    public static final String EVENT_LOG_READER_CLASSNAME_PROP_NAME = "aeron.event.log.reader.classname";
+
+    /**
+     * Default logging agent.
+     */
+    public static final String EVENT_LOG_READER_CLASSNAME_DEFAULT = "io.aeron.logging.CborLoggerReaderAgent";
+
+    /**
+     * Configuration property for the archive event settings.
+     */
+    public static final String ARCHIVE_EVENT_LOG = "aeron.event.archive.log";
+
+    /**
+     * Configuration property for the cluster event settings.
+     */
+    public static final String CLUSTER_EVENT_LOG = "aeron.event.cluster.log";
 
     /**
      * Media type used for IPC shared memory from {@link Publication} to {@link Subscription} channels.
@@ -538,6 +564,21 @@ public class CommonContext implements Cloneable
             default -> throw new IllegalArgumentException("Unknown thread naming mode: " + mode);
         };
     }
+
+    /**
+     * Event Buffer length system property name. If not set then output will default to {@link System#out}.
+     */
+    public static final String EVENT_LOG_FILENAME_PROP_NAME = "aeron.event.log.filename";
+    /**
+     * Event Buffer log file max length system property. If not set then {@link Long#MAX_VALUE} will be used.
+     */
+    public static final String EVENT_LOG_FILE_MAX_LENGTH = "aeron.event.log.file.max.length";
+
+    /**
+     * System property to toggle whether {@link BinaryRenderer} implementations render the remaining bytes
+     * of fields that are not part of the header information.
+     */
+    public static final String EVENT_LOG_RENDER_DATA_PROP_NAME = "aeron.event.log.render.data";
 
     /**
      * Should a component's configuration be printed on start.

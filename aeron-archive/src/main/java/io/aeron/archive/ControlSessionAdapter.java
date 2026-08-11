@@ -19,6 +19,7 @@ import io.aeron.*;
 import io.aeron.archive.client.AeronArchive;
 import io.aeron.archive.client.ArchiveException;
 import io.aeron.archive.codecs.*;
+import io.aeron.archive.logging.ArchiveLog;
 import io.aeron.logbuffer.FragmentHandler;
 import io.aeron.logbuffer.Header;
 import io.aeron.security.AuthorisationService;
@@ -80,6 +81,8 @@ class ControlSessionAdapter implements FragmentHandler
     @SuppressWarnings("MethodLength")
     public void onFragment(final DirectBuffer buffer, final int offset, final int length, final Header header)
     {
+        ArchiveLog.logControlRequest(buffer, offset, length);
+
         final MessageHeaderDecoder headerDecoder = decoders.header;
         headerDecoder.wrap(buffer, offset);
 

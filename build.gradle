@@ -1,3 +1,5 @@
+import io.aeron.build.LoggingTest
+
 /*
  * Copyright 2014-2025 Real Logic Limited.
  *
@@ -211,7 +213,7 @@ subprojects {
         options.deprecation = true
         options.compilerArgs.add('--release')
         options.compilerArgs.add(java.sourceCompatibility.majorVersion)
-        options.compilerArgs.addAll(['-Xlint:all,-processing', '-Werror']) // Enable all warnings and treat them as errors
+        options.compilerArgs.addAll(['-Xlint:all,-processing', '-Werror', '-parameters']) // Enable all warnings and treat them as errors
         options.compilerArgs.add("-Aio.aeron.version=${aeronVersion}")
         options.compilerArgs.add("-Aio.aeron.gitsha=${gitCommitHash}")
     }
@@ -222,7 +224,6 @@ subprojects {
     tasks.withType(Test).configureEach { test ->
         jvmArgs('--add-opens', 'java.base/jdk.internal.misc=ALL-UNNAMED')
         jvmArgs('--add-opens', 'java.base/java.util.zip=ALL-UNNAMED')
-        jvmArgs("-javaagent:${mockitoAgent.asPath}")
         if (buildJavaVersion >= 21) {
             jvmArgs('-XX:+EnableDynamicAgentLoading')
         }
@@ -244,7 +245,8 @@ subprojects {
                 "-XX:ErrorFile=${baseLogFileName}-crash.log")
 
         useJUnitPlatform {
-            if (test.name != 'slowTest' && test.name != 'bindingsTest' && test.name != 'topologyTest')
+            if (test.name != 'slowTest' && test.name != 'bindingsTest'
+                    && test.name != 'topologyTest' && !test.name.startsWith('loggingTest'))
             {
                 excludeTags 'any()'
             }
@@ -291,18 +293,13 @@ subprojects {
         javaLauncher.set(toolchainLauncher)
     }
 
-    def aeronLoggingAgent = project.file("../aeron-agent/build/libs/aeron-agent-${aeronVersion}.jar").absolutePath
-
     tasks.register('slowTest', Test) {
         group = 'verification'
-        dependsOn ':aeron-agent:shadowJar'
 
         maxParallelForks = 1
         useJUnitPlatform {
             includeTags 'slow'
         }
-
-        jvmArgs("-javaagent:${aeronLoggingAgent}")
 
         systemProperties(
             'aeron.event.cluster.log': 'all',
@@ -310,26 +307,24 @@ subprojects {
             'aeron.event.archive.log': 'all',
             'aeron.event.log': 'admin',
             'aeron.debug.timeout': '3600s',
-            'aeron.event.log.reader.classname': 'io.aeron.agent.CollectingEventLogReaderAgent',
+            'aeron.event.log.reader.classname': 'io.aeron.logging.CollectingEventLogReaderAgent',
             'aeron.fallback.logger': 'no_op')
     }
 
     tasks.register('bindingsTest', Test) {
         group = 'verification'
-        dependsOn ':aeron-agent:shadowJar'
 
         maxParallelForks = 1
         useJUnitPlatform {
             includeTags 'bindings'
         }
 
-        jvmArgs("-javaagent:${aeronLoggingAgent}")
         systemProperty 'aeron.event.cluster.log', 'all'
         systemProperty 'aeron.event.cluster.log.disable', 'CANVASS_POSITION,APPEND_POSITION,COMMIT_POSITION'
         systemProperty 'aeron.event.archive.log', 'all'
         systemProperty 'aeron.event.log', 'admin'
         systemProperty 'aeron.debug.timeout', '3600s'
-        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.agent.CollectingEventLogReaderAgent'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.logging.CollectingEventLogReaderAgent'
     }
 
     tasks.register('topologyTest', Test) {
@@ -339,13 +334,12 @@ subprojects {
             includeTags 'topology'
         }
 
-        jvmArgs("-javaagent:${aeronLoggingAgent}")
         systemProperty 'aeron.event.cluster.log', 'all'
         systemProperty 'aeron.event.cluster.log.disable', 'CANVASS_POSITION,APPEND_POSITION,COMMIT_POSITION'
         systemProperty 'aeron.event.archive.log', 'all'
         systemProperty 'aeron.event.log', 'admin'
         systemProperty 'aeron.debug.timeout', '3600s'
-        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.agent.CollectingEventLogReaderAgent'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.logging.CollectingEventLogReaderAgent'
     }
 
     javadoc {
@@ -459,6 +453,7 @@ project(':aeron-client') {
         implementation project(':aeron-annotations')
         annotationProcessor project(':aeron-annotations')
         testImplementation project(':aeron-test-support')
+        testImplementation libs.jackson.cbor
     }
 
     jar {
@@ -572,6 +567,15 @@ project(':aeron-driver') {
         withJavadocJar()
     }
 
+    tasks.withType(Test).configureEach {
+        systemProperty 'aeron.event.log', 'all'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.test.agent.CountingEventReaderAgent'
+    }
+
+    LoggingTest.configureLoggingTests(
+        project, 'DriverEventEnablementTest', 'aeron.event.log', 'aeron.event.log.disable',
+        'TEXT_DATA,CMD_IN_ADD_PUBLICATION')
+
     javadoc {
         source += project(':aeron-annotations').sourceSets.main.allJava
         source += project(':aeron-client').sourceSets.main.allJava
@@ -627,6 +631,10 @@ project(':aeron-driver') {
         classpath project(':aeron-annotations').sourceSets.main.runtimeClasspath
         args = [configInfoFile, generatedDocFile]
     }
+
+    tasks.withType(Test).configureEach {
+        systemProperty 'aeron.event.log', 'all'
+    }
 }
 
 project(':aeron-archive') {
@@ -660,6 +668,14 @@ project(':aeron-archive') {
             compileClasspath += configurations.codecGeneration
         }
     }
+
+    tasks.withType(Test).configureEach {
+        systemProperty 'aeron.event.archive.log', 'all'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.test.agent.CountingEventReaderAgent'
+    }
+
+    LoggingTest.configureLoggingTests(project, 'ArchiveEventEnablementTest', 'aeron.event.archive.log',
+        'aeron.event.archive.log.disable', 'CATALOG_RESIZE,CMD_IN_CONNECT')
 
     def codecsFile = 'src/main/resources/archive/aeron-archive-codecs.xml'
     def markCodecsFile = 'src/main/resources/archive/aeron-archive-mark-codecs.xml'
@@ -857,6 +873,7 @@ project(':aeron-cluster') {
         annotationProcessor project(':aeron-annotations')
         testImplementation project(':aeron-test-support')
         testImplementation files("${layout.buildDirectory.get()}/classes/java/generatedTest")
+        testImplementation libs.jackson.cbor
     }
 
     def generatedSrcDir = file("${layout.buildDirectory.get()}/generated-src")
@@ -872,6 +889,14 @@ project(':aeron-cluster') {
             compileClasspath += configurations.codecGeneration
         }
     }
+
+    tasks.withType(Test).configureEach {
+        systemProperty 'aeron.event.cluster.log', 'all'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.test.agent.CountingEventReaderAgent'
+    }
+
+    LoggingTest.configureLoggingTests(project, 'ClusterEventEnablementTest', 'aeron.event.cluster.log',
+        'aeron.event.cluster.log.disable', 'CANVASS_POSITION,COMMIT_POSITION')
 
     def codecsFile = 'src/main/resources/cluster/aeron-cluster-codecs.xml'
     def markCodecsFile = 'src/main/resources/cluster/aeron-cluster-mark-codecs.xml'
@@ -1020,111 +1045,6 @@ project(':aeron-cluster') {
     }
 }
 
-project(':aeron-agent') {
-    apply plugin: 'maven-publish'
-    apply plugin: 'signing'
-    apply plugin: 'com.gradleup.shadow'
-
-    def aeronClientProject = project(':aeron-client')
-    def aeronDriverProject = project(':aeron-driver')
-    def aeronArchiveProject = project(':aeron-archive')
-    def aeronClusterProject = project(':aeron-cluster')
-
-    dependencies {
-        implementation project(':aeron-cluster')
-        implementation libs.byteBuddy
-        implementation libs.byteBuddy.agent
-        implementation project(':aeron-annotations')
-        annotationProcessor project(':aeron-annotations')
-        compileOnly libs.findbugs.annotations
-        testCompileOnly libs.findbugs.annotations
-        testImplementation project(':aeron-test-support')
-    }
-
-    shadowJar {
-        archiveClassifier.set('')
-
-        duplicatesStrategy = DuplicatesStrategy.EXCLUDE // exclude duplicate files by default
-
-        mergeServiceFiles('META-INF/services') // merge service files into a single file
-        filesMatching('META-INF/services/**') {
-            duplicatesStrategy = DuplicatesStrategy.INCLUDE // copy all services across
-        }
-
-        manifest.attributes(
-            'Automatic-Module-Name': 'io.aeron.agent',
-            'Implementation-Title': 'Aeron',
-            'Implementation-Vendor': 'Adaptive Financial Consulting Limited',
-            'Implementation-Version': aeronVersion,
-            "Premain-Class": "io.aeron.agent.EventLogAgent",
-            "Agent-Class": "io.aeron.agent.EventLogAgent",
-            "Can-Redefine-Classes": "true",
-            "Can-Retransform-Classes": "true"
-        )
-
-        relocate 'net.bytebuddy', 'io.aeron.shadow.net.bytebuddy'
-    }
-
-    jar.enabled = false
-
-    tasks.register('sourcesJar', Jar) {
-        dependsOn ':aeron-archive:generateCodecs', ':aeron-cluster:generateCodecs'
-        archiveClassifier.set('sources')
-        from files(
-            aeronClientProject.sourceSets.main.allSource,
-            aeronDriverProject.sourceSets.main.allSource,
-            aeronArchiveProject.sourceSets.main.allSource,
-            aeronArchiveProject.sourceSets.generated.allSource,
-            aeronClusterProject.sourceSets.main.allSource,
-            aeronClusterProject.sourceSets.generated.allSource)
-    }
-
-    javadoc {
-        source += project(':aeron-annotations').sourceSets.main.allJava
-        source += aeronClientProject.sourceSets.main.allJava
-        source += aeronDriverProject.sourceSets.main.allJava
-        source += aeronArchiveProject.sourceSets.main.allJava
-        source += aeronArchiveProject.sourceSets.generated.allJava
-        source += aeronClusterProject.sourceSets.main.allJava
-        source += aeronClusterProject.sourceSets.generated.allJava
-    }
-
-    javadoc.dependsOn ':aeron-archive:generateCodecs', ':aeron-cluster:generateCodecs'
-
-    tasks.register('javadocJar', Jar) {
-        dependsOn 'javadoc'
-        archiveClassifier.set('javadoc')
-        from javadoc.destinationDir
-    }
-
-    publishing {
-        publications {
-            aeronAgent(MavenPublication) {
-                artifact shadowJar
-                artifact sourcesJar
-                artifact javadocJar
-                pom(projectPom)
-            }
-        }
-        repositories {
-            maven {
-                url = !isReleaseVersion ? sonatypeCentralPortalSnapshotsRepoUrl : sonatypeCentralPortalReleasesRepoUrl
-                credentials {
-                    username = sonatypeCentralPortalUsername
-                    password = sonatypeCentralPortalPassword
-                }
-            }
-        }
-    }
-
-    signing {
-        if (signingKey != null) {
-            useInMemoryPgpKeys(signingKey, signingPassword)
-        }
-        sign publishing.publications.aeronAgent
-    }
-}
-
 project(':aeron-samples') {
     apply plugin: 'maven-publish'
     apply plugin: 'signing'
@@ -1175,19 +1095,12 @@ project(':aeron-samples') {
     }
 
     tasks.named('test').configure {
-        dependsOn ':aeron-agent:shadowJar'
-
-        ext.agentFilename = {
-            project.file("../aeron-agent/build/libs/aeron-agent-${aeronVersion}.jar").absolutePath
-        }
-
-        jvmArgs '-javaagent:' + agentFilename()
         systemProperty 'aeron.event.cluster.log', 'all'
         systemProperty 'aeron.event.cluster.log.disable', 'CANVASS_POSITION,APPEND_POSITION,COMMIT_POSITION'
         systemProperty 'aeron.event.archive.log', 'all'
         systemProperty 'aeron.event.log', 'admin'
         systemProperty 'aeron.debug.timeout', '3600s'
-        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.agent.CollectingEventLogReaderAgent'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.logging.CollectingEventLogReaderAgent'
     }
 
     tasks.register('asciidoctorGithub', io.aeron.build.AsciidoctorPreprocessTask) {
@@ -1222,20 +1135,26 @@ project(':aeron-system-tests') {
     }
 
     tasks.named('test').configure {
-        dependsOn ':aeron-agent:shadowJar'
-
-        ext.agentFilename = {
-            project.file("../aeron-agent/build/libs/aeron-agent-${aeronVersion}.jar").absolutePath
-        }
-
-        jvmArgs '-javaagent:' + agentFilename()
         systemProperty 'aeron.event.cluster.log', 'all'
         systemProperty 'aeron.event.cluster.log.disable', 'CANVASS_POSITION,APPEND_POSITION,COMMIT_POSITION'
         systemProperty 'aeron.event.archive.log', 'all'
         systemProperty 'aeron.event.log', 'admin'
         systemProperty 'aeron.debug.timeout', '3600s'
-        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.agent.CollectingEventLogReaderAgent'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.logging.CollectingEventLogReaderAgent'
+        exclude '**/DriverLoggingSystemTest.class'
     }
+
+    tasks.register('driverLoggingSystemTest', Test) {
+        group = 'verification'
+        useJUnitPlatform()
+        include '**/DriverLoggingSystemTest.class'
+        systemProperty 'aeron.event.log', 'all'
+        systemProperty 'aeron.event.log.render.data', 'true'
+        systemProperty 'aeron.debug.timeout', '3600s'
+        systemProperty 'aeron.event.log.reader.classname', 'io.aeron.logging.CollectingEventLogReaderAgent'
+    }
+
+    check.dependsOn 'driverLoggingSystemTest'
 
     shadowJar {
         archiveClassifier.set('tests')
@@ -1267,6 +1186,7 @@ project(':aeron-test-support') {
         implementation project(':aeron-client')
         implementation project(':aeron-cluster')
         implementation project(':aeron-samples')
+        implementation project(':aeron-annotations')
         implementation platform(libs.junit.bom)
         implementation "org.junit.jupiter:junit-jupiter-api"
         implementation "org.junit.jupiter:junit-jupiter-params"
@@ -1347,15 +1267,16 @@ project(':aeron-all') {
             'Implementation-Version': aeronVersion
         )
 
-        relocate 'net.bytebuddy', 'io.aeron.shadow.net.bytebuddy'
         relocate 'org.HdrHistogram', 'io.aeron.shadow.org.HdrHistogram'
     }
 
     jar.finalizedBy shadowJar
 
     tasks.register('sourcesJar', Jar) {
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE // exclude duplicate files by default
         dependsOn ':aeron-archive:generateCodecs', ':aeron-cluster:generateCodecs'
         archiveClassifier.set('sources')
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE // exclude duplicate files by default
         from files(
             aeronClientProject.sourceSets.main.allSource,
             aeronDriverProject.sourceSets.main.allSource,

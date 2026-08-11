@@ -16,6 +16,7 @@
 package io.aeron.driver;
 
 import io.aeron.driver.buffer.RawLog;
+import io.aeron.driver.logging.DriverLog;
 import io.aeron.driver.media.ImageConnection;
 import io.aeron.driver.media.ReceiveChannelEndpoint;
 import io.aeron.driver.media.ReceiveDestinationTransport;
@@ -805,6 +806,7 @@ public final class PublicationImage
         final int streamId,
         final String channel)
     {
+        DriverLog.logPublicationImageRevoke(revokedPos, sessionId, streamId, channel);
     }
 
     /**

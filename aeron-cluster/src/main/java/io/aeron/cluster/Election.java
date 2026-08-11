@@ -23,6 +23,7 @@ import io.aeron.Subscription;
 import io.aeron.archive.codecs.RecordingSignal;
 import io.aeron.cluster.client.ClusterEvent;
 import io.aeron.cluster.client.ClusterException;
+import io.aeron.cluster.logging.ClusterLog;
 import io.aeron.cluster.service.Cluster;
 import io.aeron.exceptions.AeronException;
 import io.aeron.exceptions.TimeoutException;
@@ -618,6 +619,18 @@ class Election
         final long oldPosition,
         final long newPosition)
     {
+        ClusterLog.logOnTruncateLogEntry(
+            memberId,
+            state,
+            logLeadershipTermId,
+            leadershipTermId,
+            candidateTermId,
+            commitPosition,
+            logPosition,
+            appendPosition,
+            oldPosition,
+            newPosition);
+
         consensusModuleAgent.truncateLogEntry(logLeadershipTermId, newPosition);
         this.appendPosition = newPosition;
         throw new ClusterEvent("Truncating Cluster Log - memberId=" + memberId +
@@ -1557,18 +1570,18 @@ class Election
         final long catchupPosition,
         final String reason)
     {
-        /*
-        System.out.println("Election: memberId=" + memberId + " " + oldState + " -> " + newState +
-            " leaderId=" + leaderId +
-            " candidateTermId=" + candidateTermId +
-            " leadershipTermId=" + leadershipTermId +
-            " logPosition=" + logPosition +
-            " logLeadershipTermId=" + logLeadershipTermId +
-            " appendPosition=" + appendPosition +
-            " catchupPosition=" + catchupPosition +
-            " notifiedCommitPosition=" + notifiedCommitPosition +
-            " reason=" + reason);
-         */
+        ClusterLog.logElectionStateChange(
+            memberId,
+            oldState,
+            newState,
+            leaderId,
+            candidateTermId,
+            leadershipTermId,
+            logPosition,
+            logLeadershipTermId,
+            appendPosition,
+            catchupPosition,
+            reason);
     }
 
     private void prepareForNewLeadership(final long nowNs)

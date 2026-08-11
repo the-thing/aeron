@@ -16,6 +16,7 @@
 package io.aeron.driver;
 
 import io.aeron.ChannelUri;
+import io.aeron.driver.logging.DriverLog;
 import io.aeron.driver.media.SendChannelEndpoint;
 import org.agrona.concurrent.OneToOneConcurrentArrayQueue;
 import org.agrona.concurrent.status.AtomicCounter;
@@ -41,11 +42,13 @@ final class SenderProxy extends CommandProxy
 
     void registerSendChannelEndpoint(final SendChannelEndpoint channelEndpoint)
     {
+        DriverLog.logSendChannelCreation(channelEndpoint.udpChannel().description());
         offer(() -> sender.onRegisterSendChannelEndpoint(channelEndpoint));
     }
 
     void closeSendChannelEndpoint(final SendChannelEndpoint channelEndpoint)
     {
+        DriverLog.logSendChannelClose(channelEndpoint.udpChannel().description());
         offer(() -> sender.onCloseSendChannelEndpoint(channelEndpoint));
     }
 
