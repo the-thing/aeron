@@ -2738,6 +2738,7 @@ public final class DriverConductor implements Agent
             if (null != responsePublicationImage)
             {
                 responsePublicationImage.responseSessionId(publication.sessionId());
+                responsePublicationImage.requestNextSmDeadlineReset();
             }
 
             state = State.DONE;
