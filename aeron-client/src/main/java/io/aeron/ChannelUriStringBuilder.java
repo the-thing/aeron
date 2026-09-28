@@ -1709,7 +1709,8 @@ public final class ChannelUriStringBuilder
     {
         if (null != socketTos && (socketTos < 0 || socketTos > 255))
         {
-            throw new IllegalArgumentException("socketTos must be between 0 and 255 inclusive: " + socketTos);
+            throw new IllegalArgumentException(SOCKET_TOS_PARAM_NAME + " must be between 0 and 255 inclusive: " +
+                socketTos);
         }
 
         this.socketTos = socketTos;
@@ -1726,7 +1727,15 @@ public final class ChannelUriStringBuilder
     public ChannelUriStringBuilder socketTos(final ChannelUri channelUri)
     {
         final String value = channelUri.get(SOCKET_TOS_PARAM_NAME);
-        return socketTos(null == value ? null : Integer.valueOf(value));
+        if (null == value)
+        {
+            socketTos = null;
+            return this;
+        }
+        else
+        {
+            return socketTos(ChannelUri.validateSocketTos(value));
+        }
     }
 
     /**

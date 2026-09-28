@@ -23,13 +23,34 @@ import io.aeron.driver.exceptions.InvalidChannelException;
 import org.agrona.BitUtil;
 import org.agrona.SystemUtil;
 
-import java.net.*;
+import java.net.Inet6Address;
+import java.net.InetSocketAddress;
+import java.net.NetworkInterface;
+import java.net.ProtocolFamily;
+import java.net.UnknownHostException;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.aeron.CommonContext.*;
+import static io.aeron.CommonContext.CHANNEL_RECEIVE_TIMESTAMP_OFFSET_PARAM_NAME;
+import static io.aeron.CommonContext.CHANNEL_SEND_TIMESTAMP_OFFSET_PARAM_NAME;
+import static io.aeron.CommonContext.CONTROL_MODE_RESPONSE;
+import static io.aeron.CommonContext.ENDPOINT_PARAM_NAME;
+import static io.aeron.CommonContext.GROUP_TAG_PARAM_NAME;
+import static io.aeron.CommonContext.INTERFACE_PARAM_NAME;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_DYNAMIC;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_MANUAL;
+import static io.aeron.CommonContext.MDC_CONTROL_MODE_PARAM_NAME;
+import static io.aeron.CommonContext.MDC_CONTROL_PARAM_NAME;
+import static io.aeron.CommonContext.NAK_DELAY_PARAM_NAME;
+import static io.aeron.CommonContext.RECEIVER_WINDOW_LENGTH_PARAM_NAME;
+import static io.aeron.CommonContext.RESERVED_OFFSET;
+import static io.aeron.CommonContext.SOCKET_RCVBUF_PARAM_NAME;
+import static io.aeron.CommonContext.SOCKET_SNDBUF_PARAM_NAME;
+import static io.aeron.CommonContext.SOCKET_TOS_PARAM_NAME;
+import static io.aeron.CommonContext.TTL_PARAM_NAME;
 import static io.aeron.driver.Configuration.SOCKET_TOS_DEFAULT;
-import static io.aeron.driver.media.NetworkUtil.*;
+import static io.aeron.driver.media.NetworkUtil.formatAddressAndPort;
+import static io.aeron.driver.media.NetworkUtil.getProtocolFamily;
 import static java.net.InetAddress.getByAddress;
 
 /**
@@ -155,7 +176,8 @@ public final class UdpChannel
 
             final int socketRcvbufLength = parseBufferLength(channelUri, SOCKET_RCVBUF_PARAM_NAME);
             final int socketSndbufLength = parseBufferLength(channelUri, SOCKET_SNDBUF_PARAM_NAME);
-            final int socketTos = parseSocketTos(channelUri);
+            final String tos = channelUri.get(SOCKET_TOS_PARAM_NAME);
+            final int socketTos = null == tos ? SOCKET_TOS_DEFAULT : ChannelUri.validateSocketTos(tos);
             final int receiverWindowLength = parseBufferLength(
                 channelUri, RECEIVER_WINDOW_LENGTH_PARAM_NAME);
 
@@ -375,30 +397,6 @@ public final class UdpChannel
     }
 
     /**
-     * Parse the IP_TOS value from a channel URI.
-     *
-     * @param channelUri to get the value from.
-     * @return parsed IP_TOS value, or {@link io.aeron.driver.Configuration#SOCKET_TOS_DEFAULT} if not specified.
-     */
-    public static int parseSocketTos(final ChannelUri channelUri)
-    {
-        final String value = channelUri.get(SOCKET_TOS_PARAM_NAME);
-        if (null == value)
-        {
-            return SOCKET_TOS_DEFAULT;
-        }
-
-        final int socketTos = Integer.parseInt(value);
-        if (socketTos < 0 || socketTos > 255)
-        {
-            throw new IllegalArgumentException(
-                SOCKET_TOS_PARAM_NAME + " must be between 0 and 255 inclusive: " + value);
-        }
-
-        return socketTos;
-    }
-
-    /**
      * Parse the control mode from the channel URI. If the value is null or unknown then {@link ControlMode#NONE} will
      * be used.
      *
@@ -429,9 +427,9 @@ public final class UdpChannel
     /**
      * Parses out a duration from a channel URI and caters for unit suffix information.
      *
-     * @param channelUri    to read the value from
-     * @param paramName     specific field to access in the URI
-     * @return              duration in nanoseconds, null if not present
+     * @param channelUri to read the value from
+     * @param paramName  specific field to access in the URI
+     * @return duration in nanoseconds, null if not present
      */
     public static Long parseOptionalDurationNs(final ChannelUri channelUri, final String paramName)
     {
@@ -823,8 +821,8 @@ public final class UdpChannel
     /**
      * Does this channel have a tag match to another channel having INADDR_ANY endpoints.
      *
-     * @param udpChannel to match against.
-     * @param localAddress local address override to use for this channel.
+     * @param udpChannel    to match against.
+     * @param localAddress  local address override to use for this channel.
      * @param remoteAddress remote address override to use for this channel.
      * @return true if there is a match otherwise false.
      */
