@@ -2,6 +2,7 @@
 
 == 1.54.0 (unreleased)
 
+* **[C/C{plus}{plus}]** Fix C++ compilation on `aarch64` and `ppc64` with gcc. (https://github.com/aeron-io/aeron/pull/2153[#2153])
 * **[Client/C{plus}{plus} Wrapper]** Fix error handling in `AgentRunner`, i.e. do not exit on unexpected errors, add
 support for `AgentTerminationException`, close `Agent` even if `start` was not called.
 * **[Client/C]** Ignore unknown responses from the media driver, i.e. do not exit process.
