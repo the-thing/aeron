@@ -50,7 +50,9 @@ def toolchainLauncher = javaToolchains.launcherFor {
 
 def aeronGroup = 'io.aeron'
 def aeronVersion = file('version.txt').text.trim()
-def gitCommitHash = io.aeron.build.GithubUtil.currentGitHash("${projectDir}")
+Provider<String> gitCommitHash = providers.provider {
+    io.aeron.build.GithubUtil.currentGitHash("${projectDir}")
+}
 
 def getConfigProperty(final String projectPropertyName, final String envVarName) {
     String value = project.findProperty(projectPropertyName)
@@ -215,7 +217,7 @@ subprojects {
         options.compilerArgs.add(java.sourceCompatibility.majorVersion)
         options.compilerArgs.addAll(['-Xlint:all,-processing', '-Werror', '-parameters']) // Enable all warnings and treat them as errors
         options.compilerArgs.add("-Aio.aeron.version=${aeronVersion}")
-        options.compilerArgs.add("-Aio.aeron.gitsha=${gitCommitHash}")
+        options.compilerArgs.add("-Aio.aeron.gitsha=${gitCommitHash.get()}")
     }
 
     def mockitoAgent = configurations.create('mockitoAgent') { transitive = false }
