@@ -121,6 +121,7 @@ import static org.agrona.concurrent.status.CountersReader.metaDataOffset;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -1481,6 +1482,82 @@ class ArchiveTest
             aeronArchive.startRecording(
                 ChannelUri.addSessionId(channel, publication.sessionId()), publication.streamId(), LOCAL);
             Tests.awaitRecordingCounterId(aeron.countersReader(), publication.sessionId(), aeronArchive.archiveId());
+        }
+    }
+
+    @Test
+    @InterruptAfter(10)
+    void shouldReleaseRecordingSlotWhenRecordingIsStoppedBeforeAnyImage(@TempDir final Path temp)
+    {
+        final int streamId = 7;
+        final String channel = "aeron:ipc";
+
+        final MediaDriver.Context driverCtx = new MediaDriver.Context()
+            .dirDeleteOnStart(true)
+            .threadingMode(ThreadingMode.SHARED);
+        final Archive.Context archiveCtx = TestContexts.localhostArchive()
+            .maxConcurrentRecordings(1)
+            .deleteArchiveOnStart(true)
+            .threadingMode(SHARED)
+            .archiveDir(temp.resolve("archive").toFile());
+
+        try (ArchivingMediaDriver ignore = ArchivingMediaDriver.launch(driverCtx, archiveCtx);
+            AeronArchive archive = AeronArchive.connect(TestContexts.localhostAeronArchive()))
+        {
+            final long firstSubscriptionId = archive.startRecording(channel, streamId, LOCAL);
+            archive.stopRecording(firstSubscriptionId);
+
+            final long secondSubscriptionId =
+                assertDoesNotThrow(() -> archive.startRecording(channel, streamId, LOCAL));
+            archive.stopRecording(secondSubscriptionId);
+        }
+    }
+
+    @Test
+    @InterruptAfter(10)
+    void newRecordingViaImageShouldBeCheckedAgainstTheMaxConcurrentRecordingLimits(@TempDir final Path temp)
+    {
+        final int streamId = 10004;
+        final String channel = "aeron:ipc";
+
+        final MediaDriver.Context driverCtx = new MediaDriver.Context()
+            .dirDeleteOnStart(true)
+            .threadingMode(ThreadingMode.SHARED);
+        final Archive.Context archiveCtx = TestContexts.localhostArchive()
+            .maxConcurrentRecordings(1)
+            .deleteArchiveOnStart(true)
+            .threadingMode(SHARED)
+            .archiveDir(temp.resolve("archive").toFile());
+
+        try (ArchivingMediaDriver ignore = ArchivingMediaDriver.launch(driverCtx, archiveCtx);
+            AeronArchive aeronArchive = AeronArchive.connect(TestContexts.localhostAeronArchive()))
+        {
+            aeronArchive.startRecording(channel, streamId, LOCAL);
+
+            final Aeron aeron = aeronArchive.context().aeron();
+            final ExclusivePublication pub1 = aeron
+                .addExclusivePublication(ChannelUri.addSessionId(channel, 1), streamId);
+            Tests.awaitConnected(pub1);
+
+            Tests.awaitRecordingCounterId(aeron.countersReader(), pub1.sessionId(), aeronArchive.archiveId());
+
+            // create a second publisher and force new image -> attempt to start a new recording should fail
+            final ExclusivePublication pub2 = aeron
+                .addExclusivePublication(ChannelUri.addSessionId(channel, 2), streamId);
+            Tests.awaitConnected(pub2);
+            while (true)
+            {
+                try
+                {
+                    aeronArchive.checkForErrorResponse();
+                }
+                catch (final ArchiveException ex)
+                {
+                    assertEquals(ArchiveException.MAX_RECORDINGS, ex.errorCode());
+                    break;
+                }
+                Tests.yield();
+            }
         }
     }
 

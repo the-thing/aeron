@@ -137,7 +137,6 @@ abstract class ArchiveConductor
     private long markFileUpdateDeadlineMs = 0;
     private int replayId = 1;
     private int numActiveReplays;
-    private int numActiveRecordings;
     private volatile boolean isAbort;
 
     private final RecordingSummary recordingSummary = new RecordingSummary();
@@ -154,7 +153,7 @@ abstract class ArchiveConductor
     private final UnsafeBuffer descriptorBuffer = new UnsafeBuffer();
     private final RecordingDescriptorDecoder recordingDescriptorDecoder = new RecordingDescriptorDecoder();
     private final UnsafeBuffer counterMetadataBuffer = new UnsafeBuffer(new byte[METADATA_LENGTH]);
-    private final Long2LongCounterMap subscriptionRefCountMap = new Long2LongCounterMap(0L);
+    private final Long2LongCounterMap recordingSubscriptionRefCounts = new Long2LongCounterMap(0L);
 
     private final Aeron aeron;
     private final AgentInvoker aeronAgentInvoker;
@@ -535,9 +534,10 @@ abstract class ArchiveConductor
         final String originalChannel,
         final ControlSession controlSession)
     {
-        if (numActiveRecordings >= ctx.maxConcurrentRecordings())
+        if (recordingSubscriptionByKeyMap.size() >= ctx.maxConcurrentRecordings() ||
+            recordingSessionByIdMap.size() >= ctx.maxConcurrentRecordings())
         {
-            final String msg = "max concurrent recordings reached " + ctx.maxConcurrentRecordings();
+            final String msg = "max concurrent recordings reached at " + ctx.maxConcurrentRecordings();
             controlSession.sendErrorResponse(correlationId, MAX_RECORDINGS, msg);
             return;
         }
@@ -565,8 +565,7 @@ abstract class ArchiveConductor
                 final Subscription subscription = aeron.addSubscription(channel, streamId, handler, null);
 
                 recordingSubscriptionByKeyMap.put(key, subscription);
-                subscriptionRefCountMap.incrementAndGet(subscription.registrationId());
-                numActiveRecordings++;
+                recordingSubscriptionRefCounts.incrementAndGet(subscription.registrationId());
                 controlSession.sendOkResponse(correlationId, subscription.registrationId());
             }
             else
@@ -1074,7 +1073,8 @@ abstract class ArchiveConductor
         final String originalChannel,
         final ControlSession controlSession)
     {
-        if (numActiveRecordings >= ctx.maxConcurrentRecordings())
+        if (recordingSubscriptionByKeyMap.size() >= ctx.maxConcurrentRecordings() ||
+            recordingSessionByIdMap.size() >= ctx.maxConcurrentRecordings())
         {
             final String msg = "max concurrent recordings reached at " + ctx.maxConcurrentRecordings();
             controlSession.sendErrorResponse(correlationId, MAX_RECORDINGS, msg);
@@ -1136,8 +1136,7 @@ abstract class ArchiveConductor
                 final Subscription subscription = aeron.addSubscription(channel, streamId, handler, null);
 
                 recordingSubscriptionByKeyMap.put(key, subscription);
-                subscriptionRefCountMap.incrementAndGet(subscription.registrationId());
-                numActiveRecordings++;
+                recordingSubscriptionRefCounts.incrementAndGet(subscription.registrationId());
                 controlSession.sendOkResponse(correlationId, subscription.registrationId());
 
                 return subscription;
@@ -1316,7 +1315,7 @@ abstract class ArchiveConductor
                 if (null != subscription)
                 {
                     found = 1;
-                    if (0 == subscriptionRefCountMap.decrementAndGet(subscriptionId))
+                    if (0 == recordingSubscriptionRefCounts.decrementAndGet(subscriptionId))
                     {
                         subscription.close();
                     }
@@ -1353,13 +1352,12 @@ abstract class ArchiveConductor
             }
         }
 
-        if (subscriptionRefCountMap.decrementAndGet(subscriptionId) <= 0 || session.isAutoStop())
+        if (recordingSubscriptionRefCounts.decrementAndGet(subscriptionId) <= 0 || session.isAutoStop())
         {
             closeAndRemoveRecordingSubscription(subscription, "close recording session");
         }
         closeSession(session);
         recordingSessionByIdMap.remove(recordingId);
-        numActiveRecordings--;
         ctx.recordingSessionCounter().decrementRelease();
     }
 
@@ -1774,7 +1772,7 @@ abstract class ArchiveConductor
             }
         }
 
-        if (0 == subscriptionRefCountMap.decrementAndGet(subscription.registrationId()))
+        if (0 == recordingSubscriptionRefCounts.decrementAndGet(subscription.registrationId()))
         {
             subscription.close();
         }
@@ -1997,6 +1995,21 @@ abstract class ArchiveConductor
         final Image image,
         final boolean autoStop)
     {
+        if (recordingSessionByIdMap.size() >= ctx.maxConcurrentRecordings())
+        {
+            final String msg = "max concurrent recordings reached at " + ctx.maxConcurrentRecordings();
+            controlSession.sendErrorResponse(correlationId, MAX_RECORDINGS, msg);
+            errorHandler.onError(new ArchiveEvent(msg));
+            return;
+        }
+
+        final String lowStorageSpaceError = isLowStorageSpace(correlationId, controlSession);
+        if (null != lowStorageSpaceError)
+        {
+            errorHandler.onError(new ArchiveEvent(lowStorageSpaceError));
+            return;
+        }
+
         final int sessionId = image.sessionId();
         final int streamId = image.subscription().streamId();
         final String sourceIdentity = image.sourceIdentity();
@@ -2051,7 +2064,7 @@ abstract class ArchiveConductor
             image.joinPosition(),
             RecordingSignal.START);
 
-        subscriptionRefCountMap.incrementAndGet(image.subscription().registrationId());
+        recordingSubscriptionRefCounts.incrementAndGet(image.subscription().registrationId());
         recordingSessionByIdMap.put(recordingId, session);
         recorder.addSession(session);
         ctx.recordingSessionCounter().incrementRelease();
@@ -2075,6 +2088,19 @@ abstract class ArchiveConductor
                     " streamId=" + image.subscription().streamId() + " channel=" + originalChannel;
                 controlSession.sendErrorResponse(correlationId, ACTIVE_RECORDING, msg);
                 throw new ArchiveEvent(msg);
+            }
+
+            if (recordingSessionByIdMap.size() >= ctx.maxConcurrentRecordings())
+            {
+                final String msg = "max concurrent recordings reached at " + ctx.maxConcurrentRecordings();
+                controlSession.sendErrorResponse(correlationId, MAX_RECORDINGS, msg);
+                throw new ArchiveEvent(msg);
+            }
+
+            final String lowStorageSpaceError = isLowStorageSpace(correlationId, controlSession);
+            if (null != lowStorageSpaceError)
+            {
+                throw new ArchiveEvent(lowStorageSpaceError);
             }
 
             catalog.recordingSummary(recordingId, recordingSummary);
@@ -2122,7 +2148,7 @@ abstract class ArchiveConductor
             controlSession.sendSignal(
                 correlationId, recordingId, subscriptionId, image.joinPosition(), RecordingSignal.EXTEND);
 
-            subscriptionRefCountMap.incrementAndGet(subscriptionId);
+            recordingSubscriptionRefCounts.incrementAndGet(subscriptionId);
             recordingSessionByIdMap.put(recordingId, session);
             recorder.addSession(session);
             ctx.recordingSessionCounter().incrementRelease();
@@ -2581,7 +2607,7 @@ abstract class ArchiveConductor
     private void closeAndRemoveRecordingSubscription(final Subscription subscription, final String reason)
     {
         final long subscriptionId = subscription.registrationId();
-        subscriptionRefCountMap.remove(subscriptionId);
+        recordingSubscriptionRefCounts.remove(subscriptionId);
 
         for (final RecordingSession session : recordingSessionByIdMap.values())
         {
