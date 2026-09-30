@@ -78,6 +78,7 @@ import static io.aeron.archive.ArchiveSystemTests.injectRecordingSignalConsumer;
 import static io.aeron.archive.ArchiveSystemTests.offer;
 import static io.aeron.archive.ArchiveSystemTests.recordData;
 import static io.aeron.archive.client.AeronArchive.NULL_POSITION;
+import static io.aeron.archive.client.AeronArchive.REPLAY_ALL_AND_FOLLOW;
 import static io.aeron.archive.codecs.SourceLocation.LOCAL;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -441,7 +442,7 @@ class BasicArchiveTest
     void purgeRecordingFailsIfThereAreActiveReplays()
     {
         final String messagePrefix = "Message-Prefix-";
-        final int messageCount = 10;
+        final int messageCount = 100;
         final long stopPosition;
 
         final long subscriptionId = aeronArchive.startRecording(RECORDED_CHANNEL, RECORDED_STREAM_ID, LOCAL);
@@ -479,10 +480,9 @@ class BasicArchiveTest
             0, "alias=" + RECORDED_CHANNEL_ALIAS, RECORDED_STREAM_ID, sessionId));
 
         final long position = 0L;
-        final long length = stopPosition - position;
 
         try (Subscription ignore = aeronArchive.replay(
-            recordingId, position, length, REPLAY_CHANNEL, REPLAY_STREAM_ID))
+            recordingId, position, REPLAY_ALL_AND_FOLLOW, REPLAY_CHANNEL, REPLAY_STREAM_ID))
         {
             final ArchiveException exception = assertThrows(
                 ArchiveException.class, () -> aeronArchive.purgeRecording(recordingId));
