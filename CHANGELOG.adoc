@@ -8,6 +8,10 @@
 
 === Changelog
 
+* **[Archive/Java]** Return after rejecting a replay of an empty recording. (https://github.com/aeron-io/aeron/pull/2157[#2157])
+* **[C]** Handle buffer builder append failures in the fragment assembler. (https://github.com/aeron-io/aeron/pull/2159[#2159])
+* **[Client/C]** Fence the claim marker in the MPSC ring buffer before writing the record. (https://github.com/aeron-io/aeron/pull/2156[#2156])
+* **[Driver/C]** Correctly index `iovec` by byte offset when applying channel send timestamps. (https://github.com/aeron-io/aeron/pull/2154[#2154])
 * **[C/C{plus}{plus}]** Fix C++ compilation on `aarch64` and `ppc64` with gcc. (https://github.com/aeron-io/aeron/pull/2153[#2153])
 * **[Client/C{plus}{plus} Wrapper]** Fix error handling in `AgentRunner`, i.e. do not exit on unexpected errors, add
 support for `AgentTerminationException`, close `Agent` even if `start` was not called.
