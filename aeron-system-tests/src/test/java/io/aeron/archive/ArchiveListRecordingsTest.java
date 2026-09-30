@@ -80,7 +80,8 @@ public class ArchiveListRecordingsTest
             .deleteArchiveOnStart(true)
             .archiveDir(new File(SystemUtil.tmpDirName(), "archive-test"))
             .segmentFileLength(LogBufferDescriptor.TERM_MIN_LENGTH)
-            .idleStrategySupplier(YieldingIdleStrategy::new);
+            .idleStrategySupplier(YieldingIdleStrategy::new)
+            .maxConcurrentRecordings(200);
 
         driver = TestMediaDriver.launch(driverCtx, systemTestWatcher);
         systemTestWatcher.dataCollector().add(driverCtx.aeronDirectory());
