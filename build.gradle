@@ -50,7 +50,6 @@ def toolchainLauncher = javaToolchains.launcherFor {
 
 def aeronGroup = 'io.aeron'
 def aeronVersion = file('version.txt').text.trim()
-def gitCommitHash = io.aeron.build.GithubUtil.currentGitHash("${projectDir}")
 
 def getConfigProperty(final String projectPropertyName, final String envVarName) {
     String value = project.findProperty(projectPropertyName)
@@ -209,13 +208,15 @@ subprojects {
     }
 
     tasks.withType(JavaCompile).configureEach {
-        options.encoding = 'UTF-8'
-        options.deprecation = true
-        options.compilerArgs.add('--release')
-        options.compilerArgs.add(java.sourceCompatibility.majorVersion)
-        options.compilerArgs.addAll(['-Xlint:all,-processing', '-Werror', '-parameters']) // Enable all warnings and treat them as errors
-        options.compilerArgs.add("-Aio.aeron.version=${aeronVersion}")
-        options.compilerArgs.add("-Aio.aeron.gitsha=${gitCommitHash}")
+        doFirst { t ->
+            t.options.encoding = 'UTF-8'
+            t.options.deprecation = true
+            t.options.compilerArgs.add('--release')
+            t.options.compilerArgs.add(java.sourceCompatibility.majorVersion)
+            t.options.compilerArgs.addAll(['-Xlint:all,-processing', '-Werror', '-parameters']) // Enable all warnings and treat them as errors
+            t.options.compilerArgs.add("-Aio.aeron.version=${aeronVersion}")
+            t.options.compilerArgs.add("-Aio.aeron.gitsha=${io.aeron.build.GithubUtil.currentGitHash("${projectDir}")}")
+        }
     }
 
     def mockitoAgent = configurations.create('mockitoAgent') { transitive = false }
