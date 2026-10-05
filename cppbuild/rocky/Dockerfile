@@ -17,7 +17,7 @@ RUN yum groupinstall 'Development Tools' -y
 ENV JAVA_HOME=/usr/lib/jvm/java-17-zulu-openjdk \
     BUILD_JAVA_HOME=/usr/lib/jvm/java-17-zulu-openjdk \
     BUILD_JAVA_VERSION=17 \
-    GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.java.installations.auto-detect=false -Dorg.gradle.warning.mode=fail"
+    GRADLE_OPTS="-Dorg.gradle.daemon=false"
 
 ARG USER_ID="1000"
 ARG GROUP_ID="1000"
